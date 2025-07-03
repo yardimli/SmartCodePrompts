@@ -32,6 +32,9 @@ async function handlePostRequest(req, res) {
 		try {
 			switch (action) {
 				// --- Config/Setup Actions (from node-config.js) ---
+				case 'get_session_stats':
+					result = llmManager.getSessionStats();
+					break;
 				case 'get_setup':
 					result = configManager.getSetupData();
 					break;

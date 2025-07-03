@@ -97,153 +97,85 @@ function setDefaultAppSettings() {
 		initSettingsStmt.run('lastSelectedProject', '');
 		initSettingsStmt.run('lastSelectedLlm', '');
 		
-		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, minified JSON object format. Do not include any text outside of the JSON object. The JSON object should have the following structure: {"overview": "A brief, one-sentence summary of the file's primary purpose.","internal_dependencies": ["list/of/project/files/it/imports/or/requires"],"external_dependencies": ["list/of/external/libraries/or/apis/used"]}\n\nFile Path: \${filePath}\nFile Content:\n---\n\${fileContent}\n---`;
+		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, minified JSON object format. Do not include any text outside of the JSON object. The JSON object should have the following structure:
+
+{
+"overview": "A brief, one-sentence summary of the file's primary purpose.",
+"internal_dependencies": ["list/of/project/files/it/imports/or/requires"],
+"external_dependencies": ["list/of/external/libraries/or/apis/used"],
+"codex": {
+"security_crypto": ["List of security and cryptographic functions found - including encryption/decryption (AES, RSA, DES), hashing (SHA, bcrypt, PBKDF2), random generation, key management, signatures, certificates"],
+"auth": ["List of authentication and authorization functions - including OAuth, JWT, sessions, biometric auth, MFA"],
+"platform_apis": ["List of platform-specific security APIs - Android KeyStore, iOS Keychain, Web Crypto API"],
+"system_io": ["List of system and I/O operations - file system, network, process management, database operations"],
+"data_processing": ["List of data processing functions - JSON parsing, encoding/decoding, compression, regex, XML/HTML parsing"],
+"data_protection": ["List of data protection and privacy functions - PII handling, secure storage, data erasure, clipboard ops"],
+"memory_resources": ["List of memory and resource management - allocation, garbage collection, threading, pools"],
+"communication": ["List of communication and protocol functions - WebSockets, gRPC, GraphQL, push notifications, WebRTC, message queues"],
+"state_cache": ["List of state and cache management - localStorage, mobile databases, cache operations, state libraries"],
+"third_party": ["List of third-party service integrations - payment processing, cloud services, analytics, social media, maps"],
+"web_apis": ["List of modern web APIs - service workers, web workers, permissions, device APIs, media APIs"],
+"runtime_ops": ["List of build-time and runtime operations - reflection, dynamic loading, code generation, hot reload"]
+}
+}
+
+File Path: \${filePath}
+File Content:
+\${fileContent}`;
+		
 		const defaultFunctionsPrompt = `Analyze the following file content and provide a response in a single, JSON object format. Do not include any text outside of the JSON object.
-PROMPT: Create a comprehensive function analysis and code dependency codex by analyzing source code
+
+PROMPT: Create a comprehensive function analysis by analyzing source code
+
 INSTRUCTIONS:
-PART 1: FUNCTION ANALYSIS
 Perform a detailed analysis of all functions, methods, and callable code blocks in the source file:
 
 Function Identification
-
-Identify all function declarations (named functions, anonymous functions, arrow functions, lambda expressions)
-Detect class methods (public, private, protected, static methods)
-Find constructors, destructors, and initializers
-Locate getters, setters, and property accessors
-Identify event handlers and callback functions
-Detect lifecycle methods and hooks
-Find generator functions and async functions
-
+- Identify all function declarations (named functions, anonymous functions, arrow functions, lambda expressions)
+- Detect class methods (public, private, protected, static methods)
+- Find constructors, destructors, and initializers
+- Locate getters, setters, and property accessors
+- Identify event handlers and callback functions
+- Detect lifecycle methods and hooks
+- Find generator functions and async functions
 
 Function Signature Analysis
-
-Extract exact function names and aliases
-Document all parameters with types (if available)
-Identify optional parameters and default values
-Note rest parameters and spread operators
-Detect function overloads and polymorphic signatures
-Document return types (explicit or inferred)
-
+- Extract exact function names and aliases
+- Document all parameters with types (if available)
+- Identify optional parameters and default values
+- Note rest parameters and spread operators
+- Detect function overloads and polymorphic signatures
+- Document return types (explicit or inferred)
 
 Function Purpose and Behavior
-
-Determine the primary purpose of each function
-Identify side effects and state mutations
-Note pure vs impure functions
-Detect recursive functions
-Identify higher-order functions
-Document error handling within functions
-Note any security-sensitive operations
-
+- Determine the primary purpose of each function
+- Identify side effects and state mutations
+- Note pure vs impure functions
+- Detect recursive functions
+- Identify higher-order functions
+- Document error handling within functions
+- Note any security-sensitive operations
 
 Function Dependencies
-
-List all external functions called within each function
-Identify global variables accessed or modified
-Note imported modules and libraries used
-Document API calls and external service interactions
-Track database operations and file system access
-Identify shared resources and synchronization points
-
+- List all external functions called within each function
+- Identify global variables accessed or modified
+- Note imported modules and libraries used
+- Document API calls and external service interactions
+- Track database operations and file system access
+- Identify shared resources and synchronization points
 
 Function Relationships
+- Map caller-callee relationships
+- Identify function chains and pipelines
+- Note inheritance and override patterns
+- Document interface implementations
+- Track event emitters and listeners
+- Identify decorator and wrapper patterns
 
-Map caller-callee relationships
-Identify function chains and pipelines
-Note inheritance and override patterns
-Document interface implementations
-Track event emitters and listeners
-Identify decorator and wrapper patterns
-
-
-
-PART 2: DEPENDENCY CODEX
-Scan and identify ALL dependencies and internal functions in the source code, categorizing them as follows:
-SECURITY & CRYPTOGRAPHIC FUNCTIONS
-Encryption/Decryption: AES, RSA, DES, 3DES, Blowfish, ChaCha20, etc.
-Hashing: MD5, SHA-1, SHA-256, SHA-512, bcrypt, scrypt, PBKDF2, Argon2, etc.
-Random Number Generation: SecureRandom, crypto.getRandomValues(), urandom, etc.
-Key Generation/Management: generateKey(), createCipheriv(), KeyGenerator, etc.
-Digital Signatures: sign(), verify(), ECDSA, DSA, etc.
-Certificate Operations: X509, SSL/TLS functions, cert validation, pinning
-AUTHENTICATION & AUTHORIZATION
-Identity Management: OAuth, OAuth2, SAML, OpenID Connect
-Token Handling: JWT creation/validation, refresh tokens, bearer tokens
-Session Management: createSession(), destroySession(), sessionStorage
-Biometric Auth: TouchID, FaceID, BiometricPrompt, fingerprint APIs
-Multi-Factor Auth: TOTP, HOTP, SMS verification, authenticator apps
-PLATFORM-SPECIFIC SECURITY APIS
-Android: KeyStore, SafetyNet, Play Integrity API, App Attestation
-iOS: Keychain Services, CryptoKit, Security framework, App Transport Security
-Web: SubtleCrypto, Web Crypto API, Credential Management API
-SYSTEM & I/O OPERATIONS
-File System: read(), write(), open(), mkdir(), chmod(), unlink(), etc.
-Network: socket(), connect(), listen(), fetch(), XMLHttpRequest, axios, etc.
-Process Management: exec(), spawn(), fork(), system(), subprocess, etc.
-Database: query(), connect(), execute(), prepare(), transaction(), etc.
-DATA PROCESSING FUNCTIONS
-Serialization: JSON.parse(), pickle, marshal, serialize(), etc.
-Encoding/Decoding: base64, URL encoding, HTML encoding, unicode, etc.
-Compression: gzip, zlib, bzip2, lz4, brotli, etc.
-Regular Expressions: regex, match(), search(), compile(), etc.
-XML/HTML Parsing: DOMParser, SAX, BeautifulSoup, etc.
-DATA PROTECTION & PRIVACY
-PII Handling: mask(), redact(), anonymize(), pseudonymize()
-Secure Storage: EncryptedSharedPreferences, iOS Keychain, SecureStorage
-Data Erasure: secureDelete(), wipe(), shred()
-Clipboard Operations: clipboard access, copy protection
-MEMORY & RESOURCE MANAGEMENT
-Memory Allocation: malloc(), new, allocate(), mmap(), etc.
-Garbage Collection: gc(), dispose(), WeakReference, etc.
-Threading/Async: Thread(), async/await, Promise, coroutines, etc.
-Resource Pools: connection pools, thread pools, object pools
-COMMUNICATION & PROTOCOLS
-WebSockets: ws.connect(), send(), onmessage
-gRPC: stub generation, channel creation, streaming
-GraphQL: query(), mutation(), subscription()
-Push Notifications: FCM, APNS, Web Push API
-WebRTC: RTCPeerConnection, getUserMedia()
-Message Queues: RabbitMQ, Kafka, Redis pub/sub
-STATE & CACHE MANAGEMENT
-Local Storage: localStorage, sessionStorage, IndexedDB
-Mobile Databases: Room, CoreData, Realm, SQLite
-Cache Operations: cache.put(), invalidate(), TTL management
-State Libraries: Redux, MobX, Vuex dispatchers
-THIRD-PARTY SERVICE INTEGRATION
-Payment Processing: Stripe, PayPal, Square SDKs
-Cloud Services: AWS SDK, Google Cloud, Azure libraries
-Analytics: Google Analytics, Mixpanel, Amplitude
-Social Media: Facebook SDK, Twitter API, OAuth flows
-Maps/Location: GPS access, Geolocation API, Maps SDKs
-MODERN WEB APIS
-Service Workers: register(), fetch events, cache strategies
-Web Workers: postMessage(), importScripts()
-Permissions API: query(), request(), revoke()
-Battery/Device APIs: getBattery(), DeviceOrientation
-Media APIs: getUserMedia(), MediaRecorder, Screen Capture
-BUILD-TIME & RUNTIME OPERATIONS
-Reflection: getClass(), getDeclaredMethods(), instanceof
-Dynamic Loading: dlopen(), System.loadLibrary(), require()
-Code Generation: eval(), Function(), dynamic imports
-Hot Reload/Update: module.hot, code push services
 The JSON object should have the following structure:
 {
 "language": "The primary programming language detected",
 "frameworks": ["List of frameworks and major libraries detected"],
-"codex": {
-"security_crypto": ["List of security and cryptographic functions found"],
-"auth": ["List of authentication and authorization functions found"],
-"platform_apis": ["List of platform-specific security APIs found"],
-"system_io": ["List of system and I/O operations found"],
-"data_processing": ["List of data processing functions found"],
-"data_protection": ["List of data protection and privacy functions found"],
-"memory_resources": ["List of memory and resource management functions found"],
-"communication": ["List of communication and protocol functions found"],
-"state_cache": ["List of state and cache management functions found"],
-"third_party": ["List of third-party service integrations found"],
-"web_apis": ["List of modern web APIs found"],
-"runtime_ops": ["List of build-time and runtime operations found"]
-},
 "functions": [
 {
 "name": "functionName",
@@ -292,9 +224,9 @@ The JSON object should have the following structure:
 "execution_flow": "High-level description of how the code executes"
 }
 
-File Path: ${filePath}
+File Path: \${filePath}
 File Content:
-${fileContent}`;
+\${fileContent}`;
 		const defaultContentFooter = 'For output format the output. \n' +
 			'For PHP use psr-12 standards.\n' +
 			'For javascript use StandardJS but include semicolumns.\n' +

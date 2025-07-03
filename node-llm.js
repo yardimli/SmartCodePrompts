@@ -6,6 +6,12 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {getFileContent, getRawFileContent, getFileAnalysis, calculateChecksum} = require('./node-files');
 
+// NEW: Module-level state to track session-wide data.
+// This will persist as long as the Node.js process is running.
+let sessionTokenUsage = {prompt: 0, completion: 0};
+let reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
+
+
 /**
  * Logs an interaction with the LLM to a file.
  * @param {string} prompt - The prompt sent to the LLM.
@@ -16,15 +22,7 @@ function logLlmInteraction(prompt, response, isError = false) {
 	const logFilePath = path.join(__dirname, 'llm-log.txt');
 	const timestamp = new Date().toISOString();
 	const logHeader = isError ? '--- LLM ERROR ---' : '--- LLM INTERACTION ---';
-	const logEntry = `
-${logHeader}
-Timestamp: ${timestamp}
---- PROMPT SENT ---
-${prompt}
---- RESPONSE RECEIVED ---
-${response}
---- END ---
-\n`;
+	const logEntry = ` ${logHeader}\n Timestamp: ${timestamp} \n---\n PROMPT SENT \n---\n ${prompt} \n---\n RESPONSE RECEIVED \n---\n ${response} \n--- END ---\n \n`;
 	try {
 		fs.appendFileSync(logFilePath, logEntry);
 	} catch (err) {
@@ -107,6 +105,11 @@ async function callLlm(prompt, modelId) {
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					try {
 						const responseJson = JSON.parse(data);
+						// NEW: Track token usage from the API response.
+						if (responseJson.usage) {
+							sessionTokenUsage.prompt += responseJson.usage.prompt_tokens || 0;
+							sessionTokenUsage.completion += responseJson.usage.completion_tokens || 0;
+						}
 						if (responseJson.choices && responseJson.choices.length > 0) {
 							const llmContent = responseJson.choices[0].message.content;
 							logLlmInteraction(prompt, llmContent, false);
@@ -164,7 +167,7 @@ async function refreshLlms() {
 }
 
 /**
- * MODIFIED: Analyzes a single file using two separate LLM calls for overview and function details,
+ * Analyzes a single file using two separate LLM calls for overview and function details,
  * then saves the results to the database. Skips analysis if file content has not changed, unless forced.
  * @param {object} params - The parameters for the analysis.
  * @param {number} params.rootIndex - The index of the project's root directory.
@@ -178,51 +181,35 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
-	// Get raw content and calculate a checksum.
 	const rawFileContent = getRawFileContent(filePath, rootIndex);
 	const currentChecksum = crypto.createHash('sha256').update(rawFileContent).digest('hex');
-	
-	// Check against the stored checksum in the database.
 	const existingMetadata = db.prepare('SELECT last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?')
 		.get(rootIndex, projectPath, filePath);
 	
-	// If we are NOT forcing analysis and checksums match, the file is unchanged. Skip analysis.
 	if (!force && existingMetadata && existingMetadata.last_checksum === currentChecksum) {
 		console.log(`Skipping analysis for ${filePath}, checksum matches.`);
 		return {success: true, status: 'skipped'};
 	}
-	
-	// If checksums differ or no prior analysis exists, proceed.
 	console.log(`Analyzing ${filePath}, checksum mismatch or new file.`);
-	const fileContent = getFileContent(filePath, rootIndex).content; // Get minified content for the prompt.
-	
-	// Prompt 1: File Overview (from config)
+	const fileContent = getFileContent(filePath, rootIndex).content;
 	const overviewPromptTemplate = config.prompt_file_overview;
 	const overviewPrompt = overviewPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
 	const overviewResult = await callLlm(overviewPrompt, llmId);
-	
-	// Prompt 2: Functions and Logic (from config)
 	const functionsPromptTemplate = config.prompt_functions_logic;
 	const functionsPrompt = functionsPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
 	const functionsResult = await callLlm(functionsPrompt, llmId);
-	
-	// Save results to the database, including the new checksum and current timestamp.
-	db.prepare(`
-        INSERT OR REPLACE INTO file_metadata
-            (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
-	
+	db.prepare(` INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum) VALUES (?, ?, ?, ?, ?, ?, ?) `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
 	return {success: true, status: 'analyzed'};
 }
 
 /**
  * MODIFIED: Scans all analyzed files in a project and re-analyzes any that have been modified.
  * Can also be forced to re-analyze all files regardless of modification status.
+ * Now reports progress via the module-level `reanalysisProgress` state.
  * @param {object} params - The parameters for the operation.
  * @param {number} params.rootIndex - The index of the project's root directory.
  * @param {string} params.projectPath - The path of the project.
@@ -237,30 +224,46 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 	const analyzedFiles = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?')
 		.all(rootIndex, projectPath);
 	
+	// NEW: Initialize progress tracking state.
+	reanalysisProgress = {
+		total: analyzedFiles.length,
+		current: 0,
+		running: true,
+		message: 'Initializing re-analysis...'
+	};
+	
 	let analyzedCount = 0;
 	let skippedCount = 0;
 	const errors = [];
 	
-	for (const file of analyzedFiles) {
-		try {
-			const rawFileContent = getRawFileContent(file.file_path, rootIndex);
-			const currentChecksum = calculateChecksum(rawFileContent);
+	try {
+		for (const file of analyzedFiles) {
+			// NEW: Update progress before processing each file.
+			reanalysisProgress.current++;
+			reanalysisProgress.message = `Processing ${file.file_path}`;
 			
-			// Re-analyze if 'force' is true or if the checksum has changed.
-			if (force || currentChecksum !== file.last_checksum) {
-				console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-				// Pass the force flag down to ensure the inner checksum check is bypassed if needed.
-				await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: force});
-				analyzedCount++;
-			} else {
-				skippedCount++;
+			try {
+				const rawFileContent = getRawFileContent(file.file_path, rootIndex);
+				const currentChecksum = calculateChecksum(rawFileContent);
+				if (force || currentChecksum !== file.last_checksum) {
+					reanalysisProgress.message = `Analyzing ${file.file_path}`; // More specific message
+					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
+					// Pass `force: true` to analyzeFile to ensure it runs without its own redundant check.
+					await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: true});
+					analyzedCount++;
+				} else {
+					skippedCount++;
+				}
+			} catch (error) {
+				console.error(`Error during re-analysis of ${file.file_path}:`, error);
+				errors.push(`${file.file_path}: ${error.message}`);
 			}
-		} catch (error) {
-			console.error(`Error during re-analysis of ${file.file_path}:`, error);
-			errors.push(`${file.file_path}: ${error.message}`);
 		}
+		return {success: true, analyzed: analyzedCount, skipped: skippedCount, errors: errors};
+	} finally {
+		// NEW: Reset progress state regardless of success or failure to clean up the UI.
+		reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
 	}
-	return {success: true, analyzed: analyzedCount, skipped: skippedCount, errors: errors};
 }
 
 /**
@@ -272,18 +275,10 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
-	// Query the DB for all analyzed files in the project.
-	const analyzedFiles = db.prepare(`
-        SELECT file_path, file_overview, functions_overview
-        FROM file_metadata
-        WHERE project_root_index = ? AND project_path = ?
-          AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
-    `).all(rootIndex, projectPath);
-	
+	const analyzedFiles = db.prepare(` SELECT file_path, file_overview, functions_overview FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != '')) `).all(rootIndex, projectPath);
 	if (!analyzedFiles || analyzedFiles.length === 0) {
 		throw new Error('No files have been analyzed in this project. Please analyze files before using this feature.');
 	}
-	
 	let analysisDataString = '';
 	const allFilePaths = [];
 	for (const analysis of analyzedFiles) {
@@ -297,17 +292,14 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 		}
 		analysisDataString += '---\n\n';
 	}
-	
 	const masterPromptTemplate = config.prompt_smart_prompt;
 	const masterPrompt = masterPromptTemplate
 		.replace(/\$\{userPrompt\}/g, userPrompt)
 		.replace(/\$\{analysisDataString\}/g, analysisDataString);
-	
 	const llmResponse = await callLlm(masterPrompt, llmId);
 	try {
 		const parsedResponse = JSON.parse(llmResponse);
 		if (parsedResponse && Array.isArray(parsedResponse.relevant_files)) {
-			// Final check to ensure the LLM didn't hallucinate file paths
 			const validFilePaths = new Set(allFilePaths);
 			const filteredFiles = parsedResponse.relevant_files.filter(f => validFilePaths.has(f));
 			return {relevant_files: filteredFiles};
@@ -320,4 +312,24 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 	}
 }
 
-module.exports = {refreshLlms, analyzeFile, getRelevantFilesFromPrompt, reanalyzeModifiedFiles};
+/**
+ * NEW: Returns the current session statistics.
+ * This function should be exposed via a new 'get_session_stats' action in the main server handler.
+ * The main 'get_main_page_data' action should also be modified to include `tokens` from this function
+ * in its initial response payload.
+ * @returns {object} An object containing session token usage and re-analysis progress.
+ */
+function getSessionStats() {
+	return {
+		tokens: sessionTokenUsage,
+		reanalysis: reanalysisProgress
+	};
+}
+
+module.exports = {
+	refreshLlms,
+	analyzeFile,
+	getRelevantFilesFromPrompt,
+	reanalyzeModifiedFiles,
+	getSessionStats // NEW: Export the new stats function.
+};

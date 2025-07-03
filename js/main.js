@@ -9,10 +9,67 @@ import {
 	setupModalEventListeners,
 	handlePromptButtonClick
 } from './modals.js';
-// MODIFIED: Import setupReanalysisButtonListener
 import {setupAnalysisButtonListener, setupReanalysisButtonListener} from './analysis.js';
-// NEW: Import functions from the refactored llm.js module.
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
+
+// NEW: Functions to manage the new status bar.
+
+/**
+ * Updates the status bar with the latest session and progress data.
+ * @param {object} stats - The stats object from the server.
+ * @param {object} stats.tokens - Token usage { prompt, completion }.
+ * @param {object} stats.reanalysis - Reanalysis progress { running, current, total, message }.
+ */
+function updateStatusBar(stats) {
+	const promptTokensEl = document.getElementById('prompt-tokens');
+	const completionTokensEl = document.getElementById('completion-tokens');
+	const progressContainer = document.getElementById('status-bar-progress-container');
+	const progressText = document.getElementById('status-bar-progress-text');
+	const progressBar = document.getElementById('status-bar-progress-bar');
+	const statusMessageEl = document.getElementById('status-bar-message');
+	
+	// Update token counts
+	if (stats.tokens && promptTokensEl && completionTokensEl) {
+		promptTokensEl.textContent = (stats.tokens.prompt || 0).toLocaleString();
+		completionTokensEl.textContent = (stats.tokens.completion || 0).toLocaleString();
+	}
+	
+	// Update re-analysis progress
+	if (stats.reanalysis && stats.reanalysis.running && stats.reanalysis.total > 0) {
+		const percent = Math.round((stats.reanalysis.current / stats.reanalysis.total) * 100);
+		progressText.textContent = `Re-analyzing... (${stats.reanalysis.current}/${stats.reanalysis.total})`;
+		progressBar.style.width = `${percent}%`;
+		progressBar.setAttribute('aria-valuenow', percent);
+		progressContainer.style.display = 'flex';
+		statusMessageEl.textContent = stats.reanalysis.message;
+		statusMessageEl.title = stats.reanalysis.message;
+	} else {
+		progressContainer.style.display = 'none';
+		statusMessageEl.textContent = '';
+		statusMessageEl.title = '';
+	}
+}
+
+/**
+ * Periodically fetches session stats from the server and updates the UI.
+ * This assumes a 'get_session_stats' action exists on the backend.
+ */
+function pollSessionStats() {
+	setInterval(async () => {
+		try {
+			// This action needs to be implemented in the main server file to return the stats.
+			const stats = await postData({action: 'get_session_stats'});
+			updateStatusBar(stats);
+		} catch (error) {
+			console.error("Could not poll session stats:", error);
+			const statusMessageEl = document.getElementById('status-bar-message');
+			if (statusMessageEl) {
+				statusMessageEl.textContent = 'Error updating status.';
+			}
+		}
+	}, 2000); // Poll every 2 seconds
+}
+
 
 /**
  * Loads a project, including its file tree and saved state.
@@ -25,11 +82,9 @@ async function loadProject(identifier) {
 		fileTree.innerHTML = '<p class="p-3 text-muted">Please select a project.</p>';
 		return;
 	}
-	
 	showLoading(`Loading project "${project.path}"...`);
 	setCurrentProject(project);
 	document.getElementById('projects-dropdown').value = identifier;
-	
 	try {
 		const savedState = await postData({
 			action: 'get_project_state',
@@ -52,19 +107,24 @@ async function loadProject(identifier) {
 async function initializeApp() {
 	try {
 		const data = await postData({action: 'get_main_page_data'});
-		
 		// 1. Apply Dark Mode
 		if (data.darkMode) {
 			document.body.classList.add('dark-mode');
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
 		}
-		
 		// 2. Set global prompt footer
 		setContentFooterPrompt(data.prompt_content_footer || '');
-		
 		// 3. Initialize LLM selector
-		// MODIFIED: Directly call the imported function. No need for a check.
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
+		
+		// NEW: Initialize status bar with initial data from page load.
+		// Assumes `get_main_page_data` is modified to return a `sessionTokens` object.
+		if (data.sessionTokens) {
+			updateStatusBar({
+				tokens: data.sessionTokens,
+				reanalysis: {running: false} // Assume not running on initial load
+			});
+		}
 		
 		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
@@ -81,7 +141,6 @@ async function initializeApp() {
 			option.textContent = project.path;
 			dropdown.appendChild(option);
 		});
-		
 		// 5. Load last or first project
 		const lastProjectIdentifier = data.lastSelectedProject;
 		if (lastProjectIdentifier && dropdown.querySelector(`option[value="${lastProjectIdentifier}"]`)) {
@@ -106,20 +165,20 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupModalEventListeners();
 	setupAnalysisButtonListener();
 	setupReanalysisButtonListener();
-	setupLlmListeners(); // NEW: Call the setup function for LLM listeners.
+	setupLlmListeners();
+	
+	// NEW: Start polling for status updates for tokens and progress.
+	pollSessionStats();
 	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
-	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
 		loadProject(this.value);
 	});
-	
 	document.getElementById('unselect-all').addEventListener('click', function () {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		updateSelectedContent();
 		saveCurrentProjectState();
 	});
-	
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		document.body.classList.toggle('dark-mode');
 		const isDarkMode = document.body.classList.contains('dark-mode');
@@ -140,13 +199,11 @@ document.addEventListener('DOMContentLoaded', function () {
 			handleAnalysisIconClick(analysisIcon);
 			return;
 		}
-		
 		if (searchIcon) {
 			e.stopPropagation();
 			handleSearchIconClick(searchIcon);
 			return;
 		}
-		
 		if (clearIcon) {
 			e.stopPropagation();
 			const folderPath = clearIcon.closest('.folder').dataset.path;
@@ -165,7 +222,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 			return;
 		}
-		
 		if (folder) {
 			e.stopPropagation();
 			const ul = folder.nextElementSibling;

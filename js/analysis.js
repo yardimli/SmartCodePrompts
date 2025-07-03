@@ -14,6 +14,7 @@ export function setupAnalysisButtonListener() {
 			alert('Please select at least one file to analyze.');
 			return;
 		}
+		
 		if (!llmId) {
 			alert('Please select an LLM from the dropdown to perform the analysis.');
 			return;
@@ -30,7 +31,6 @@ export function setupAnalysisButtonListener() {
 			const filePath = checkbox.dataset.path;
 			const fileName = filePath.split('/').pop();
 			showLoading(`Analyzing ${i + 1}/${totalFiles}: ${fileName}`);
-			
 			try {
 				const response = await postData({
 					action: 'analyze_file',
@@ -39,7 +39,6 @@ export function setupAnalysisButtonListener() {
 					filePath: filePath,
 					llmId: llmId
 				});
-				
 				if (response.status === 'analyzed') {
 					filesAnalyzed++;
 					// Add the analysis icon to the UI without a full reload
@@ -66,5 +65,66 @@ export function setupAnalysisButtonListener() {
 			summaryMessage += `\n\nErrors occurred for ${errors.length} file(s):\n- ${errors.join('\n- ')}\n\nCheck the console for more details.`;
 		}
 		alert(summaryMessage);
+	});
+}
+
+/**
+ * NEW: Sets up the event listener for the "Re-analyze Files" button.
+ * Prompts the user to choose between a standard or forced re-analysis.
+ * This assumes a button with the id "reanalyze-files" exists in the HTML.
+ */
+export function setupReanalysisButtonListener() {
+	const reanalyzeButton = document.getElementById('reanalyze-files');
+	if (!reanalyzeButton) return; // Silently exit if the button doesn't exist.
+	
+	reanalyzeButton.addEventListener('click', async function () {
+		const llmId = document.getElementById('llm-dropdown').value;
+		if (!llmId) {
+			alert('Please select an LLM from the dropdown to perform the analysis.');
+			return;
+		}
+		
+		const currentProject = getCurrentProject();
+		if (!currentProject) {
+			alert('No project selected.');
+			return;
+		}
+		
+		// MODIFIED: Ask the user for the re-analysis mode.
+		// confirm() returns true for OK, false for Cancel.
+		// We map OK -> force=true, Cancel -> force=false (modified only).
+		const forceReanalysis = confirm(
+			"Choose re-analysis mode:\n\n" +
+			"▶ Click 'OK' to force re-analysis of ALL previously analyzed files (slower).\n\n" +
+			"▶ Click 'Cancel' to re-analyze only MODIFIED files (faster)."
+		);
+		
+		const mode = forceReanalysis ? 'Forcing re-analysis of all files...' : 'Re-analyzing modified files...';
+		showLoading(mode);
+		
+		try {
+			const response = await postData({
+				action: 'reanalyze_modified_files',
+				rootIndex: currentProject.rootIndex,
+				projectPath: currentProject.path,
+				llmId: llmId,
+				force: forceReanalysis // Send the user's choice to the backend.
+			});
+			
+			let summaryMessage = `Re-analysis complete.\n` +
+				`- Files re-analyzed: ${response.analyzed}\n` +
+				`- Files skipped (up-to-date): ${response.skipped}`;
+			
+			if (response.errors && response.errors.length > 0) {
+				summaryMessage += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
+			}
+			alert(summaryMessage);
+			
+		} catch (error) {
+			console.error('Failed to re-analyze files:', error);
+			alert(`An error occurred during re-analysis: ${error.message}`);
+		} finally {
+			hideLoading();
+		}
 	});
 }

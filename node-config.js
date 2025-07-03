@@ -1,7 +1,9 @@
 const path = require('path');
 const Database = require('better-sqlite3');
+
 // Initialize the database connection. The DB file is in the same directory as the script.
 const db = new Database(path.join(__dirname, 'llm-helper.sqlite'));
+
 // Global config object, will be populated from the database.
 // This object is exported and should be mutated, not reassigned.
 let config = {};
@@ -11,42 +13,53 @@ let config = {};
  */
 function createTables() {
 	db.exec(`
-        CREATE TABLE IF NOT EXISTS projects (
+        CREATE TABLE IF NOT EXISTS projects
+        (
             root_index INTEGER NOT NULL,
-            path TEXT NOT NULL,
+            path       TEXT    NOT NULL,
             PRIMARY KEY (root_index, path)
         );
-        CREATE TABLE IF NOT EXISTS project_states (
+
+        CREATE TABLE IF NOT EXISTS project_states
+        (
             project_root_index INTEGER NOT NULL,
-            project_path TEXT NOT NULL,
-            open_folders TEXT,
-            selected_files TEXT,
+            project_path       TEXT    NOT NULL,
+            open_folders       TEXT,
+            selected_files     TEXT,
             PRIMARY KEY (project_root_index, project_path),
-            FOREIGN KEY (project_root_index, project_path) REFERENCES projects(root_index, path) ON DELETE CASCADE
+            FOREIGN KEY (project_root_index, project_path) REFERENCES projects (root_index, path) ON DELETE CASCADE
         );
-        CREATE TABLE IF NOT EXISTS file_metadata (
-            project_root_index INTEGER NOT NULL,
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            file_overview TEXT,
-            functions_overview TEXT,
-            last_analyze_update_time TEXT,
-            last_checksum TEXT,
+
+        CREATE TABLE IF NOT EXISTS file_metadata
+        (
+            project_root_index        INTEGER NOT NULL,
+            project_path              TEXT    NOT NULL,
+            file_path                 TEXT    NOT NULL,
+            file_overview             TEXT,
+            functions_overview        TEXT,
+            last_analyze_update_time  TEXT,
+            last_checksum             TEXT,
             PRIMARY KEY (project_root_index, project_path, file_path)
         );
-        CREATE TABLE IF NOT EXISTS llms (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            context_length INTEGER,
-            prompt_price REAL,
+
+        CREATE TABLE IF NOT EXISTS llms
+        (
+            id               TEXT PRIMARY KEY,
+            name             TEXT NOT NULL,
+            context_length   INTEGER,
+            prompt_price     REAL,
             completion_price REAL
         );
-        CREATE TABLE IF NOT EXISTS app_settings (
-            key TEXT PRIMARY KEY,
+
+        CREATE TABLE IF NOT EXISTS app_settings
+        (
+            key   TEXT PRIMARY KEY,
             value TEXT
         );
-        CREATE TABLE IF NOT EXISTS app_setup (
-            key TEXT PRIMARY KEY,
+
+        CREATE TABLE IF NOT EXISTS app_setup
+        (
+            key   TEXT PRIMARY KEY,
             value TEXT
         );
     `);
@@ -94,10 +107,12 @@ function setDefaultAppSettings() {
 			'Skip files that dont need to be changed and are provided for reference.\n' +
 			'Comment as needed.\n' +
 			'Add comments to new lines and modifed sections.\n';
+		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}\n\nUSER REQUEST: \${userPrompt}\n\nAVAILABLE FILES AND THEIR ANALYSIS:\n---\n\${analysisDataString}\n---`;
 		
 		initSettingsStmt.run('prompt_file_overview', defaultOverviewPrompt);
 		initSettingsStmt.run('prompt_functions_logic', defaultFunctionsPrompt);
 		initSettingsStmt.run('prompt_content_footer', defaultContentFooter);
+		initSettingsStmt.run('prompt_smart_prompt', defaultSmartPrompt);
 	});
 	transaction();
 }
@@ -112,6 +127,7 @@ function loadConfigFromDb() {
 	
 	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
 	const settingsRows = db.prepare('SELECT key, value FROM app_settings').all();
+	
 	const newConfigData = {};
 	
 	// Process setup data (JSON parsing for arrays)
@@ -130,6 +146,7 @@ function loadConfigFromDb() {
 	
 	// Ensure server_port is a number for the listener.
 	newConfigData.server_port = parseInt(newConfigData.server_port, 10);
+	
 	// Resolve root directories to absolute paths.
 	if (Array.isArray(newConfigData.root_directories)) {
 		newConfigData.root_directories = newConfigData.root_directories.map(dir =>
@@ -143,6 +160,7 @@ function loadConfigFromDb() {
 	Object.assign(config, newConfigData);
 	console.log('Configuration loaded from database.');
 }
+
 
 /**
  * Initializes the entire database and configuration setup.
@@ -162,8 +180,8 @@ function initializeDatabaseAndConfig() {
 function getSetupData() {
 	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
 	const settingsRows = db.prepare("SELECT key, value FROM app_settings").all();
-	const currentConfig = {};
 	
+	const currentConfig = {};
 	setupRows.forEach(row => {
 		try {
 			currentConfig[row.key] = JSON.parse(row.value);
@@ -171,7 +189,6 @@ function getSetupData() {
 			currentConfig[row.key] = row.value;
 		}
 	});
-	
 	settingsRows.forEach(row => {
 		currentConfig[row.key] = row.value;
 	});
@@ -188,7 +205,7 @@ function getSetupData() {
  */
 function saveSetupData(postData) {
 	const setupKeys = new Set(['root_directories', 'allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer']);
+	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt']);
 	
 	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
@@ -205,6 +222,7 @@ function saveSetupData(postData) {
 		}
 	});
 	transaction();
+	
 	// Reload config into memory after saving.
 	loadConfigFromDb();
 }
@@ -214,9 +232,8 @@ function saveSetupData(postData) {
  * @returns {object} A success object.
  */
 function resetPromptsToDefault() {
-	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer'];
+	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt'];
 	const deleteStmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
-	
 	const transaction = db.transaction(() => {
 		for (const key of promptKeys) {
 			deleteStmt.run(key);
@@ -228,11 +245,9 @@ function resetPromptsToDefault() {
 	setDefaultAppSettings();
 	// Reload config into memory
 	loadConfigFromDb();
-	
-	return {
-		success: true
-	};
+	return {success: true};
 }
+
 
 /**
  * Sets the dark mode preference in the database.

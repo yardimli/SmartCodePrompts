@@ -30,8 +30,8 @@
 		</div>
 		<form id="setup-form" style="display: none;">
 			<div class="alert alert-info">
-				<strong>Note:</strong> Changes to the <strong>Server Port</strong> require a manual restart of the server to
-				take effect.
+				<strong>Note:</strong> Changes to the <strong>Server Port</strong> require a manual restart of the
+				server to take effect.
 			</div>
 			<div class="mb-3">
 				<label for="root-directories-input" class="form-label">Root Directories</label>
@@ -64,8 +64,8 @@
 			<hr class="my-4">
 			<h4 class="mb-3">LLM Prompts</h4>
 			<div class="alert alert-secondary">
-				Use <code>${filePath}</code> and <code>${fileContent}</code> as placeholders in analysis prompts. They will be
-				replaced with the actual file path and its minified content.
+				Use <code>${filePath}</code> and <code>${fileContent}</code> as placeholders in analysis prompts. They
+				will be replaced with the actual file path and its minified content.
 			</div>
 			<div class="mb-3">
 				<label for="prompt-file-overview-input" class="form-label">File Overview Prompt</label>
@@ -79,6 +79,13 @@
 				<label for="prompt-content-footer-input" class="form-label">Content Footer Prompt</label>
 				<textarea class="form-control" id="prompt-content-footer-input" rows="8"></textarea>
 				<div class="form-text">This text is appended to the main prompt when you combine multiple files.</div>
+			</div>
+			<div class="mb-3">
+				<label for="prompt-smart-prompt-input" class="form-label">Smart Prompt Builder Prompt</label>
+				<textarea class="form-control" id="prompt-smart-prompt-input" rows="8"></textarea>
+				<div class="form-text">This is the master prompt used by the "PROMPT" button to select relevant files based on
+					your request. Use <code>${userPrompt}</code> and <code>${analysisDataString}</code> as placeholders.
+				</div>
 			</div>
 			<button type="submit" class="btn btn-success">Save Configuration</button>
 			<button type="button" id="reset-prompts-btn" class="btn btn-warning ms-2">Reset Prompts to Default</button>

@@ -1,6 +1,7 @@
 // llm-php-helper/js/modals.js
 import {showLoading, hideLoading, postData} from './utils.js';
-import {getCurrentProject, saveCurrentProjectState} from './state.js';
+// MODIFIED: Import functions to get and set the last smart prompt from state.
+import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 let searchModal = null;
@@ -23,7 +24,10 @@ export function initializeModals() {
 export function handlePromptButtonClick() {
 	const textarea = document.getElementById('promptModalTextarea');
 	if (textarea) {
-		textarea.value = ''; // Clear previous prompt
+		// MODIFIED: Populate with the last used prompt from state.
+		textarea.value = getLastSmartPrompt();
+		// MODIFIED: Select the text for easy editing or replacement.
+		textarea.select();
 	}
 	promptModal.show();
 }
@@ -49,6 +53,7 @@ export async function handleAnalysisIconClick(target) {
 	modalTitle.textContent = `Analysis for ${filePath}`;
 	modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 	analysisModal.show();
+	
 	try {
 		const currentProject = getCurrentProject();
 		const data = await postData({
@@ -57,6 +62,7 @@ export async function handleAnalysisIconClick(target) {
 			projectPath: currentProject.path,
 			filePath: filePath
 		});
+		
 		let bodyContent = '<p>No analysis data found for this file.</p>';
 		if (data.file_overview || data.functions_overview) {
 			bodyContent = '';
@@ -139,8 +145,12 @@ export function setupModalEventListeners() {
 	
 	// Listener for the new Smart Prompt modal button
 	document.getElementById('sendPromptButton').addEventListener('click', async function () {
-		const userPrompt = document.getElementById('promptModalTextarea').value.trim();
+		const promptTextarea = document.getElementById('promptModalTextarea'); // NEW: Get textarea element once.
+		const userPrompt = promptTextarea.value.trim();
 		const llmId = document.getElementById('llm-dropdown').value;
+		
+		// NEW: Save the current prompt to state so it's remembered next time.
+		setLastSmartPrompt(promptTextarea.value);
 		
 		if (!userPrompt) {
 			alert('Please enter a prompt.');
@@ -153,6 +163,7 @@ export function setupModalEventListeners() {
 		
 		promptModal.hide();
 		showLoading('Asking LLM to select relevant files...');
+		
 		try {
 			const currentProject = getCurrentProject();
 			const response = await postData({

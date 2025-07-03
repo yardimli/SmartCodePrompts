@@ -66,6 +66,13 @@ async function handlePostRequest(req, res) {
 						llmId: postData.get('llmId')
 					});
 					break;
+				case 'reanalyze_modified_files':
+					result = await llmManager.reanalyzeModifiedFiles({
+						rootIndex: parseInt(postData.get('rootIndex')),
+						projectPath: postData.get('projectPath'),
+						llmId: postData.get('llmId')
+					});
+					break;
 				case 'get_relevant_files_from_prompt':
 					result = await llmManager.getRelevantFilesFromPrompt({
 						rootIndex: parseInt(postData.get('rootIndex')),
@@ -129,6 +136,7 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
+				
 				default:
 					throw new Error(`Unknown action: ${action}`);
 			}
@@ -158,6 +166,7 @@ function serveStaticFile(filePath, res) {
 		txt: 'text/plain',
 	};
 	const contentType = mimeTypes[ext] || 'application/octet-stream';
+	
 	fs.readFile(fullPath, (err, content) => {
 		if (err) {
 			if (err.code === 'ENOENT') {
@@ -177,6 +186,7 @@ function serveStaticFile(filePath, res) {
 // Create the main HTTP server
 const server = http.createServer((req, res) => {
 	const parsedUrl = url.parse(req.url, true);
+	
 	if (req.method === 'POST') {
 		handlePostRequest(req, res);
 	} else if (req.method === 'GET') {

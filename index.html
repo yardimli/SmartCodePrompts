@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +14,7 @@
 	<script type="module" src="js/main.js"></script>
 	<link rel="stylesheet" href="css/index.css">
 </head>
+
 <body class="">
 <div class="container-fluid mt-2">
 	<header class="d-flex flex-wrap justify-content-center py-3 mb-1 border-bottom">
@@ -34,6 +36,11 @@
 			<li class="nav-item me-2">
 				<button id="analyze-files" class="btn btn-outline-info" title="Analyze Selected Files">
 					<i class="fa-solid fa-microscope"></i>
+				</button>
+			</li>
+			<li class="nav-item me-2">
+				<button id="reanalyze-modified" class="btn btn-outline-warning" title="Re-analyze Modified Files">
+					<i class="fa-solid fa-arrows-rotate"></i>
 				</button>
 			</li>
 			<li class="nav-item me-2">
@@ -64,6 +71,7 @@
 			</li>
 		</ul>
 	</header>
+	
 	<div class="row">
 		<div class="col-lg-5 col-md-6">
 			<div id="file-tree"></div>
@@ -86,8 +94,7 @@
 				<p>Searching within: <strong id="searchModalFolderPath"></strong></p>
 				<div class="mb-3">
 					<label for="searchTermInput" class="form-label">Search Term (case-insensitive):</label>
-					<input type="text" class="form-control" id="searchTermInput"
-					       placeholder="Enter text to search for...">
+					<input type="text" class="form-control" id="searchTermInput" placeholder="Enter text to search for...">
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -125,8 +132,8 @@
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<p>Enter your high-level request below. The AI will review the analysis of <strong>all analyzed files in
-					the project</strong> and choose the most relevant ones to build the final prompt.</p>
+				<p>Enter your high-level request below. The AI will review the analysis of <strong>all analyzed files in the
+					project</strong> and choose the most relevant ones to build the final prompt.</p>
 				<div class="mb-3">
 					<label for="promptModalTextarea" class="form-label">Your Request:</label>
 					<textarea class="form-control" id="promptModalTextarea" rows="5"
@@ -141,4 +148,5 @@
 	</div>
 </div>
 </body>
+
 </html>

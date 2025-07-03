@@ -1,8 +1,14 @@
 // llm-php-helper/js/main.js
 import {showLoading, hideLoading, getProjectIdentifier, parseProjectIdentifier, postData} from './utils.js';
-import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState} from './state.js';
+import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState, getCurrentProject} from './state.js';
 import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
-import {initializeModals, handleSearchIconClick, handleAnalysisIconClick, setupModalEventListeners, handlePromptButtonClick} from './modals.js';
+import {
+	initializeModals,
+	handleSearchIconClick,
+	handleAnalysisIconClick,
+	setupModalEventListeners,
+	handlePromptButtonClick
+} from './modals.js';
 import {setupAnalysisButtonListener} from './analysis.js';
 
 /**
@@ -16,9 +22,11 @@ async function loadProject(identifier) {
 		fileTree.innerHTML = '<p class="p-3 text-muted">Please select a project.</p>';
 		return;
 	}
+	
 	showLoading(`Loading project "${project.path}"...`);
 	setCurrentProject(project);
 	document.getElementById('projects-dropdown').value = identifier;
+	
 	try {
 		const savedState = await postData({
 			action: 'get_project_state',
@@ -35,25 +43,30 @@ async function loadProject(identifier) {
 	}
 }
 
+
 /**
  * Initializes the entire application on page load.
  */
 async function initializeApp() {
 	try {
 		const data = await postData({action: 'get_main_page_data'});
+		
 		// 1. Apply Dark Mode
 		if (data.darkMode) {
 			document.body.classList.add('dark-mode');
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
 		}
+		
 		// 2. Set global prompt footer
 		setContentFooterPrompt(data.prompt_content_footer || '');
+		
 		// 3. Initialize LLM selector
 		if (window.llmHelper && typeof window.llmHelper.initializeLlmSelector === 'function') {
 			window.llmHelper.initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		} else {
 			console.error('LLM helper function not found. Ensure llm.js is loaded before this script.');
 		}
+		
 		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
 		dropdown.innerHTML = '';
@@ -69,6 +82,7 @@ async function initializeApp() {
 			option.textContent = project.path;
 			dropdown.appendChild(option);
 		});
+		
 		// 5. Load last or first project
 		const lastProjectIdentifier = data.lastSelectedProject;
 		if (lastProjectIdentifier && dropdown.querySelector(`option[value="${lastProjectIdentifier}"]`)) {
@@ -92,22 +106,70 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Setup event listeners
 	setupModalEventListeners();
 	setupAnalysisButtonListener();
+	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
 	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
 		loadProject(this.value);
 	});
+	
 	document.getElementById('unselect-all').addEventListener('click', function () {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		updateSelectedContent();
 		saveCurrentProjectState();
 	});
+	
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		document.body.classList.toggle('dark-mode');
 		const isDarkMode = document.body.classList.contains('dark-mode');
 		this.querySelector('i').classList.toggle('fa-sun');
 		this.querySelector('i').classList.toggle('fa-moon');
 		postData({action: 'set_dark_mode', isDarkMode: isDarkMode});
+	});
+	
+	document.getElementById('reanalyze-modified').addEventListener('click', async function () {
+		const llmId = document.getElementById('llm-dropdown').value;
+		const currentProject = getCurrentProject();
+		
+		if (!llmId) {
+			alert('Please select an LLM from the dropdown to perform the analysis.');
+			return;
+		}
+		if (!currentProject) {
+			alert('No project is currently loaded.');
+			return;
+		}
+		
+		if (!confirm('This will re-analyze all files in the current project that have been modified since their last analysis. This may consume API credits. Continue?')) {
+			return;
+		}
+		
+		showLoading('Scanning for modified files and re-analyzing...');
+		
+		try {
+			const response = await postData({
+				action: 'reanalyze_modified_files',
+				rootIndex: currentProject.rootIndex,
+				projectPath: currentProject.path,
+				llmId: llmId
+			});
+			
+			hideLoading();
+			
+			let summaryMessage = `Re-analysis complete.\n- Successfully re-analyzed: ${response.analyzed}\n- Skipped (up-to-date): ${response.skipped}`;
+			if (response.errors && response.errors.length > 0) {
+				summaryMessage += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
+			}
+			alert(summaryMessage);
+			
+			// Reload the project to reflect the changes (e.g., remove 'modified' icons)
+			await loadProject(getProjectIdentifier(currentProject));
+			
+		} catch (error) {
+			hideLoading();
+			console.error('Failed to re-analyze modified files:', error);
+			alert(`An error occurred during re-analysis: ${error.message}`);
+		}
 	});
 	
 	// Delegated event listener for the file tree

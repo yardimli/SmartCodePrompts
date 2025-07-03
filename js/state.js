@@ -4,6 +4,7 @@ import {postData} from './utils.js';
 // Application state variables
 let currentProject = null; // { rootIndex: number, path: string }
 let contentFooterPrompt = '';
+let lastSmartPrompt = ''; // NEW: State variable to remember the last smart prompt.
 
 // Exported functions to manage state
 export function getCurrentProject() {
@@ -20,6 +21,22 @@ export function getContentFooterPrompt() {
 
 export function setContentFooterPrompt(prompt) {
 	contentFooterPrompt = prompt;
+}
+
+/**
+ * NEW: Gets the last submitted smart prompt.
+ * @returns {string} The last prompt.
+ */
+export function getLastSmartPrompt() {
+	return lastSmartPrompt;
+}
+
+/**
+ * NEW: Sets the last submitted smart prompt.
+ * @param {string} prompt The prompt to save.
+ */
+export function setLastSmartPrompt(prompt) {
+	lastSmartPrompt = prompt;
 }
 
 /**

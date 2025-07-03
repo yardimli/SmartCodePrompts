@@ -13,6 +13,7 @@ const openRouterApiKeyInput = document.getElementById('openrouter-api-key-input'
 const promptFileOverviewInput = document.getElementById('prompt-file-overview-input');
 const promptFunctionsLogicInput = document.getElementById('prompt-functions-logic-input');
 const promptContentFooterInput = document.getElementById('prompt-content-footer-input');
+const promptSmartPromptInput = document.getElementById('prompt-smart-prompt-input');
 const resetPromptsBtn = document.getElementById('reset-prompts-btn');
 const toggleModeBtn = document.getElementById('toggle-mode');
 
@@ -48,6 +49,7 @@ async function loadSetupData() {
 		promptFileOverviewInput.value = config.prompt_file_overview || '';
 		promptFunctionsLogicInput.value = config.prompt_functions_logic || '';
 		promptContentFooterInput.value = config.prompt_content_footer || '';
+		promptSmartPromptInput.value = config.prompt_smart_prompt || '';
 		
 		// Apply dark mode from main settings
 		applyDarkMode(data.darkMode);
@@ -61,7 +63,6 @@ async function loadSetupData() {
 }
 
 // --- Event Listeners ---
-
 toggleModeBtn.addEventListener('click', () => {
 	const isDarkMode = document.body.classList.toggle('dark-mode');
 	applyDarkMode(isDarkMode);
@@ -81,7 +82,8 @@ form.addEventListener('submit', async (e) => {
 			openrouter_api_key: openRouterApiKeyInput.value.trim(),
 			prompt_file_overview: promptFileOverviewInput.value,
 			prompt_functions_logic: promptFunctionsLogicInput.value,
-			prompt_content_footer: promptContentFooterInput.value
+			prompt_content_footer: promptContentFooterInput.value,
+			prompt_smart_prompt: promptSmartPromptInput.value
 		};
 		await postData(saveData);
 		alert('Configuration saved successfully!\n\nPlease restart the server for port changes to take effect.');

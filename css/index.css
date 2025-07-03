@@ -1,10 +1,13 @@
+/* SmartCodePrompts/css/index.css */
+
 body.dark-mode #root-directory {
     background-color: #444;
     color: #fff;
     border-color: #555;
 }
 
-.folder, .file {
+.folder,
+.file {
     cursor: pointer;
 }
 
@@ -55,21 +58,25 @@ body.dark-mode #root-directory {
     margin-right: 5px;
 }
 
-.folder-search-icon, .folder-clear-icon {
+.folder-search-icon,
+.folder-clear-icon {
     cursor: pointer;
     color: #ccc;
     margin-left: 4px;
 }
 
-.folder-search-icon:hover, .folder-clear-icon:hover {
+.folder-search-icon:hover,
+.folder-clear-icon:hover {
     color: #888;
 }
 
-body.dark-mode .folder-search-icon, body.dark-mode .folder-clear-icon {
+body.dark-mode .folder-search-icon,
+body.dark-mode .folder-clear-icon {
     color: #777;
 }
 
-body.dark-mode .folder-search-icon:hover, body.dark-mode .folder-clear-icon:hover {
+body.dark-mode .folder-search-icon:hover,
+body.dark-mode .folder-clear-icon:hover {
     color: #bbb;
 }
 
@@ -78,17 +85,22 @@ body.dark-mode {
     color: #fff;
 }
 
-body.dark-mode #file-tree, body.dark-mode #selected-content, body.dark-mode .modal-content {
+body.dark-mode #file-tree,
+body.dark-mode #selected-content,
+body.dark-mode .modal-content {
     border-color: #555;
     background-color: #444;
     color: #fff;
 }
 
-body.dark-mode .modal-header, body.dark-mode .modal-footer {
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
     border-color: #555;
 }
 
-body.dark-mode .form-control {
+/* MODIFIED: Added .form-select to apply dark mode to dropdowns */
+body.dark-mode .form-control,
+body.dark-mode .form-select {
     background-color: #555;
     color: #fff;
     border-color: #666;
@@ -98,7 +110,9 @@ body.dark-mode .form-control::placeholder {
     color: #aaa;
 }
 
-body.dark-mode .form-control:focus {
+/* MODIFIED: Added .form-select:focus to apply dark mode to dropdowns on focus */
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
     background-color: #666;
     color: #fff;
     border-color: #888;
@@ -158,28 +172,35 @@ body.dark-mode .text-body {
 
 .analysis-icon {
     cursor: pointer;
-    color: #0dcaf0; /* Bootstrap 'info' color */
+    color: #0dcaf0;
+    /* Bootstrap 'info' color */
     margin-right: 5px;
     vertical-align: middle;
 }
+
 .analysis-icon:hover {
     color: #0aa5c2;
 }
+
 body.dark-mode .analysis-icon {
     color: #2cf3ff;
 }
+
 body.dark-mode .analysis-icon:hover {
     color: #87faff;
 }
+
 #analysisModalBody h6 {
     margin-top: 1rem;
     border-bottom: 1px solid #ccc;
     padding-bottom: 5px;
     font-weight: bold;
 }
+
 body.dark-mode #analysisModalBody h6 {
     border-bottom-color: #555;
 }
+
 #analysisModalBody pre {
     background-color: #f8f9fa;
     padding: 10px;
@@ -188,6 +209,7 @@ body.dark-mode #analysisModalBody h6 {
     word-break: break-all;
     font-size: 14px;
 }
+
 body.dark-mode #analysisModalBody pre {
     background-color: #333;
     border: 1px solid #555;

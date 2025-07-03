@@ -1,6 +1,6 @@
 // llm-php-helper/js/llm.js
 
-// NEW: Import required functions from utils.js.
+// Import required functions from utils.js.
 import {showLoading, hideLoading, postData} from './utils.js';
 
 /**
@@ -11,7 +11,7 @@ import {showLoading, hideLoading, postData} from './utils.js';
  */
 function populateLlmDropdown(llms, selectedLlmId) {
 	const dropdown = document.getElementById('llm-dropdown');
-	dropdown.innerHTML = ''; // Clear existing options
+	dropdown.innerHTML = '';
 	
 	if (!llms || llms.length === 0) {
 		dropdown.innerHTML = '<option value="">No LLMs found</option>';
@@ -64,13 +64,11 @@ export function setupLlmListeners() {
 		}
 	});
 	
-	// Handle the click event for the LLM list refresh button.
 	document.getElementById('refresh-llms').addEventListener('click', async function () {
 		const refreshButton = this;
 		const icon = refreshButton.querySelector('i');
 		const currentSelectedId = document.getElementById('llm-dropdown').value;
 		
-		// Provide visual feedback during the refresh process.
 		icon.classList.add('fa-spin');
 		refreshButton.disabled = true;
 		showLoading('Refreshing LLMs...');
@@ -87,7 +85,6 @@ export function setupLlmListeners() {
 			console.error('Failed to refresh LLM list:', error);
 			alert(`Error refreshing LLMs: ${error.message}`);
 		} finally {
-			// Restore the button to its normal state.
 			icon.classList.remove('fa-spin');
 			refreshButton.disabled = false;
 			hideLoading();

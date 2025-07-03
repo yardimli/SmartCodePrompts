@@ -4,13 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-// Import modularized functions for better organization
 const configManager = require('./node-config');
 const llmManager = require('./node-llm');
 const projectManager = require('./node-projects');
 const fileManager = require('./node-files');
 
-// Initialize database and load configuration on startup
 configManager.initializeDatabaseAndConfig();
 
 /**
@@ -53,12 +51,10 @@ async function handlePostRequest(req, res) {
 					configManager.saveSelectedLlm(postData.get('llmId'));
 					result = {success: true};
 					break;
-				// NEW: Action to save the last smart prompt.
 				case 'save_last_smart_prompt':
 					configManager.saveLastSmartPrompt(postData.get('prompt'));
 					result = {success: true};
 					break;
-				// NEW: Action to save compress extensions setting.
 				case 'save_compress_extensions':
 					configManager.saveCompressExtensions(postData.get('extensions'));
 					result = {success: true};
@@ -134,7 +130,6 @@ async function handlePostRequest(req, res) {
 					);
 					break;
 				case 'get_file_content':
-					// MODIFIED: Apply compression based on settings after getting file content.
 					const filePath = postData.get('path');
 					result = fileManager.getFileContent(
 						filePath,

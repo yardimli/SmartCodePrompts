@@ -26,7 +26,7 @@ export function loadFolders(path, element) {
 					nextUl.remove();
 				}
 			} else {
-				fileTree.innerHTML = ''; // Clear for root loading.
+				fileTree.innerHTML = '';
 			}
 			if (!response || (!response.folders.length && !response.files.length)) {
 				if (element) element.classList.remove('open');
@@ -53,7 +53,7 @@ export function loadFolders(path, element) {
 			});
 			response.files.forEach(fileInfo => {
 				const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
-				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation" title="File has been modified since last analysis"></i>` : ''; // Added modified icon
+				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation" title="File has been modified since last analysis"></i>` : '';
 				content += `
  <li>
  <div class="checkbox-wrapper">
@@ -62,7 +62,7 @@ export function loadFolders(path, element) {
  ${analysisIcon}
  <span class="file" title="${fileInfo.path}">${fileInfo.name}</span>
  ${modifiedIcon}
- </li>`; // Added modifiedIcon to the template
+ </li>`;
 			});
 			ul.innerHTML = content;
 			if (element) {

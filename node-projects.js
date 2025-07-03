@@ -44,7 +44,7 @@ function getProjectsPageData() {
 	// The DB query returns snake_case `root_index`, so `p.root_index` is correct here.
 	const savedIdentifiers = new Set(savedProjects.map(p => `${p.root_index}_${p.path}`));
 	
-	// MODIFIED: Correctly compare the filesystem-scanned projects (which use camelCase `rootIndex`)
+	// Correctly compare the filesystem-scanned projects (which use camelCase `rootIndex`)
 	// against the set of saved project identifiers.
 	const projectsWithStatus = allFolders.map(p => ({
 		...p,

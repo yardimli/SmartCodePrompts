@@ -42,7 +42,6 @@ async function performSelectionAnalysis() {
 			
 			if (response.status === 'analyzed') {
 				filesAnalyzed++;
-				// MODIFIED: Add the analysis icon to the UI, with improved logic to prevent duplicates.
 				const li = checkbox.closest('li');
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
@@ -147,7 +146,7 @@ export function setupAnalysisActionsListener() {
 		analysisModal.show();
 	});
 	
-	// NEW: Listener for the "Analyze Selected" button in the modal.
+	// Listener for the "Analyze Selected" button in the modal.
 	document.getElementById('analyzeSelectedButton').addEventListener('click', async () => {
 		analysisModal.hide();
 		await performSelectionAnalysis();

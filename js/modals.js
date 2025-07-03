@@ -1,13 +1,12 @@
 // llm-php-helper/js/modals.js
 import {showLoading, hideLoading, postData} from './utils.js';
-// MODIFIED: Import functions to get and set the last smart prompt from state.
 import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 let searchModal = null;
 let analysisModal = null;
 let promptModal = null;
-let logModal = null; // NEW: Modal instance for the LLM log.
+let logModal = null; // Modal instance for the LLM log.
 let currentSearchFolderPath = null;
 
 /**
@@ -17,7 +16,7 @@ export function initializeModals() {
 	searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
 	analysisModal = new bootstrap.Modal(document.getElementById('analysisModal'));
 	promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
-	logModal = new bootstrap.Modal(document.getElementById('logModal')); // NEW: Initialize the log modal.
+	logModal = new bootstrap.Modal(document.getElementById('logModal')); // Initialize the log modal.
 }
 
 /**
@@ -26,9 +25,7 @@ export function initializeModals() {
 export function handlePromptButtonClick() {
 	const textarea = document.getElementById('promptModalTextarea');
 	if (textarea) {
-		// MODIFIED: Populate with the last used prompt from state.
 		textarea.value = getLastSmartPrompt();
-		// MODIFIED: Select the text for easy editing or replacement.
 		textarea.select();
 	}
 	promptModal.show();
@@ -198,11 +195,10 @@ export function setupModalEventListeners() {
 	
 	// Listener for the new Smart Prompt modal button
 	document.getElementById('sendPromptButton').addEventListener('click', async function () {
-		const promptTextarea = document.getElementById('promptModalTextarea'); // NEW: Get textarea element once.
+		const promptTextarea = document.getElementById('promptModalTextarea'); // Get textarea element once.
 		const userPrompt = promptTextarea.value.trim();
 		const llmId = document.getElementById('llm-dropdown').value;
 		
-		// NEW: Save the current prompt to state so it's remembered next time.
 		setLastSmartPrompt(promptTextarea.value);
 		
 		if (!userPrompt) {

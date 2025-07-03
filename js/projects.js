@@ -1,5 +1,4 @@
 // llm-php-helper/js/projects.js
-// MODIFIED: Converted to an ES6 module.
 import {postData, getProjectIdentifier} from './utils.js';
 
 /**
@@ -20,7 +19,7 @@ function applyDarkMode() {
  */
 function renderProjectList(projects) {
 	const projectsListContainer = document.getElementById('projects-list');
-	projectsListContainer.innerHTML = ''; // Clear previous content.
+	projectsListContainer.innerHTML = '';
 	
 	if (!projects || projects.length === 0) {
 		projectsListContainer.innerHTML = '<p class="text-center text-danger">No top-level folders found in your configured root directories.</p>';

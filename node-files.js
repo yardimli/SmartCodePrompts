@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto'); // Added for checksum calculation
+const crypto = require('crypto');
 const {db, config} = require('./node-config');
 
 /**
@@ -76,14 +76,14 @@ function getFolders(inputPath, rootIndex, projectPath) {
 				if (config.allowed_extensions.includes(ext) || (ext === '' && config.allowed_extensions.includes(base))) {
 					const relativeFilePath = path.join(inputPath, item).replace(/\\/g, '/');
 					const hasAnalysis = analyzedFilesMap.has(relativeFilePath);
-					let isModified = false; // Add new flag for modification status
+					let isModified = false;
 					
 					// If the file has been analyzed, check if it has been modified.
 					if (hasAnalysis) {
 						const storedChecksum = analyzedFilesMap.get(relativeFilePath);
-						if (storedChecksum) { // Only perform check if a checksum was stored
+						if (storedChecksum) {
 							try {
-								const fileContent = fs.readFileSync(itemFullPath); // Read as buffer for hashing
+								const fileContent = fs.readFileSync(itemFullPath);
 								const currentChecksum = calculateChecksum(fileContent);
 								if (currentChecksum !== storedChecksum) {
 									isModified = true;

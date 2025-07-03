@@ -1,5 +1,4 @@
 // llm-php-helper/js/setup.js
-// MODIFIED: Converted to an ES6 module.
 import {postData} from './utils.js';
 
 // --- DOM Element References ---
@@ -51,10 +50,8 @@ async function loadSetupData() {
 		promptContentFooterInput.value = config.prompt_content_footer || '';
 		promptSmartPromptInput.value = config.prompt_smart_prompt || '';
 		
-		// Apply dark mode from main settings
 		applyDarkMode(data.darkMode);
 		
-		// Show form and hide spinner
 		loadingIndicator.style.display = 'none';
 		form.style.display = 'block';
 	} catch (error) {

@@ -6,11 +6,11 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {getFileContent, getRawFileContent, getFileAnalysis, calculateChecksum} = require('./node-files');
 
-// NEW: Module-level state to track session-wide data.
+// Module-level state to track session-wide data.
 // This will persist as long as the Node.js process is running.
 let sessionTokenUsage = {prompt: 0, completion: 0};
 let reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
-let sessionLlmLog = []; // NEW: In-memory log for LLM calls this session.
+let sessionLlmLog = []; // In-memory log for LLM calls this session.
 
 /**
  * Logs an interaction with the LLM to a file.
@@ -113,7 +113,7 @@ async function callLlm(prompt, modelId, callReason = 'Unknown') {
 						sessionTokenUsage.prompt += promptTokens;
 						sessionTokenUsage.completion += completionTokens;
 						
-						// NEW: Add to session log for the UI modal
+						// Add to session log for the UI modal
 						sessionLlmLog.unshift({ // unshift to add to the beginning (most recent first)
 							timestamp: new Date().toISOString(),
 							reason: callReason,
@@ -121,7 +121,7 @@ async function callLlm(prompt, modelId, callReason = 'Unknown') {
 							completionTokens: completionTokens,
 							modelId: modelId || 'N/A', // Use 'N/A' if modelId is not provided
 						});
-						// NEW: Keep the log from growing indefinitely
+						// Keep the log from growing indefinitely
 						if (sessionLlmLog.length > 100) {
 							sessionLlmLog.pop();
 						}
@@ -209,20 +209,18 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 	
 	console.log(`Analyzing ${filePath}, checksum mismatch or new file.`);
 	const fileContent = getFileContent(filePath, rootIndex).content;
-	const shortFileName = path.basename(filePath); // NEW: Get just the filename for the log.
+	const shortFileName = path.basename(filePath); // Get just the filename for the log.
 	
 	const overviewPromptTemplate = config.prompt_file_overview;
 	const overviewPrompt = overviewPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	// MODIFIED: Pass a reason to callLlm.
 	const overviewResult = await callLlm(overviewPrompt, llmId, `File Overview: ${shortFileName}`);
 	
 	const functionsPromptTemplate = config.prompt_functions_logic;
 	const functionsPrompt = functionsPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	// MODIFIED: Pass a reason to callLlm.
 	const functionsResult = await callLlm(functionsPrompt, llmId, `Functions/Logic: ${shortFileName}`);
 	
 	db.prepare(`
@@ -251,7 +249,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 	const analyzedFiles = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?')
 		.all(rootIndex, projectPath);
 	
-	// NEW: Initialize progress tracking state.
+	// Initialize progress tracking state.
 	reanalysisProgress = {
 		total: analyzedFiles.length,
 		current: 0,
@@ -263,7 +261,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 	const errors = [];
 	try {
 		for (const file of analyzedFiles) {
-			// NEW: Update progress before processing each file.
+			// Update progress before processing each file.
 			reanalysisProgress.current++;
 			reanalysisProgress.message = `Processing ${file.file_path}`;
 			try {
@@ -286,7 +284,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 		}
 		return {success: true, analyzed: analyzedCount, skipped: skippedCount, errors: errors};
 	} finally {
-		// NEW: Reset progress state regardless of success or failure to clean up the UI.
+		// Reset progress state regardless of success or failure to clean up the UI.
 		reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
 	}
 }
@@ -331,7 +329,6 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 		.replace(/\$\{userPrompt\}/g, userPrompt)
 		.replace(/\$\{analysisDataString\}/g, analysisDataString);
 	
-	// MODIFIED: Pass a reason to callLlm.
 	const llmResponse = await callLlm(masterPrompt, llmId, 'Smart Prompt File Selection');
 	
 	try {
@@ -376,6 +373,6 @@ module.exports = {
 	analyzeFile,
 	getRelevantFilesFromPrompt,
 	reanalyzeModifiedFiles,
-	getSessionStats, // NEW: Export the new stats function.
-	getLlmLog // NEW: Export the new log function.
+	getSessionStats, // Export the new stats function.
+	getLlmLog // Export the new log function.
 };

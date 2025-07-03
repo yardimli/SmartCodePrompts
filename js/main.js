@@ -16,7 +16,6 @@ import {
 	handlePromptButtonClick,
 	handleLogButtonClick
 } from './modals.js';
-// MODIFIED: Import the new consolidated analysis listener.
 import {setupAnalysisActionsListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
 
@@ -73,7 +72,7 @@ function pollSessionStats() {
 				statusMessageEl.textContent = 'Error updating status.';
 			}
 		}
-	}, 2000); // Poll every 2 seconds
+	}, 2000);
 }
 
 /**
@@ -162,16 +161,15 @@ async function initializeApp() {
 		
 		// 2. Set global prompts from state
 		setContentFooterPrompt(data.prompt_content_footer || '');
-		// MODIFIED: Set last smart prompt from saved state.
 		setLastSmartPrompt(data.last_smart_prompt || '');
 		
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		
-		// NEW: Initialize compress extensions dropdown.
+		// Initialize compress extensions dropdown.
 		initializeCompressExtensionsDropdown(data.allowed_extensions, data.compress_extensions);
 		
-		// NEW: Initialize status bar with initial data from page load.
+		// Initialize status bar with initial data from page load.
 		if (data.sessionTokens) {
 			updateStatusBar({tokens: data.sessionTokens, reanalysis: {running: false}}); // Assume not running on initial load
 		}
@@ -214,11 +212,9 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	// Setup event listeners
 	setupModalEventListeners();
-	// MODIFIED: Call the new single listener for all analysis actions.
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	
-	// MODIFIED: Add event listener for the compress extensions dropdown.
 	document.getElementById('compress-extensions-list').addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
 			const checkboxes = document.querySelectorAll('#compress-extensions-list input[type="checkbox"]:checked');
@@ -236,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	});
 	
-	// NEW: Start polling for status updates for tokens and progress.
+	// Start polling for status updates for tokens and progress.
 	pollSessionStats();
 	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);

@@ -1,7 +1,6 @@
 const path = require('path');
 const Database = require('better-sqlite3');
 
-// Initialize the database connection. The DB file is in the same directory as the script.
 const db = new Database(path.join(__dirname, 'llm-helper.sqlite'));
 
 // Global config object, will be populated from the database.
@@ -246,7 +245,7 @@ Add comments to new lines and modified sections.
 		if (allowedExtensions) {
 			initSettingsStmt.run('compress_extensions', allowedExtensions);
 		} else {
-			initSettingsStmt.run('compress_extensions', '[]'); // Fallback to empty array.
+			initSettingsStmt.run('compress_extensions', '[]');
 		}
 	});
 	transaction();
@@ -275,7 +274,7 @@ function loadConfigFromDb() {
 	
 	// Process settings data (all are strings)
 	settingsRows.forEach(row => {
-		// NEW: Also parse compress_extensions if it exists.
+		// Also parse compress_extensions if it exists.
 		if (row.key === 'compress_extensions') {
 			try {
 				newConfigData[row.key] = JSON.parse(row.value);
@@ -342,7 +341,6 @@ function getSetupData() {
  */
 function saveSetupData(postData) {
 	const setupKeys = new Set(['root_directories', 'allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	// MODIFIED: Added 'compress_extensions' to the list of settings that can be edited on the setup page.
 	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'compress_extensions']);
 	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
@@ -430,7 +428,7 @@ function getMainPageData() {
 		return acc;
 	}, {});
 	const llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
-	// NEW: Get allowed_extensions from app_setup.
+	// Get allowed_extensions from app_setup.
 	const allowedExtensionsRow = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
 	
 	return {
@@ -441,7 +439,7 @@ function getMainPageData() {
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
 		prompt_content_footer: appSettings.prompt_content_footer || '',
 		last_smart_prompt: appSettings.lastSmartPrompt || '',
-		// NEW: Add settings for the compress dropdown.
+		// Add settings for the compress dropdown.
 		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
 		compress_extensions: appSettings.compress_extensions || '[]'
 	};
@@ -456,7 +454,7 @@ module.exports = {
 	setDarkMode,
 	saveSelectedLlm,
 	saveLastSmartPrompt,
-	// NEW: Export the new function.
+	// Export the new function.
 	saveCompressExtensions,
 	getMainPageData,
 	resetPromptsToDefault

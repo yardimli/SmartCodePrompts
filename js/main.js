@@ -9,7 +9,10 @@ import {
 	setupModalEventListeners,
 	handlePromptButtonClick
 } from './modals.js';
-import {setupAnalysisButtonListener} from './analysis.js';
+// MODIFIED: Import setupReanalysisButtonListener
+import {setupAnalysisButtonListener, setupReanalysisButtonListener} from './analysis.js';
+// NEW: Import functions from the refactored llm.js module.
+import {initializeLlmSelector, setupLlmListeners} from './llm.js';
 
 /**
  * Loads a project, including its file tree and saved state.
@@ -43,7 +46,6 @@ async function loadProject(identifier) {
 	}
 }
 
-
 /**
  * Initializes the entire application on page load.
  */
@@ -61,11 +63,8 @@ async function initializeApp() {
 		setContentFooterPrompt(data.prompt_content_footer || '');
 		
 		// 3. Initialize LLM selector
-		if (window.llmHelper && typeof window.llmHelper.initializeLlmSelector === 'function') {
-			window.llmHelper.initializeLlmSelector(data.llms, data.lastSelectedLlm);
-		} else {
-			console.error('LLM helper function not found. Ensure llm.js is loaded before this script.');
-		}
+		// MODIFIED: Directly call the imported function. No need for a check.
+		initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		
 		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
@@ -106,6 +105,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Setup event listeners
 	setupModalEventListeners();
 	setupAnalysisButtonListener();
+	setupReanalysisButtonListener();
+	setupLlmListeners(); // NEW: Call the setup function for LLM listeners.
 	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
 	
@@ -125,51 +126,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		this.querySelector('i').classList.toggle('fa-sun');
 		this.querySelector('i').classList.toggle('fa-moon');
 		postData({action: 'set_dark_mode', isDarkMode: isDarkMode});
-	});
-	
-	document.getElementById('reanalyze-modified').addEventListener('click', async function () {
-		const llmId = document.getElementById('llm-dropdown').value;
-		const currentProject = getCurrentProject();
-		
-		if (!llmId) {
-			alert('Please select an LLM from the dropdown to perform the analysis.');
-			return;
-		}
-		if (!currentProject) {
-			alert('No project is currently loaded.');
-			return;
-		}
-		
-		if (!confirm('This will re-analyze all files in the current project that have been modified since their last analysis. This may consume API credits. Continue?')) {
-			return;
-		}
-		
-		showLoading('Scanning for modified files and re-analyzing...');
-		
-		try {
-			const response = await postData({
-				action: 'reanalyze_modified_files',
-				rootIndex: currentProject.rootIndex,
-				projectPath: currentProject.path,
-				llmId: llmId
-			});
-			
-			hideLoading();
-			
-			let summaryMessage = `Re-analysis complete.\n- Successfully re-analyzed: ${response.analyzed}\n- Skipped (up-to-date): ${response.skipped}`;
-			if (response.errors && response.errors.length > 0) {
-				summaryMessage += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
-			}
-			alert(summaryMessage);
-			
-			// Reload the project to reflect the changes (e.g., remove 'modified' icons)
-			await loadProject(getProjectIdentifier(currentProject));
-			
-		} catch (error) {
-			hideLoading();
-			console.error('Failed to re-analyze modified files:', error);
-			alert(`An error occurred during re-analysis: ${error.message}`);
-		}
 	});
 	
 	// Delegated event listener for the file tree

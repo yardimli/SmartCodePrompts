@@ -164,50 +164,59 @@ async function refreshLlms() {
 }
 
 /**
- * Analyzes a single file using two separate LLM calls for overview and function details,
- * then saves the results to the database. Skips analysis if file content has not changed.
+ * MODIFIED: Analyzes a single file using two separate LLM calls for overview and function details,
+ * then saves the results to the database. Skips analysis if file content has not changed, unless forced.
  * @param {object} params - The parameters for the analysis.
  * @param {number} params.rootIndex - The index of the project's root directory.
  * @param {string} params.projectPath - The path of the project.
  * @param {string} params.filePath - The path of the file to analyze.
  * @param {string} params.llmId - The ID of the LLM to use for analysis.
+ * @param {boolean} [params.force=false] - If true, analysis is performed even if checksums match.
  * @returns {Promise<object>} A promise that resolves to a success object with a status ('analyzed' or 'skipped').
  */
-async function analyzeFile({rootIndex, projectPath, filePath, llmId}) {
+async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = false}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
 	// Get raw content and calculate a checksum.
 	const rawFileContent = getRawFileContent(filePath, rootIndex);
 	const currentChecksum = crypto.createHash('sha256').update(rawFileContent).digest('hex');
+	
 	// Check against the stored checksum in the database.
 	const existingMetadata = db.prepare('SELECT last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?')
 		.get(rootIndex, projectPath, filePath);
-	// If checksums match, the file is unchanged. Skip analysis.
-	if (existingMetadata && existingMetadata.last_checksum === currentChecksum) {
+	
+	// If we are NOT forcing analysis and checksums match, the file is unchanged. Skip analysis.
+	if (!force && existingMetadata && existingMetadata.last_checksum === currentChecksum) {
 		console.log(`Skipping analysis for ${filePath}, checksum matches.`);
 		return {success: true, status: 'skipped'};
 	}
+	
 	// If checksums differ or no prior analysis exists, proceed.
 	console.log(`Analyzing ${filePath}, checksum mismatch or new file.`);
 	const fileContent = getFileContent(filePath, rootIndex).content; // Get minified content for the prompt.
+	
 	// Prompt 1: File Overview (from config)
 	const overviewPromptTemplate = config.prompt_file_overview;
 	const overviewPrompt = overviewPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
 	const overviewResult = await callLlm(overviewPrompt, llmId);
+	
 	// Prompt 2: Functions and Logic (from config)
 	const functionsPromptTemplate = config.prompt_functions_logic;
 	const functionsPrompt = functionsPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
 	const functionsResult = await callLlm(functionsPrompt, llmId);
+	
 	// Save results to the database, including the new checksum and current timestamp.
 	db.prepare(`
-        INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
+        INSERT OR REPLACE INTO file_metadata
+            (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
+	
 	return {success: true, status: 'analyzed'};
 }
 
@@ -237,10 +246,11 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 			const rawFileContent = getRawFileContent(file.file_path, rootIndex);
 			const currentChecksum = calculateChecksum(rawFileContent);
 			
-			// MODIFIED: Re-analyze if 'force' is true or if the checksum has changed.
+			// Re-analyze if 'force' is true or if the checksum has changed.
 			if (force || currentChecksum !== file.last_checksum) {
 				console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-				await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId});
+				// Pass the force flag down to ensure the inner checksum check is bypassed if needed.
+				await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: force});
 				analyzedCount++;
 			} else {
 				skippedCount++;
@@ -266,7 +276,8 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 	const analyzedFiles = db.prepare(`
         SELECT file_path, file_overview, functions_overview
         FROM file_metadata
-        WHERE project_root_index = ? AND project_path = ? AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
+        WHERE project_root_index = ? AND project_path = ?
+          AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
     `).all(rootIndex, projectPath);
 	
 	if (!analyzedFiles || analyzedFiles.length === 0) {

@@ -2,7 +2,6 @@
 import {showLoading, hideLoading, getProjectIdentifier, parseProjectIdentifier, postData} from './utils.js';
 import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState, getCurrentProject} from './state.js';
 import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
-// MODIFIED: Import handleLogButtonClick
 import {
 	initializeModals,
 	handleSearchIconClick,
@@ -14,7 +13,6 @@ import {
 import {setupAnalysisButtonListener, setupReanalysisButtonListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
 
-// NEW: Functions to manage the new status bar.
 /**
  * Updates the status bar with the latest session and progress data.
  * @param {object} stats - The stats object from the server.
@@ -71,7 +69,6 @@ function pollSessionStats() {
 	}, 2000); // Poll every 2 seconds
 }
 
-
 /**
  * Loads a project, including its file tree and saved state.
  * @param {string} identifier - The unique project identifier.
@@ -103,6 +100,47 @@ async function loadProject(identifier) {
 }
 
 /**
+ * NEW: Populates the compress extensions dropdown with checkboxes.
+ * @param {string} allowedExtensionsJson - JSON string array of all possible extensions.
+ * @param {string} compressedExtensionsJson - JSON string array of extensions to be checked.
+ */
+function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedExtensionsJson) {
+	const container = document.getElementById('compress-extensions-list');
+	if (!container) return;
+	
+	try {
+		const allowed = JSON.parse(allowedExtensionsJson);
+		const compressed = new Set(JSON.parse(compressedExtensionsJson));
+		
+		if (!Array.isArray(allowed) || allowed.length === 0) {
+			container.innerHTML = '<div class="p-2 text-muted small">No extensions configured.</div>';
+			return;
+		}
+		
+		allowed.sort(); // Sort alphabetically for consistency
+		let content = '';
+		for (const ext of allowed) {
+			const isChecked = compressed.has(ext);
+			const id = `compress-ext-${ext.replace('.', '')}`;
+			content += `
+                <li class="px-2 py-1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${ext}" id="${id}" ${isChecked ? 'checked' : ''}>
+                        <label class="form-check-label" for="${id}">
+                            .${ext}
+                        </label>
+                    </div>
+                </li>
+            `;
+		}
+		container.innerHTML = content;
+	} catch (e) {
+		console.error("Failed to parse extension settings:", e);
+		container.innerHTML = '<div class="p-2 text-danger small">Error loading settings.</div>';
+	}
+}
+
+/**
  * Initializes the entire application on page load.
  */
 async function initializeApp() {
@@ -121,12 +159,12 @@ async function initializeApp() {
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		
+		// NEW: Initialize compress extensions dropdown.
+		initializeCompressExtensionsDropdown(data.allowed_extensions, data.compress_extensions);
+		
 		// NEW: Initialize status bar with initial data from page load.
-		// Assumes `get_main_page_data` is modified to return a `sessionTokens` object.
 		if (data.sessionTokens) {
-			updateStatusBar({
-				tokens: data.sessionTokens, reanalysis: {running: false} // Assume not running on initial load
-			});
+			updateStatusBar({tokens: data.sessionTokens, reanalysis: {running: false}}); // Assume not running on initial load
 		}
 		
 		// 4. Populate Projects Dropdown
@@ -171,11 +209,25 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupReanalysisButtonListener();
 	setupLlmListeners();
 	
+	// NEW: Add event listener for the compress extensions dropdown.
+	document.getElementById('compress-extensions-list').addEventListener('change', (e) => {
+		if (e.target.matches('input[type="checkbox"]')) {
+			const checkboxes = document.querySelectorAll('#compress-extensions-list input[type="checkbox"]:checked');
+			const selectedExtensions = Array.from(checkboxes).map(cb => cb.value);
+			postData({
+				action: 'save_compress_extensions',
+				extensions: JSON.stringify(selectedExtensions)
+			}).catch(err => {
+				console.error("Failed to save compress extensions setting:", err);
+				alert("Could not save compression setting. See console for details.");
+			});
+		}
+	});
+	
 	// NEW: Start polling for status updates for tokens and progress.
 	pollSessionStats();
 	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
-	// NEW: Add event listener for the new log modal button.
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
 	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {

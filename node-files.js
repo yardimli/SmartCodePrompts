@@ -121,8 +121,9 @@ function getFileContent(inputPath, rootIndex) {
 	try {
 		const fileContents = fs.readFileSync(fullPath, 'utf8');
 		// Collapse multiple whitespace characters into a single space for minification.
-		const collapsedContent = fileContents.replace(/\s+/g, ' ');
-		return {content: collapsedContent};
+		// don't collapse for now -- we'll only collapse in node-server.js get_file_content function
+		// const collapsedContent = fileContents.replace(/\s+/g, ' ');
+		return {content: fileContents};
 	} catch (error) {
 		console.error(`Error reading file ${fullPath}:`, error);
 		throw new Error(`Could not read file: ${inputPath}`);

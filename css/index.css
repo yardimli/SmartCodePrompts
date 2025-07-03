@@ -5,8 +5,7 @@ body.dark-mode #root-directory {
     border-color: #555;
 }
 
-.folder,
-.file {
+.folder, .file {
     cursor: pointer;
 }
 
@@ -34,8 +33,7 @@ body.dark-mode #root-directory {
     vertical-align: middle;
 }
 
-#file-tree {
-    /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
+#file-tree { /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
     height: calc(100vh - 145px);
     max-height: calc(100vh - 145px);
     overflow: auto;
@@ -44,8 +42,7 @@ body.dark-mode #root-directory {
 }
 
 #selected-content {
-    border: 1px solid #ccc;
-    /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
+    border: 1px solid #ccc; /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
     height: calc(100vh - 145px);
     max-height: calc(100vh - 145px);
     width: 100%;
@@ -59,25 +56,21 @@ body.dark-mode #root-directory {
     margin-right: 5px;
 }
 
-.folder-search-icon,
-.folder-clear-icon {
+.folder-search-icon, .folder-clear-icon {
     cursor: pointer;
     color: #ccc;
     margin-left: 4px;
 }
 
-.folder-search-icon:hover,
-.folder-clear-icon:hover {
+.folder-search-icon:hover, .folder-clear-icon:hover {
     color: #888;
 }
 
-body.dark-mode .folder-search-icon,
-body.dark-mode .folder-clear-icon {
+body.dark-mode .folder-search-icon, body.dark-mode .folder-clear-icon {
     color: #777;
 }
 
-body.dark-mode .folder-search-icon:hover,
-body.dark-mode .folder-clear-icon:hover {
+body.dark-mode .folder-search-icon:hover, body.dark-mode .folder-clear-icon:hover {
     color: #bbb;
 }
 
@@ -86,22 +79,18 @@ body.dark-mode {
     color: #fff;
 }
 
-body.dark-mode #file-tree,
-body.dark-mode #selected-content,
-body.dark-mode .modal-content {
+body.dark-mode #file-tree, body.dark-mode #selected-content, body.dark-mode .modal-content {
     border-color: #555;
     background-color: #444;
     color: #fff;
 }
 
-body.dark-mode .modal-header,
-body.dark-mode .modal-footer {
+body.dark-mode .modal-header, body.dark-mode .modal-footer {
     border-color: #555;
 }
 
 /* MODIFIED: Added .form-select to apply dark mode to dropdowns */
-body.dark-mode .form-control,
-body.dark-mode .form-select {
+body.dark-mode .form-control, body.dark-mode .form-select {
     background-color: #555;
     color: #fff;
     border-color: #666;
@@ -112,8 +101,7 @@ body.dark-mode .form-control::placeholder {
 }
 
 /* MODIFIED: Added .form-select:focus to apply dark mode to dropdowns on focus */
-body.dark-mode .form-control:focus,
-body.dark-mode .form-select:focus {
+body.dark-mode .form-control:focus, body.dark-mode .form-select:focus {
     background-color: #666;
     color: #fff;
     border-color: #888;
@@ -173,14 +161,19 @@ body.dark-mode .text-body {
 
 .analysis-icon {
     cursor: pointer;
-    color: #0dcaf0;
-    /* Bootstrap 'info' color */
+    color: #0dcaf0; /* Bootstrap 'info' color */
     margin-right: 5px;
     vertical-align: middle;
 }
 
 .analysis-icon:hover {
     color: #0aa5c2;
+}
+
+#status-bar {
+    background-color: #f8f9fa;
+    color: #000 !important;
+    border-top: 1px solid #dee2e6;
 }
 
 body.dark-mode .analysis-icon {
@@ -240,6 +233,12 @@ body.dark-mode #logModalBody .log-timestamp {
     color: #adb5bd;
 }
 
+body.dark-mode #status-bar {
+    background-color: #666;
+    color: #fff !important;
+    border-color: #555;
+}
+
 /* NEW: Dark mode for log button in status bar */
 body.dark-mode #log-modal-button {
     color: #ccc;
@@ -249,4 +248,28 @@ body.dark-mode #log-modal-button {
 body.dark-mode #log-modal-button:hover {
     background-color: #555;
     color: #fff;
+}
+
+/* NEW: Styles for the compress extensions dropdown */
+#compress-extensions-list {
+    max-height: 40vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#compress-extensions-list .form-check {
+    white-space: nowrap;
+}
+
+body.dark-mode #compress-extensions-list {
+    background-color: #555;
+    border-color: #666;
+}
+
+body.dark-mode #compress-extensions-list .form-check-label {
+    color: #fff;
+}
+
+body.dark-mode #compress-extensions-list .text-muted {
+    color: #adb5bd !important;
 }

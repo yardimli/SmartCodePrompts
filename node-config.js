@@ -13,53 +13,47 @@ let config = {};
  */
 function createTables() {
 	db.exec(`
-        CREATE TABLE IF NOT EXISTS projects
-        (
+        CREATE TABLE IF NOT EXISTS projects (
             root_index INTEGER NOT NULL,
-            path       TEXT    NOT NULL,
+            path TEXT NOT NULL,
             PRIMARY KEY (root_index, path)
         );
 
-        CREATE TABLE IF NOT EXISTS project_states
-        (
+        CREATE TABLE IF NOT EXISTS project_states (
             project_root_index INTEGER NOT NULL,
-            project_path       TEXT    NOT NULL,
-            open_folders       TEXT,
-            selected_files     TEXT,
+            project_path TEXT NOT NULL,
+            open_folders TEXT,
+            selected_files TEXT,
             PRIMARY KEY (project_root_index, project_path),
             FOREIGN KEY (project_root_index, project_path) REFERENCES projects (root_index, path) ON DELETE CASCADE
         );
 
-        CREATE TABLE IF NOT EXISTS file_metadata
-        (
-            project_root_index        INTEGER NOT NULL,
-            project_path              TEXT    NOT NULL,
-            file_path                 TEXT    NOT NULL,
-            file_overview             TEXT,
-            functions_overview        TEXT,
-            last_analyze_update_time  TEXT,
-            last_checksum             TEXT,
+        CREATE TABLE IF NOT EXISTS file_metadata (
+            project_root_index INTEGER NOT NULL,
+            project_path TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_overview TEXT,
+            functions_overview TEXT,
+            last_analyze_update_time TEXT,
+            last_checksum TEXT,
             PRIMARY KEY (project_root_index, project_path, file_path)
         );
 
-        CREATE TABLE IF NOT EXISTS llms
-        (
-            id               TEXT PRIMARY KEY,
-            name             TEXT NOT NULL,
-            context_length   INTEGER,
-            prompt_price     REAL,
+        CREATE TABLE IF NOT EXISTS llms (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            context_length INTEGER,
+            prompt_price REAL,
             completion_price REAL
         );
 
-        CREATE TABLE IF NOT EXISTS app_settings
-        (
-            key   TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
             value TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS app_setup
-        (
-            key   TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS app_setup (
+            key TEXT PRIMARY KEY,
             value TEXT
         );
     `);
@@ -241,6 +235,13 @@ File Content:
 		initSettingsStmt.run('prompt_functions_logic', defaultFunctionsPrompt);
 		initSettingsStmt.run('prompt_content_footer', defaultContentFooter);
 		initSettingsStmt.run('prompt_smart_prompt', defaultSmartPrompt);
+		
+		const allowedExtensions = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions')?.value;
+		if (allowedExtensions) {
+			initSettingsStmt.run('compress_extensions', allowedExtensions);
+		} else {
+			initSettingsStmt.run('compress_extensions', '[]'); // Fallback to empty array.
+		}
 	});
 	transaction();
 }
@@ -255,7 +256,6 @@ function loadConfigFromDb() {
 	
 	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
 	const settingsRows = db.prepare('SELECT key, value FROM app_settings').all();
-	
 	const newConfigData = {};
 	
 	// Process setup data (JSON parsing for arrays)
@@ -269,7 +269,16 @@ function loadConfigFromDb() {
 	
 	// Process settings data (all are strings)
 	settingsRows.forEach(row => {
-		newConfigData[row.key] = row.value;
+		// NEW: Also parse compress_extensions if it exists.
+		if (row.key === 'compress_extensions') {
+			try {
+				newConfigData[row.key] = JSON.parse(row.value);
+			} catch (e) {
+				newConfigData[row.key] = [];
+			}
+		} else {
+			newConfigData[row.key] = row.value;
+		}
 	});
 	
 	// Ensure server_port is a number for the listener.
@@ -289,7 +298,6 @@ function loadConfigFromDb() {
 	console.log('Configuration loaded from database.');
 }
 
-
 /**
  * Initializes the entire database and configuration setup.
  * This should be called once on server startup.
@@ -308,7 +316,6 @@ function initializeDatabaseAndConfig() {
 function getSetupData() {
 	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
 	const settingsRows = db.prepare("SELECT key, value FROM app_settings").all();
-	
 	const currentConfig = {};
 	setupRows.forEach(row => {
 		try {
@@ -320,11 +327,7 @@ function getSetupData() {
 	settingsRows.forEach(row => {
 		currentConfig[row.key] = row.value;
 	});
-	
-	return {
-		config: currentConfig,
-		darkMode: currentConfig.darkMode === 'true'
-	};
+	return {config: currentConfig, darkMode: currentConfig.darkMode === 'true'};
 }
 
 /**
@@ -333,15 +336,14 @@ function getSetupData() {
  */
 function saveSetupData(postData) {
 	const setupKeys = new Set(['root_directories', 'allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt']);
-	
+	// MODIFIED: Added 'compress_extensions' to the list of settings that can be edited on the setup page.
+	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'compress_extensions']);
 	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
 	const transaction = db.transaction(() => {
 		for (const [key, value] of postData.entries()) {
 			if (key === 'action') continue;
-			
 			if (setupKeys.has(key)) {
 				upsertSetupStmt.run(key, value);
 			} else if (settingsKeys.has(key)) {
@@ -376,7 +378,6 @@ function resetPromptsToDefault() {
 	return {success: true};
 }
 
-
 /**
  * Sets the dark mode preference in the database.
  * @param {boolean} isDarkMode - The new dark mode state.
@@ -394,6 +395,16 @@ function saveSelectedLlm(llmId) {
 }
 
 /**
+ * NEW: Saves the list of extensions to compress.
+ * @param {string} extensionsJson - A JSON string array of extensions.
+ */
+function saveCompressExtensions(extensionsJson) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(extensionsJson, 'compress_extensions');
+	// Reload config into memory to make the change effective immediately for get_file_content.
+	loadConfigFromDb();
+}
+
+/**
  * Retrieves all data needed for the main page (index.html).
  * @returns {object} An object containing projects, settings, and LLMs.
  */
@@ -405,13 +416,19 @@ function getMainPageData() {
 		return acc;
 	}, {});
 	const llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
+	// NEW: Get allowed_extensions from app_setup.
+	const allowedExtensionsRow = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
+	
 	return {
 		projects,
 		lastSelectedProject: appSettings.lastSelectedProject || '',
 		darkMode: appSettings.darkMode === 'true',
 		llms,
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
-		prompt_content_footer: appSettings.prompt_content_footer || ''
+		prompt_content_footer: appSettings.prompt_content_footer || '',
+		// NEW: Add settings for the compress dropdown.
+		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
+		compress_extensions: appSettings.compress_extensions || '[]'
 	};
 }
 
@@ -423,6 +440,8 @@ module.exports = {
 	saveSetupData,
 	setDarkMode,
 	saveSelectedLlm,
+	// NEW: Export the new function.
+	saveCompressExtensions,
 	getMainPageData,
 	resetPromptsToDefault
 };

@@ -53,6 +53,11 @@ async function handlePostRequest(req, res) {
 					configManager.saveSelectedLlm(postData.get('llmId'));
 					result = {success: true};
 					break;
+				// NEW: Action to save compress extensions setting.
+				case 'save_compress_extensions':
+					configManager.saveCompressExtensions(postData.get('extensions'));
+					result = {success: true};
+					break;
 				case 'get_main_page_data':
 					result = configManager.getMainPageData();
 					break;
@@ -61,7 +66,6 @@ async function handlePostRequest(req, res) {
 				case 'refresh_llms':
 					result = await llmManager.refreshLlms();
 					break;
-				// NEW: Add action to get the LLM call log for the session.
 				case 'get_llm_log':
 					result = llmManager.getLlmLog();
 					break;
@@ -74,7 +78,6 @@ async function handlePostRequest(req, res) {
 					});
 					break;
 				case 'reanalyze_modified_files':
-					// MODIFIED: Pass the 'force' parameter from the client to the backend function.
 					result = await llmManager.reanalyzeModifiedFiles({
 						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
@@ -126,10 +129,19 @@ async function handlePostRequest(req, res) {
 					);
 					break;
 				case 'get_file_content':
+					// MODIFIED: Apply compression based on settings after getting file content.
+					const filePath = postData.get('path');
 					result = fileManager.getFileContent(
-						postData.get('path'),
+						filePath,
 						parseInt(postData.get('rootIndex') || '0')
 					);
+					const fileExt = path.extname(filePath).slice(1);
+					// Ensure config.compress_extensions is an array before using .includes().
+					const compressExtensions = Array.isArray(configManager.config.compress_extensions) ? configManager.config.compress_extensions : [];
+					if (result && result.content && compressExtensions.includes(fileExt)) {
+						// Simple compression: remove empty lines.
+						result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
+					}
 					break;
 				case 'search_files':
 					result = fileManager.searchFiles(
@@ -145,7 +157,6 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
-				
 				default:
 					throw new Error(`Unknown action: ${action}`);
 			}
@@ -175,6 +186,7 @@ function serveStaticFile(filePath, res) {
 		txt: 'text/plain',
 	};
 	const contentType = mimeTypes[ext] || 'application/octet-stream';
+	
 	fs.readFile(fullPath, (err, content) => {
 		if (err) {
 			if (err.code === 'ENOENT') {

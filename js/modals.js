@@ -56,6 +56,7 @@ export async function handleLogButtonClick() {
                     <tr>
                         <th>Timestamp</th>
                         <th>Reason</th>
+                        <th>Model</th>
                         <th class="text-end">Prompt Tokens</th>
                         <th class="text-end">Completion Tokens</th>
                     </tr>
@@ -69,6 +70,7 @@ export async function handleLogButtonClick() {
                 <tr>
                     <td class="log-timestamp">${timestamp}</td>
                     <td class="log-reason">${entry.reason}</td>
+                    <td class="log-model">${entry.modelId || 'N/A'}</td>
                     <td class="log-tokens">${(entry.promptTokens || 0).toLocaleString()}</td>
                     <td class="log-tokens">${(entry.completionTokens || 0).toLocaleString()}</td>
                 </tr>
@@ -247,7 +249,17 @@ export function setupModalEventListeners() {
 				await updateSelectedContent();
 				// Append the user's prompt to the end of the textarea
 				const selectedContentEl = document.getElementById('selected-content');
-				selectedContentEl.value = selectedContentEl.value.replace('${userPrompt}', userPrompt);
+				
+				const searchStr = '${userPrompt}';
+				const lastIndex = selectedContentEl.value.lastIndexOf(searchStr);
+				
+				if (lastIndex !== -1) {
+					selectedContentEl.value =
+						selectedContentEl.value.substring(0, lastIndex) +
+						userPrompt +
+						selectedContentEl.value.substring(lastIndex + searchStr.length);
+				}
+				
 				saveCurrentProjectState();
 				alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
 			} else {

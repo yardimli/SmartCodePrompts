@@ -118,7 +118,8 @@ async function callLlm(prompt, modelId, callReason = 'Unknown') {
 							timestamp: new Date().toISOString(),
 							reason: callReason,
 							promptTokens: promptTokens,
-							completionTokens: completionTokens
+							completionTokens: completionTokens,
+							modelId: modelId || 'N/A', // Use 'N/A' if modelId is not provided
 						});
 						// NEW: Keep the log from growing indefinitely
 						if (sessionLlmLog.length > 100) {

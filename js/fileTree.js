@@ -1,6 +1,6 @@
 // llm-php-helper/js/fileTree.js
 import {showLoading, hideLoading, getParentPath, postData} from './utils.js';
-import {getCurrentProject, getContentFooterPrompt} from './state.js';
+import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt} from './state.js';
 
 /**
  * Fetches and displays the contents of a folder in the file tree.
@@ -92,6 +92,7 @@ export async function updateSelectedContent() {
 	}
 	showLoading(`Loading ${checkedBoxes.length} file(s)...`);
 	const contentFooterPrompt = getContentFooterPrompt();
+	const userPrompt = getLastSmartPrompt();
 	const requestPromises = Array.from(checkedBoxes).map(box => {
 		const path = box.dataset.path;
 		return postData({ action: 'get_file_content', rootIndex: getCurrentProject().rootIndex, path: path })
@@ -101,6 +102,17 @@ export async function updateSelectedContent() {
 	try {
 		const results = await Promise.all(requestPromises);
 		selectedContentEl.value = results.join('') + contentFooterPrompt;
+		
+		const searchStr = '${userPrompt}';
+		const lastIndex = selectedContentEl.value.lastIndexOf(searchStr);
+		
+		if (lastIndex !== -1) {
+			selectedContentEl.value =
+				selectedContentEl.value.substring(0, lastIndex) +
+				userPrompt +
+				selectedContentEl.value.substring(lastIndex + searchStr.length);
+		}
+		
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selectedContentEl.value = '/* --- An unexpected error occurred while loading file contents. --- */';

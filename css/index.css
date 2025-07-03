@@ -233,6 +233,24 @@ body.dark-mode #logModalBody .log-timestamp {
     color: #adb5bd;
 }
 
+/* MODIFIED: Added dark mode styles for the log modal table to ensure readability. */
+body.dark-mode #logModalBody .table {
+    color: #fff; /* Sets default text color for the table to white. */
+    border-color: #555; /* Sets the table's outer border color to match other dark mode elements. */
+}
+
+body.dark-mode #logModalBody .table th,
+body.dark-mode #logModalBody .table td {
+    /* Ensures the lines between rows are visible but not jarring in dark mode. */
+    border-color: #555;
+}
+
+body.dark-mode #logModalBody .table-hover > tbody > tr:hover > * {
+    /* Defines a subtle hover effect for table rows in dark mode. */
+    --bs-table-bg-state: #555;
+    color: #fff; /* Ensures text remains white on hover. */
+}
+
 body.dark-mode #status-bar {
     background-color: #666;
     color: #fff !important;

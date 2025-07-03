@@ -247,7 +247,7 @@ export function setupModalEventListeners() {
 				await updateSelectedContent();
 				// Append the user's prompt to the end of the textarea
 				const selectedContentEl = document.getElementById('selected-content');
-				selectedContentEl.value += '\n\n' + userPrompt;
+				selectedContentEl.value = selectedContentEl.value.replace('${userPrompt}', userPrompt);
 				saveCurrentProjectState();
 				alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
 			} else {

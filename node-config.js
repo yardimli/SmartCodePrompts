@@ -90,6 +90,7 @@ function setDefaultAppSettings() {
 		initSettingsStmt.run('darkMode', 'false');
 		initSettingsStmt.run('lastSelectedProject', '');
 		initSettingsStmt.run('lastSelectedLlm', '');
+		initSettingsStmt.run('lastSmartPrompt', '');
 		
 		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, JSON object format.
 		Do not include any text outside of the JSON object.
@@ -222,13 +223,18 @@ The JSON object should have the following structure, if a structure is empty, it
 File Path: \${filePath}
 File Content:
 \${fileContent}`;
-		const defaultContentFooter = 'For output format the output. \n' +
-			'For PHP use psr-12 standards.\n' +
-			'For javascript use StandardJS but include semicolumns.\n' +
-			'For html use W3C standards.\n' +
-			'Skip files that dont need to be changed and are provided for reference.\n' +
-			'Comment as needed.\n' +
-			'Add comments to new lines and modifed sections.\n';
+		const defaultContentFooter = `
+		\${userPrompt}
+
+Format the output.
+For PHP use psr-12 standards.
+For javascript use StandardJS but include semicolumns.
+For html use W3C standards.
+Skip files that dont need to be changed and are provided for reference.
+Don't refactor code that is not needed to be changed.
+Comment as needed.
+Add comments to new lines and modified sections.
+`;
 		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}\n\nUSER REQUEST: \${userPrompt}\n\nAVAILABLE FILES AND THEIR ANALYSIS:\n---\n\${analysisDataString}\n---`;
 		
 		initSettingsStmt.run('prompt_file_overview', defaultOverviewPrompt);
@@ -395,6 +401,14 @@ function saveSelectedLlm(llmId) {
 }
 
 /**
+ * NEW: Saves the last used smart prompt text.
+ * @param {string} prompt - The prompt text to save.
+ */
+function saveLastSmartPrompt(prompt) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(prompt, 'lastSmartPrompt');
+}
+
+/**
  * NEW: Saves the list of extensions to compress.
  * @param {string} extensionsJson - A JSON string array of extensions.
  */
@@ -426,6 +440,7 @@ function getMainPageData() {
 		llms,
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
 		prompt_content_footer: appSettings.prompt_content_footer || '',
+		last_smart_prompt: appSettings.lastSmartPrompt || '',
 		// NEW: Add settings for the compress dropdown.
 		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
 		compress_extensions: appSettings.compress_extensions || '[]'
@@ -440,6 +455,7 @@ module.exports = {
 	saveSetupData,
 	setDarkMode,
 	saveSelectedLlm,
+	saveLastSmartPrompt,
 	// NEW: Export the new function.
 	saveCompressExtensions,
 	getMainPageData,

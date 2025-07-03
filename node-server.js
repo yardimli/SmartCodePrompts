@@ -53,6 +53,11 @@ async function handlePostRequest(req, res) {
 					configManager.saveSelectedLlm(postData.get('llmId'));
 					result = {success: true};
 					break;
+				// NEW: Action to save the last smart prompt.
+				case 'save_last_smart_prompt':
+					configManager.saveLastSmartPrompt(postData.get('prompt'));
+					result = {success: true};
+					break;
 				// NEW: Action to save compress extensions setting.
 				case 'save_compress_extensions':
 					configManager.saveCompressExtensions(postData.get('extensions'));

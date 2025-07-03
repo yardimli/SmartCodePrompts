@@ -32,11 +32,18 @@ export function getLastSmartPrompt() {
 }
 
 /**
- * NEW: Sets the last submitted smart prompt.
+ * NEW: Sets the last submitted smart prompt and persists it for future sessions.
  * @param {string} prompt The prompt to save.
  */
 export function setLastSmartPrompt(prompt) {
 	lastSmartPrompt = prompt;
+	// Save to server for persistence. Fire and forget.
+	postData({
+		action: 'save_last_smart_prompt',
+		prompt: prompt
+	}).catch(error => {
+		console.error('Could not save smart prompt state:', error);
+	});
 }
 
 /**

@@ -1,6 +1,12 @@
 // llm-php-helper/js/main.js
 import {showLoading, hideLoading, getProjectIdentifier, parseProjectIdentifier, postData} from './utils.js';
-import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState, getCurrentProject} from './state.js';
+import {
+	setCurrentProject,
+	setContentFooterPrompt,
+	saveCurrentProjectState,
+	getCurrentProject,
+	setLastSmartPrompt
+} from './state.js';
 import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
 import {
 	initializeModals,
@@ -154,8 +160,10 @@ async function initializeApp() {
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
 		}
 		
-		// 2. Set global prompt footer
+		// 2. Set global prompts from state
 		setContentFooterPrompt(data.prompt_content_footer || '');
+		// MODIFIED: Set last smart prompt from saved state.
+		setLastSmartPrompt(data.last_smart_prompt || '');
 		
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
@@ -210,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	
-	// NEW: Add event listener for the compress extensions dropdown.
+	// MODIFIED: Add event listener for the compress extensions dropdown.
 	document.getElementById('compress-extensions-list').addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
 			const checkboxes = document.querySelectorAll('#compress-extensions-list input[type="checkbox"]:checked');
@@ -218,6 +226,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			postData({
 				action: 'save_compress_extensions',
 				extensions: JSON.stringify(selectedExtensions)
+			}).then(() => {
+				// On success, reload the content of selected files to apply new settings.
+				updateSelectedContent();
 			}).catch(err => {
 				console.error("Failed to save compress extensions setting:", err);
 				alert("Could not save compression setting. See console for details.");

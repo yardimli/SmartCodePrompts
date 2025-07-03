@@ -31,14 +31,10 @@
 					<i class="fas fa-sync-alt"></i>
 				</button>
 			</li>
+			<!-- MODIFIED: Replaced 'analyze-files' and 'reanalyze-files' with a single button to open a modal -->
 			<li class="nav-item me-2">
-				<button id="analyze-files" class="btn btn-outline-info" title="Analyze Selected Files">
-					<i class="fa-solid fa-microscope"></i>
-				</button>
-			</li>
-			<li class="nav-item me-2">
-				<button id="reanalyze-files" class="btn btn-outline-warning" title="Re-analyze Files">
-					<i class="fa-solid fa-arrows-rotate"></i>
+				<button id="analysis-actions-button" class="btn btn-outline-info" title="Analysis Actions">
+					<i class="fa-solid fa-microscope"></i> Analysis
 				</button>
 			</li>
 			<!-- NEW: Compress Extensions Dropdown -->
@@ -157,29 +153,45 @@
 	</div>
 </div>
 
-<!-- Re-analysis Choice Modal -->
-<div class="modal fade" id="reanalysisModal" tabindex="-1" aria-labelledby="reanalysisModalLabel" aria-hidden="true">
+<!-- NEW: Consolidated Analysis Options Modal -->
+<div class="modal fade" id="analysisOptionsModal" tabindex="-1" aria-labelledby="analysisOptionsModalLabel"
+     aria-hidden="true">
 	<div class="modal-dialog">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="reanalysisModalLabel">Choose Re-analysis Mode</h5>
+				<h5 class="modal-title" id="analysisOptionsModalLabel">Choose Analysis Action</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<p>How would you like to re-analyze the files in this project?</p>
-				<p><strong>Modified Only (Faster):</strong><br>Scans for files changed since their last analysis and re-analyzes
-					only those.</p>
-				<p><strong>Force All (Slower):</strong><br>Re-analyzes every file that has a previous analysis, regardless of
-					whether it has changed. Useful if you have updated the analysis prompts.</p>
+				<p>How would you like to analyze the files in this project?</p>
+				<div class="d-grid gap-2">
+					<button type="button" class="btn btn-primary" id="analyzeSelectedButton">
+						<i class="fa-solid fa-check-square me-2"></i>Analyze Selected Files
+					</button>
+					<hr>
+					<button type="button" class="btn btn-info" id="reanalyzeModifiedOnlyButton">
+						<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified Only
+					</button>
+					<button type="button" class="btn btn-danger" id="reanalyzeForceAllButton">
+						<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
+					</button>
+				</div>
+				<div class="mt-3 small text-muted">
+					<p><strong>Analyze Selected:</strong><br>Performs a one-time analysis on the files currently checked in the
+						file tree.</p>
+					<p><strong>Re-analyze Modified (Faster):</strong><br>Scans for files changed since their last analysis and
+						re-analyzes only those.</p>
+					<p><strong>Force Re-analyze All (Slower):</strong><br>Re-analyzes every file that has a previous analysis,
+						regardless of changes.</p>
+				</div>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-				<button type="button" class="btn btn-info" id="reanalyzeModifiedOnlyButton">Re-analyze Modified Only</button>
-				<button type="button" class="btn btn-danger" id="reanalyzeForceAllButton">Force Re-analyze All</button>
 			</div>
 		</div>
 	</div>
 </div>
+
 
 <!-- LLM Log Modal -->
 <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">

@@ -10,7 +10,8 @@ import {
 	handlePromptButtonClick,
 	handleLogButtonClick
 } from './modals.js';
-import {setupAnalysisButtonListener, setupReanalysisButtonListener} from './analysis.js';
+// MODIFIED: Import the new consolidated analysis listener.
+import {setupAnalysisActionsListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
 
 /**
@@ -205,8 +206,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	// Setup event listeners
 	setupModalEventListeners();
-	setupAnalysisButtonListener();
-	setupReanalysisButtonListener();
+	// MODIFIED: Call the new single listener for all analysis actions.
+	setupAnalysisActionsListener();
 	setupLlmListeners();
 	
 	// NEW: Add event listener for the compress extensions dropdown.

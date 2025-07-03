@@ -139,7 +139,7 @@ async function handlePostRequest(req, res) {
 					// Ensure config.compress_extensions is an array before using .includes().
 					const compressExtensions = Array.isArray(configManager.config.compress_extensions) ? configManager.config.compress_extensions : [];
 					if (result && result.content && compressExtensions.includes(fileExt)) {
-						// Simple compression: remove empty lines.
+						result.content = result.content.replace(/\s+/g, ' ');
 						result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
 					}
 					break;

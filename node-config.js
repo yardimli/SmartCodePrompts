@@ -97,7 +97,9 @@ function setDefaultAppSettings() {
 		initSettingsStmt.run('lastSelectedProject', '');
 		initSettingsStmt.run('lastSelectedLlm', '');
 		
-		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, minified JSON object format. Do not include any text outside of the JSON object. The JSON object should have the following structure:
+		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, JSON object format.
+		Do not include any text outside of the JSON object.
+		The JSON object should have the following structure, if a structure is empty, it should not be included in the output.:
 
 {
 "overview": "A brief, one-sentence summary of the file's primary purpose.",
@@ -172,7 +174,7 @@ Function Relationships
 - Track event emitters and listeners
 - Identify decorator and wrapper patterns
 
-The JSON object should have the following structure:
+The JSON object should have the following structure, if a structure is empty, it should not be included in the output. The documentation should be short.:
 {
 "language": "The primary programming language detected",
 "frameworks": ["List of frameworks and major libraries detected"],
@@ -181,7 +183,7 @@ The JSON object should have the following structure:
 "name": "functionName",
 "type": "function|method|constructor|getter|setter|async|generator|arrow|anonymous",
 "visibility": "public|private|protected|static",
-"purpose": "Detailed description of what the function does",
+"purpose": "Short description of what the function does",
 "parameters": [
 {
 "name": "paramName",
@@ -220,8 +222,7 @@ The JSON object should have the following structure:
 "imports": ["List of imported modules or libraries"],
 "exports": ["List of exported items"]
 },
-"entry_point": "Description of the main entry point or initialization logic",
-"execution_flow": "High-level description of how the code executes"
+"entry_point": "Short description of the main entry point or initialization logic",
 }
 
 File Path: \${filePath}

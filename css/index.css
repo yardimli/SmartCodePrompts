@@ -1,5 +1,4 @@
 /* SmartCodePrompts/css/index.css */
-
 body.dark-mode #root-directory {
     background-color: #444;
     color: #fff;
@@ -36,8 +35,9 @@ body.dark-mode #root-directory {
 }
 
 #file-tree {
-    height: calc(100vh - 100px);
-    max-height: calc(100vh - 100px);
+    /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
+    height: calc(100vh - 145px);
+    max-height: calc(100vh - 145px);
     overflow: auto;
     border: 1px solid #ccc;
     padding: 10px;
@@ -45,8 +45,9 @@ body.dark-mode #root-directory {
 
 #selected-content {
     border: 1px solid #ccc;
-    height: calc(100vh - 100px);
-    max-height: calc(100vh - 100px);
+    /* MODIFIED: Adjusted height to account for the header (~100px) and the fixed status bar (~45px). */
+    height: calc(100vh - 145px);
+    max-height: calc(100vh - 145px);
     width: 100%;
     font-family: monospace;
     font-size: 12px;

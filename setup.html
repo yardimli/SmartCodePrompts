@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Application Setup</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+	      crossorigin="anonymous">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+	<script src="js/setup.js"></script>
+	<link rel="stylesheet" href="css/setup.css">
+</head>
+<body class="">
+<div class="container mt-4">
+	<header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
+		<h1 class="fs-4 text-body">Application Setup</h1>
+		<div>
+			<button id="toggle-mode" class="btn btn-outline-secondary me-2">
+				<i class="fas fa-sun"></i>
+			</button>
+			<a href="/" class="btn btn-primary">Back to Prompt Builder</a>
+		</div>
+	</header>
+	<main>
+		<div id="loading-indicator" class="text-center p-5">
+			<div class="spinner-border" role="status">
+				<span class="visually-hidden">Loading...</span>
+			</div>
+		</div>
+		<form id="setup-form" style="display: none;">
+			<div class="alert alert-info">
+				<strong>Note:</strong> Changes to the <strong>Server Port</strong> require a manual restart of the server to
+				take effect.
+			</div>
+			
+			<div class="mb-3">
+				<label for="root-directories-input" class="form-label">Root Directories</label>
+				<textarea class="form-control" id="root-directories-input" rows="4"
+				          placeholder="Enter one full directory path per line. e.g., C:/Users/YourUser/Projects"></textarea>
+				<div class="form-text">The top-level directories to scan for projects.</div>
+			</div>
+			
+			<div class="mb-3">
+				<label for="allowed-extensions-input" class="form-label">Allowed File Extensions</label>
+				<textarea class="form-control" id="allowed-extensions-input" rows="4"
+				          placeholder="Enter extensions separated by commas. e.g., js, php, py, html"></textarea>
+				<div class="form-text">Only files with these extensions will be shown in the file tree.</div>
+			</div>
+			
+			<div class="mb-3">
+				<label for="excluded-folders-input" class="form-label">Excluded Folders</label>
+				<textarea class="form-control" id="excluded-folders-input" rows="3"
+				          placeholder="Enter folder names separated by commas. e.g., .git, node_modules, vendor"></textarea>
+				<div class="form-text">These folders will be ignored entirely.</div>
+			</div>
+			
+			<div class="mb-3">
+				<label for="server-port-input" class="form-label">Server Port</label>
+				<input type="number" class="form-control" id="server-port-input" placeholder="e.g., 3000">
+				<div class="form-text">The port the application server runs on. Requires a restart.</div>
+			</div>
+			
+			<div class="mb-3">
+				<label for="openrouter-api-key-input" class="form-label">OpenRouter API Key</label>
+				<input type="password" class="form-control" id="openrouter-api-key-input" placeholder="sk-or-...">
+				<div class="form-text">Your API key for making requests to OpenRouter.ai for analysis.</div>
+			</div>
+			
+			<hr class="my-4">
+			
+			<h4 class="mb-3">LLM Prompts</h4>
+			<div class="alert alert-secondary">
+				Use <code>${filePath}</code> and <code>${fileContent}</code> as placeholders in analysis prompts. They will be
+				replaced with the actual file path and its minified content.
+			</div>
+			
+			<div class="mb-3">
+				<label for="prompt-file-overview-input" class="form-label">File Overview Prompt</label>
+				<textarea class="form-control" id="prompt-file-overview-input" rows="8"></textarea>
+			</div>
+			
+			<div class="mb-3">
+				<label for="prompt-functions-logic-input" class="form-label">Functions & Logic Prompt</label>
+				<textarea class="form-control" id="prompt-functions-logic-input" rows="8"></textarea>
+			</div>
+			
+			<div class="mb-3">
+				<label for="prompt-content-footer-input" class="form-label">Content Footer Prompt</label>
+				<textarea class="form-control" id="prompt-content-footer-input" rows="8"></textarea>
+				<div class="form-text">This text is appended to the main prompt when you combine multiple files.</div>
+			</div>
+			
+			<button type="submit" class="btn btn-success">Save Configuration</button>
+			<button type="button" id="reset-prompts-btn" class="btn btn-warning ms-2">Reset Prompts to Default</button>
+		</form>
+	</main>
+</div>
+</body>
+</html>

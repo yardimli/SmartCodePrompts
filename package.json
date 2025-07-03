@@ -1,0 +1,14 @@
+{
+  "name": "smart-code-prompts",
+  "version": "1.0.0",
+  "description": "Smart Code Prompts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node node-server.js"
+  },
+  "author": "locutus of borg",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  }
+}

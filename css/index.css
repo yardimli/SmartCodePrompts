@@ -1,0 +1,195 @@
+body.dark-mode #root-directory {
+    background-color: #444;
+    color: #fff;
+    border-color: #555;
+}
+
+.folder, .file {
+    cursor: pointer;
+}
+
+.folder::before {
+    content: "\f07b";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    margin-right: 5px;
+}
+
+.folder.open::before {
+    content: "\f07c";
+}
+
+.file::before {
+    content: "\f15b";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    margin-right: 5px;
+}
+
+.checkbox-wrapper {
+    display: inline-block;
+    width: 20px;
+    vertical-align: middle;
+}
+
+#file-tree {
+    height: calc(100vh - 100px);
+    max-height: calc(100vh - 100px);
+    overflow: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+#selected-content {
+    border: 1px solid #ccc;
+    height: calc(100vh - 100px);
+    max-height: calc(100vh - 100px);
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.folder-controls {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+.folder-search-icon, .folder-clear-icon {
+    cursor: pointer;
+    color: #ccc;
+    margin-left: 4px;
+}
+
+.folder-search-icon:hover, .folder-clear-icon:hover {
+    color: #888;
+}
+
+body.dark-mode .folder-search-icon, body.dark-mode .folder-clear-icon {
+    color: #777;
+}
+
+body.dark-mode .folder-search-icon:hover, body.dark-mode .folder-clear-icon:hover {
+    color: #bbb;
+}
+
+body.dark-mode {
+    background-color: #333;
+    color: #fff;
+}
+
+body.dark-mode #file-tree, body.dark-mode #selected-content, body.dark-mode .modal-content {
+    border-color: #555;
+    background-color: #444;
+    color: #fff;
+}
+
+body.dark-mode .modal-header, body.dark-mode .modal-footer {
+    border-color: #555;
+}
+
+body.dark-mode .form-control {
+    background-color: #555;
+    color: #fff;
+    border-color: #666;
+}
+
+body.dark-mode .form-control::placeholder {
+    color: #aaa;
+}
+
+body.dark-mode .form-control:focus {
+    background-color: #666;
+    color: #fff;
+    border-color: #888;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+body.dark-mode .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+body.dark-mode .nav-link {
+    color: #fff;
+}
+
+body.dark-mode .btn-outline-primary {
+    color: #fff;
+    border-color: #fff;
+}
+
+body.dark-mode .btn-outline-primary:hover {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+body.dark-mode .fs-4 {
+    color: #fff !important;
+}
+
+body.dark-mode .text-body {
+    color: #ccc !important;
+}
+
+#file-tree ul {
+    padding-left: 20px;
+}
+
+#file-tree li {
+    list-style-type: none;
+    margin-bottom: 2px;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: .2em;
+    vertical-align: text-bottom;
+    margin-left: 5px;
+}
+
+#projects-dropdown {
+    max-width: 200px;
+}
+
+#llm-dropdown {
+    max-width: 200px;
+}
+
+.analysis-icon {
+    cursor: pointer;
+    color: #0dcaf0; /* Bootstrap 'info' color */
+    margin-right: 5px;
+    vertical-align: middle;
+}
+.analysis-icon:hover {
+    color: #0aa5c2;
+}
+body.dark-mode .analysis-icon {
+    color: #2cf3ff;
+}
+body.dark-mode .analysis-icon:hover {
+    color: #87faff;
+}
+#analysisModalBody h6 {
+    margin-top: 1rem;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+    font-weight: bold;
+}
+body.dark-mode #analysisModalBody h6 {
+    border-bottom-color: #555;
+}
+#analysisModalBody pre {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 14px;
+}
+body.dark-mode #analysisModalBody pre {
+    background-color: #333;
+    border: 1px solid #555;
+    color: #fff;
+}

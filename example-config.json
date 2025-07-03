@@ -1,0 +1,36 @@
+{
+  "root_directories": [
+    "path/to/your/first/directory",
+    "c:/myprojects",
+  ],
+  "allowed_extensions": [
+    "js",
+    "jsx",
+    "json",
+    "ts",
+    "tsx",
+    "php",
+    "py",
+    "html",
+    "css",
+    "swift",
+    "xcodeproj",
+    "xcworkspace",
+    "storyboard",
+    "xib",
+    "plist",
+    "xcassets",
+    "playground",
+    "cs",
+    "csproj",
+    "htaccess"
+  ],
+  "excluded_folders": [
+    ".git",
+    ".idea",
+    "vendor",
+    "storage",
+    "node_modules"
+  ],
+  "server_port": 3000
+}

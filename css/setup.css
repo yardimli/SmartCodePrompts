@@ -1,0 +1,60 @@
+/* llm-php-helper/setup.css */
+body {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.form-control {
+    font-family: monospace;
+}
+
+/* --- Dark Mode --- */
+body.dark-mode {
+    background-color: #333;
+    color: #fff;
+}
+
+body.dark-mode .border-bottom {
+    border-color: #555 !important;
+}
+
+body.dark-mode .text-body {
+    color: #ccc !important;
+}
+
+body.dark-mode .btn-outline-secondary {
+    color: #fff;
+    border-color: #6c757d;
+}
+
+body.dark-mode .btn-outline-secondary:hover {
+    color: #fff;
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+body.dark-mode .form-control {
+    background-color: #555;
+    color: #fff;
+    border-color: #666;
+}
+
+body.dark-mode .form-control::placeholder {
+    color: #aaa;
+}
+
+body.dark-mode .form-control:focus {
+    background-color: #666;
+    color: #fff;
+    border-color: #888;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+body.dark-mode .form-text {
+    color: #adb5bd;
+}
+
+body.dark-mode .alert-info {
+    color: #9eeaf9;
+    background-color: #052c34;
+    border-color: #063540;
+}

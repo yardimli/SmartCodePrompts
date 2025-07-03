@@ -216,3 +216,37 @@ body.dark-mode #analysisModalBody pre {
     border: 1px solid #555;
     color: #fff;
 }
+
+/* NEW: Styles for the LLM Log Modal */
+#logModalBody table {
+    font-size: 14px;
+}
+
+#logModalBody .log-reason {
+    word-break: break-word;
+}
+
+#logModalBody .log-tokens {
+    white-space: nowrap;
+    text-align: right;
+}
+
+#logModalBody .log-timestamp {
+    white-space: nowrap;
+    color: #6c757d; /* Bootstrap's text-muted */
+}
+
+body.dark-mode #logModalBody .log-timestamp {
+    color: #adb5bd;
+}
+
+/* NEW: Dark mode for log button in status bar */
+body.dark-mode #log-modal-button {
+    color: #ccc;
+    border-color: #666;
+}
+
+body.dark-mode #log-modal-button:hover {
+    background-color: #555;
+    color: #fff;
+}

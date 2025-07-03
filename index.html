@@ -78,6 +78,7 @@
 		</div>
 	</div>
 </div>
+
 <!-- Search Modal -->
 <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
 	<div class="modal-dialog">
@@ -90,7 +91,8 @@
 				<p>Searching within: <strong id="searchModalFolderPath"></strong></p>
 				<div class="mb-3">
 					<label for="searchTermInput" class="form-label">Search Term (case-insensitive):</label>
-					<input type="text" class="form-control" id="searchTermInput" placeholder="Enter text to search for...">
+					<input type="text" class="form-control" id="searchTermInput"
+					       placeholder="Enter text to search for...">
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -100,6 +102,7 @@
 		</div>
 	</div>
 </div>
+
 <!-- Analysis Modal -->
 <div class="modal fade" id="analysisModal" tabindex="-1" aria-labelledby="analysisModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -117,6 +120,7 @@
 		</div>
 	</div>
 </div>
+
 <!-- Prompt Modal -->
 <div class="modal fade" id="promptModal" tabindex="-1" aria-labelledby="promptModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-lg">
@@ -141,6 +145,7 @@
 		</div>
 	</div>
 </div>
+
 <!-- Re-analysis Choice Modal -->
 <div class="modal fade" id="reanalysisModal" tabindex="-1" aria-labelledby="reanalysisModalLabel" aria-hidden="true">
 	<div class="modal-dialog">
@@ -165,8 +170,28 @@
 		</div>
 	</div>
 </div>
+
+<!-- NEW: LLM Log Modal -->
+<div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="logModalLabel">LLM Call Log (This Session)</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body" id="logModalBody">
+				<!-- Log content will be injected here by JavaScript -->
+				<p class="text-muted">No LLM calls have been made in this session yet.</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <!-- NEW: Status Bar -->
-<footer id="status-bar" class="fixed-bottom bg-light border-top text-muted py-1 px-3">
+<footer id="status-bar" class="fixed-bottom border-top text-muted py-1 px-3">
 	<div class="d-flex justify-content-between align-items-center">
 		<div id="status-bar-progress-container" class="align-items-center" style="display: none; width: 50%;">
 			<span id="status-bar-progress-text" class="me-2 small"></span>
@@ -177,8 +202,13 @@
 			</div>
 		</div>
 		<div id="status-bar-message" class="flex-grow-1 text-center small text-truncate" title=""></div>
-		<div id="status-bar-tokens" class="text-end">
-            <span class="small" title="Prompt Tokens this Session">
+		<!-- MODIFIED: Wrapped token display in a div and added log button -->
+		<div id="status-bar-tokens" class="text-end d-flex align-items-center">
+			<!-- NEW: Log Modal Button -->
+			<button id="log-modal-button" class="btn btn-sm btn-outline-secondary me-3" title="View LLM Call Log">
+				<i class="fa-solid fa-list-ul"></i>
+			</button>
+			<span class="small" title="Prompt Tokens this Session">
                 <i class="fa-solid fa-arrow-up-from-bracket"></i>
                 <span id="prompt-tokens">0</span>
             </span>

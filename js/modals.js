@@ -7,6 +7,7 @@ import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 let searchModal = null;
 let analysisModal = null;
 let promptModal = null;
+let logModal = null; // NEW: Modal instance for the LLM log.
 let currentSearchFolderPath = null;
 
 /**
@@ -16,6 +17,7 @@ export function initializeModals() {
 	searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
 	analysisModal = new bootstrap.Modal(document.getElementById('analysisModal'));
 	promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
+	logModal = new bootstrap.Modal(document.getElementById('logModal')); // NEW: Initialize the log modal.
 }
 
 /**
@@ -30,6 +32,55 @@ export function handlePromptButtonClick() {
 		textarea.select();
 	}
 	promptModal.show();
+}
+
+/**
+ * NEW: Handles the click on the LLM Log button in the status bar.
+ * Fetches log data and displays the modal.
+ */
+export async function handleLogButtonClick() {
+	const modalBody = document.getElementById('logModalBody');
+	modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+	logModal.show();
+	
+	try {
+		const logData = await postData({action: 'get_llm_log'});
+		if (!logData || logData.length === 0) {
+			modalBody.innerHTML = '<p class="text-muted p-3">No LLM calls have been made in this session yet.</p>';
+			return;
+		}
+		
+		let tableHtml = `
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Reason</th>
+                        <th class="text-end">Prompt Tokens</th>
+                        <th class="text-end">Completion Tokens</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+		
+		for (const entry of logData) {
+			const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+			tableHtml += `
+                <tr>
+                    <td class="log-timestamp">${timestamp}</td>
+                    <td class="log-reason">${entry.reason}</td>
+                    <td class="log-tokens">${(entry.promptTokens || 0).toLocaleString()}</td>
+                    <td class="log-tokens">${(entry.completionTokens || 0).toLocaleString()}</td>
+                </tr>
+            `;
+		}
+		
+		tableHtml += '</tbody></table>';
+		modalBody.innerHTML = tableHtml;
+	} catch (error) {
+		console.error("Failed to fetch LLM log:", error);
+		modalBody.innerHTML = `<p class="text-danger p-3">Could not load LLM log: ${error.message}</p>`;
+	}
 }
 
 /**
@@ -163,7 +214,6 @@ export function setupModalEventListeners() {
 		
 		promptModal.hide();
 		showLoading('Asking LLM to select relevant files...');
-		
 		try {
 			const currentProject = getCurrentProject();
 			const response = await postData({
@@ -195,11 +245,9 @@ export function setupModalEventListeners() {
 				
 				// Now update the main content area with the new selection
 				await updateSelectedContent();
-				
 				// Append the user's prompt to the end of the textarea
 				const selectedContentEl = document.getElementById('selected-content');
 				selectedContentEl.value += '\n\n' + userPrompt;
-				
 				saveCurrentProjectState();
 				alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
 			} else {

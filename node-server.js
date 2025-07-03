@@ -61,6 +61,10 @@ async function handlePostRequest(req, res) {
 				case 'refresh_llms':
 					result = await llmManager.refreshLlms();
 					break;
+				// NEW: Add action to get the LLM call log for the session.
+				case 'get_llm_log':
+					result = llmManager.getLlmLog();
+					break;
 				case 'analyze_file':
 					result = await llmManager.analyzeFile({
 						rootIndex: parseInt(postData.get('rootIndex')),
@@ -141,6 +145,7 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
+				
 				default:
 					throw new Error(`Unknown action: ${action}`);
 			}

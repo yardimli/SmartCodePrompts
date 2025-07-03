@@ -10,7 +10,7 @@ const {getFileContent, getRawFileContent, getFileAnalysis, calculateChecksum} = 
 // This will persist as long as the Node.js process is running.
 let sessionTokenUsage = {prompt: 0, completion: 0};
 let reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
-
+let sessionLlmLog = []; // NEW: In-memory log for LLM calls this session.
 
 /**
  * Logs an interaction with the LLM to a file.
@@ -69,12 +69,13 @@ async function fetchOpenRouterModels() {
 }
 
 /**
- * Calls a specified LLM via the OpenRouter API with a given prompt.
+ * MODIFIED: Calls a specified LLM, tracks token usage, and logs the call for the session.
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} modelId - The ID of the OpenRouter model to use.
+ * @param {string} [callReason='Unknown'] - A short description of why the LLM is being called.
  * @returns {Promise<string>} A promise that resolves to the content of the LLM's response.
  */
-async function callLlm(prompt, modelId) {
+async function callLlm(prompt, modelId, callReason = 'Unknown') {
 	if (!config.openrouter_api_key || config.openrouter_api_key === 'YOUR_API_KEY_HERE') {
 		throw new Error('OpenRouter API key is not configured. Please add it on the Setup page.');
 	}
@@ -105,11 +106,25 @@ async function callLlm(prompt, modelId) {
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					try {
 						const responseJson = JSON.parse(data);
-						// NEW: Track token usage from the API response.
-						if (responseJson.usage) {
-							sessionTokenUsage.prompt += responseJson.usage.prompt_tokens || 0;
-							sessionTokenUsage.completion += responseJson.usage.completion_tokens || 0;
+						const promptTokens = responseJson.usage ? responseJson.usage.prompt_tokens || 0 : 0;
+						const completionTokens = responseJson.usage ? responseJson.usage.completion_tokens || 0 : 0;
+						
+						// Track total token usage for the session
+						sessionTokenUsage.prompt += promptTokens;
+						sessionTokenUsage.completion += completionTokens;
+						
+						// NEW: Add to session log for the UI modal
+						sessionLlmLog.unshift({ // unshift to add to the beginning (most recent first)
+							timestamp: new Date().toISOString(),
+							reason: callReason,
+							promptTokens: promptTokens,
+							completionTokens: completionTokens
+						});
+						// NEW: Keep the log from growing indefinitely
+						if (sessionLlmLog.length > 100) {
+							sessionLlmLog.pop();
 						}
+						
 						if (responseJson.choices && responseJson.choices.length > 0) {
 							const llmContent = responseJson.choices[0].message.content;
 							logLlmInteraction(prompt, llmContent, false);
@@ -190,19 +205,30 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 		console.log(`Skipping analysis for ${filePath}, checksum matches.`);
 		return {success: true, status: 'skipped'};
 	}
+	
 	console.log(`Analyzing ${filePath}, checksum mismatch or new file.`);
 	const fileContent = getFileContent(filePath, rootIndex).content;
+	const shortFileName = path.basename(filePath); // NEW: Get just the filename for the log.
+	
 	const overviewPromptTemplate = config.prompt_file_overview;
 	const overviewPrompt = overviewPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	const overviewResult = await callLlm(overviewPrompt, llmId);
+	// MODIFIED: Pass a reason to callLlm.
+	const overviewResult = await callLlm(overviewPrompt, llmId, `File Overview: ${shortFileName}`);
+	
 	const functionsPromptTemplate = config.prompt_functions_logic;
 	const functionsPrompt = functionsPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	const functionsResult = await callLlm(functionsPrompt, llmId);
-	db.prepare(` INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum) VALUES (?, ?, ?, ?, ?, ?, ?) `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
+	// MODIFIED: Pass a reason to callLlm.
+	const functionsResult = await callLlm(functionsPrompt, llmId, `Functions/Logic: ${shortFileName}`);
+	
+	db.prepare(`
+        INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
+	
 	return {success: true, status: 'analyzed'};
 }
 
@@ -231,20 +257,18 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 		running: true,
 		message: 'Initializing re-analysis...'
 	};
-	
 	let analyzedCount = 0;
 	let skippedCount = 0;
 	const errors = [];
-	
 	try {
 		for (const file of analyzedFiles) {
 			// NEW: Update progress before processing each file.
 			reanalysisProgress.current++;
 			reanalysisProgress.message = `Processing ${file.file_path}`;
-			
 			try {
 				const rawFileContent = getRawFileContent(file.file_path, rootIndex);
 				const currentChecksum = calculateChecksum(rawFileContent);
+				
 				if (force || currentChecksum !== file.last_checksum) {
 					reanalysisProgress.message = `Analyzing ${file.file_path}`; // More specific message
 					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
@@ -275,10 +299,18 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
-	const analyzedFiles = db.prepare(` SELECT file_path, file_overview, functions_overview FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != '')) `).all(rootIndex, projectPath);
+	const analyzedFiles = db.prepare(`
+        SELECT file_path, file_overview, functions_overview
+        FROM file_metadata
+        WHERE project_root_index = ?
+          AND project_path = ?
+          AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
+    `).all(rootIndex, projectPath);
+	
 	if (!analyzedFiles || analyzedFiles.length === 0) {
 		throw new Error('No files have been analyzed in this project. Please analyze files before using this feature.');
 	}
+	
 	let analysisDataString = '';
 	const allFilePaths = [];
 	for (const analysis of analyzedFiles) {
@@ -292,11 +324,15 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 		}
 		analysisDataString += '---\n\n';
 	}
+	
 	const masterPromptTemplate = config.prompt_smart_prompt;
 	const masterPrompt = masterPromptTemplate
 		.replace(/\$\{userPrompt\}/g, userPrompt)
 		.replace(/\$\{analysisDataString\}/g, analysisDataString);
-	const llmResponse = await callLlm(masterPrompt, llmId);
+	
+	// MODIFIED: Pass a reason to callLlm.
+	const llmResponse = await callLlm(masterPrompt, llmId, 'Smart Prompt File Selection');
+	
 	try {
 		const parsedResponse = JSON.parse(llmResponse);
 		if (parsedResponse && Array.isArray(parsedResponse.relevant_files)) {
@@ -326,10 +362,19 @@ function getSessionStats() {
 	};
 }
 
+/**
+ * NEW: Returns the in-memory log of LLM calls for the current session.
+ * @returns {Array<object>} The array of log entries.
+ */
+function getLlmLog() {
+	return sessionLlmLog;
+}
+
 module.exports = {
 	refreshLlms,
 	analyzeFile,
 	getRelevantFilesFromPrompt,
 	reanalyzeModifiedFiles,
-	getSessionStats // NEW: Export the new stats function.
+	getSessionStats, // NEW: Export the new stats function.
+	getLlmLog // NEW: Export the new log function.
 };

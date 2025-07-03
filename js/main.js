@@ -2,18 +2,19 @@
 import {showLoading, hideLoading, getProjectIdentifier, parseProjectIdentifier, postData} from './utils.js';
 import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState, getCurrentProject} from './state.js';
 import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
+// MODIFIED: Import handleLogButtonClick
 import {
 	initializeModals,
 	handleSearchIconClick,
 	handleAnalysisIconClick,
 	setupModalEventListeners,
-	handlePromptButtonClick
+	handlePromptButtonClick,
+	handleLogButtonClick
 } from './modals.js';
 import {setupAnalysisButtonListener, setupReanalysisButtonListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
 
 // NEW: Functions to manage the new status bar.
-
 /**
  * Updates the status bar with the latest session and progress data.
  * @param {object} stats - The stats object from the server.
@@ -107,13 +108,16 @@ async function loadProject(identifier) {
 async function initializeApp() {
 	try {
 		const data = await postData({action: 'get_main_page_data'});
+		
 		// 1. Apply Dark Mode
 		if (data.darkMode) {
 			document.body.classList.add('dark-mode');
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
 		}
+		
 		// 2. Set global prompt footer
 		setContentFooterPrompt(data.prompt_content_footer || '');
+		
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		
@@ -121,8 +125,7 @@ async function initializeApp() {
 		// Assumes `get_main_page_data` is modified to return a `sessionTokens` object.
 		if (data.sessionTokens) {
 			updateStatusBar({
-				tokens: data.sessionTokens,
-				reanalysis: {running: false} // Assume not running on initial load
+				tokens: data.sessionTokens, reanalysis: {running: false} // Assume not running on initial load
 			});
 		}
 		
@@ -141,6 +144,7 @@ async function initializeApp() {
 			option.textContent = project.path;
 			dropdown.appendChild(option);
 		});
+		
 		// 5. Load last or first project
 		const lastProjectIdentifier = data.lastSelectedProject;
 		if (lastProjectIdentifier && dropdown.querySelector(`option[value="${lastProjectIdentifier}"]`)) {
@@ -171,14 +175,19 @@ document.addEventListener('DOMContentLoaded', function () {
 	pollSessionStats();
 	
 	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
+	// NEW: Add event listener for the new log modal button.
+	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
+	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
 		loadProject(this.value);
 	});
+	
 	document.getElementById('unselect-all').addEventListener('click', function () {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		updateSelectedContent();
 		saveCurrentProjectState();
 	});
+	
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		document.body.classList.toggle('dark-mode');
 		const isDarkMode = document.body.classList.contains('dark-mode');
@@ -199,11 +208,13 @@ document.addEventListener('DOMContentLoaded', function () {
 			handleAnalysisIconClick(analysisIcon);
 			return;
 		}
+		
 		if (searchIcon) {
 			e.stopPropagation();
 			handleSearchIconClick(searchIcon);
 			return;
 		}
+		
 		if (clearIcon) {
 			e.stopPropagation();
 			const folderPath = clearIcon.closest('.folder').dataset.path;
@@ -222,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 			return;
 		}
+		
 		if (folder) {
 			e.stopPropagation();
 			const ul = folder.nextElementSibling;

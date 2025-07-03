@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto'); // Added for checksum calculation
 const {db, config} = require('./node-config');
 
 /**
@@ -25,6 +26,15 @@ function resolvePath(inputPath, rootIndex) {
 }
 
 /**
+ * Calculates an MD5 checksum for the given data.
+ * @param {string|Buffer} data - The data to hash.
+ * @returns {string} The MD5 checksum in hex format.
+ */
+function calculateChecksum(data) {
+	return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+/**
  * Reads the contents of a directory and returns separate lists of folders and files,
  * filtering by allowed extensions and excluded folder names.
  * @param {string} inputPath - The path of the directory to read.
@@ -37,8 +47,8 @@ function getFolders(inputPath, rootIndex, projectPath) {
 	const folders = [];
 	const files = [];
 	// Get analysis metadata for all files in this project to avoid N+1 queries in the loop.
-	const metadataStmt = db.prepare('SELECT file_path FROM file_metadata WHERE project_root_index = ? AND project_path = ?');
-	const analyzedFiles = new Set(metadataStmt.all(rootIndex, projectPath).map(r => r.file_path));
+	const metadataStmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?'); // Modified to get checksum
+	const analyzedFilesMap = new Map(metadataStmt.all(rootIndex, projectPath).map(r => [r.file_path, r.last_checksum])); // Use a Map for checksums
 	
 	try {
 		const items = fs.readdirSync(fullPath);
@@ -65,8 +75,31 @@ function getFolders(inputPath, rootIndex, projectPath) {
 				}
 				if (config.allowed_extensions.includes(ext) || (ext === '' && config.allowed_extensions.includes(base))) {
 					const relativeFilePath = path.join(inputPath, item).replace(/\\/g, '/');
-					const hasAnalysis = analyzedFiles.has(relativeFilePath);
-					files.push({name: item, path: relativeFilePath, has_analysis: hasAnalysis});
+					const hasAnalysis = analyzedFilesMap.has(relativeFilePath);
+					let isModified = false; // Add new flag for modification status
+					
+					// If the file has been analyzed, check if it has been modified.
+					if (hasAnalysis) {
+						const storedChecksum = analyzedFilesMap.get(relativeFilePath);
+						if (storedChecksum) { // Only perform check if a checksum was stored
+							try {
+								const fileContent = fs.readFileSync(itemFullPath); // Read as buffer for hashing
+								const currentChecksum = calculateChecksum(fileContent);
+								if (currentChecksum !== storedChecksum) {
+									isModified = true;
+								}
+							} catch (readError) {
+								console.warn(`Could not read file for checksum: ${itemFullPath}`, readError);
+							}
+						}
+					}
+					
+					files.push({
+						name: item,
+						path: relativeFilePath,
+						has_analysis: hasAnalysis,
+						is_modified: isModified // Include modification status in response
+					});
 				}
 			}
 		}
@@ -183,10 +216,4 @@ function getFileAnalysis({rootIndex, projectPath, filePath}) {
 	return data || {file_overview: null, functions_overview: null};
 }
 
-module.exports = {
-	getFolders,
-	getFileContent,
-	getRawFileContent,
-	searchFiles,
-	getFileAnalysis
-};
+module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum}; // Export calculateChecksum

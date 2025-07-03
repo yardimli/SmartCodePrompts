@@ -2,7 +2,7 @@
 import {showLoading, hideLoading, getProjectIdentifier, parseProjectIdentifier, postData} from './utils.js';
 import {setCurrentProject, setContentFooterPrompt, saveCurrentProjectState} from './state.js';
 import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
-import {initializeModals, handleSearchIconClick, handleAnalysisIconClick, setupModalEventListeners} from './modals.js';
+import {initializeModals, handleSearchIconClick, handleAnalysisIconClick, setupModalEventListeners, handlePromptButtonClick} from './modals.js';
 import {setupAnalysisButtonListener} from './analysis.js';
 
 /**
@@ -12,16 +12,13 @@ import {setupAnalysisButtonListener} from './analysis.js';
 async function loadProject(identifier) {
 	const project = parseProjectIdentifier(identifier);
 	const fileTree = document.getElementById('file-tree');
-	
 	if (!project) {
 		fileTree.innerHTML = '<p class="p-3 text-muted">Please select a project.</p>';
 		return;
 	}
-	
 	showLoading(`Loading project "${project.path}"...`);
 	setCurrentProject(project);
 	document.getElementById('projects-dropdown').value = identifier;
-	
 	try {
 		const savedState = await postData({
 			action: 'get_project_state',
@@ -44,23 +41,19 @@ async function loadProject(identifier) {
 async function initializeApp() {
 	try {
 		const data = await postData({action: 'get_main_page_data'});
-		
 		// 1. Apply Dark Mode
 		if (data.darkMode) {
 			document.body.classList.add('dark-mode');
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
 		}
-		
 		// 2. Set global prompt footer
 		setContentFooterPrompt(data.prompt_content_footer || '');
-		
 		// 3. Initialize LLM selector
 		if (window.llmHelper && typeof window.llmHelper.initializeLlmSelector === 'function') {
 			window.llmHelper.initializeLlmSelector(data.llms, data.lastSelectedLlm);
 		} else {
 			console.error('LLM helper function not found. Ensure llm.js is loaded before this script.');
 		}
-		
 		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
 		dropdown.innerHTML = '';
@@ -76,7 +69,6 @@ async function initializeApp() {
 			option.textContent = project.path;
 			dropdown.appendChild(option);
 		});
-		
 		// 5. Load last or first project
 		const lastProjectIdentifier = data.lastSelectedProject;
 		if (lastProjectIdentifier && dropdown.querySelector(`option[value="${lastProjectIdentifier}"]`)) {
@@ -100,17 +92,16 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Setup event listeners
 	setupModalEventListeners();
 	setupAnalysisButtonListener();
+	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
 	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
 		loadProject(this.value);
 	});
-	
 	document.getElementById('unselect-all').addEventListener('click', function () {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		updateSelectedContent();
 		saveCurrentProjectState();
 	});
-	
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		document.body.classList.toggle('dark-mode');
 		const isDarkMode = document.body.classList.contains('dark-mode');

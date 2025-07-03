@@ -1,3 +1,4 @@
+// SmartCodePrompts/node-server.js
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -36,24 +37,18 @@ async function handlePostRequest(req, res) {
 					break;
 				case 'save_setup':
 					configManager.saveSetupData(postData);
-					result = {
-						success: true
-					};
+					result = {success: true};
 					break;
 				case 'reset_prompts':
 					result = configManager.resetPromptsToDefault();
 					break;
 				case 'set_dark_mode':
 					configManager.setDarkMode(postData.get('isDarkMode') === 'true');
-					result = {
-						success: true
-					};
+					result = {success: true};
 					break;
 				case 'save_selected_llm':
 					configManager.saveSelectedLlm(postData.get('llmId'));
-					result = {
-						success: true
-					};
+					result = {success: true};
 					break;
 				case 'get_main_page_data':
 					result = configManager.getMainPageData();
@@ -68,6 +63,14 @@ async function handlePostRequest(req, res) {
 						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						filePath: postData.get('filePath'),
+						llmId: postData.get('llmId')
+					});
+					break;
+				case 'get_relevant_files_from_prompt':
+					result = await llmManager.getRelevantFilesFromPrompt({
+						rootIndex: parseInt(postData.get('rootIndex')),
+						projectPath: postData.get('projectPath'),
+						userPrompt: postData.get('userPrompt'),
 						llmId: postData.get('llmId')
 					});
 					break;
@@ -129,18 +132,12 @@ async function handlePostRequest(req, res) {
 				default:
 					throw new Error(`Unknown action: ${action}`);
 			}
-			res.writeHead(200, {
-				'Content-Type': 'application/json'
-			});
+			res.writeHead(200, {'Content-Type': 'application/json'});
 			res.end(JSON.stringify(result));
 		} catch (error) {
 			console.error("Error processing POST request:", error);
-			res.writeHead(400, {
-				'Content-Type': 'application/json'
-			});
-			res.end(JSON.stringify({
-				error: error.message
-			}));
+			res.writeHead(400, {'Content-Type': 'application/json'});
+			res.end(JSON.stringify({error: error.message}));
 		}
 	});
 }
@@ -172,9 +169,7 @@ function serveStaticFile(filePath, res) {
 			}
 			return;
 		}
-		res.writeHead(200, {
-			'Content-Type': contentType
-		});
+		res.writeHead(200, {'Content-Type': contentType});
 		res.end(content);
 	});
 }

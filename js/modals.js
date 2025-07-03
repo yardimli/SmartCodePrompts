@@ -5,6 +5,7 @@ import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 let searchModal = null;
 let analysisModal = null;
+let promptModal = null;
 let currentSearchFolderPath = null;
 
 /**
@@ -13,6 +14,18 @@ let currentSearchFolderPath = null;
 export function initializeModals() {
 	searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
 	analysisModal = new bootstrap.Modal(document.getElementById('analysisModal'));
+	promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
+}
+
+/**
+ * Handles the click event on the main "PROMPT" button.
+ */
+export function handlePromptButtonClick() {
+	const textarea = document.getElementById('promptModalTextarea');
+	if (textarea) {
+		textarea.value = ''; // Clear previous prompt
+	}
+	promptModal.show();
 }
 
 /**
@@ -33,11 +46,9 @@ export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
 	const modalTitle = document.getElementById('analysisModalLabel');
 	const modalBody = document.getElementById('analysisModalBody');
-	
 	modalTitle.textContent = `Analysis for ${filePath}`;
 	modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 	analysisModal.show();
-	
 	try {
 		const currentProject = getCurrentProject();
 		const data = await postData({
@@ -46,7 +57,6 @@ export async function handleAnalysisIconClick(target) {
 			projectPath: currentProject.path,
 			filePath: filePath
 		});
-		
 		let bodyContent = '<p>No analysis data found for this file.</p>';
 		if (data.file_overview || data.functions_overview) {
 			bodyContent = '';
@@ -122,6 +132,71 @@ export function setupModalEventListeners() {
 			}
 		} catch (error) {
 			alert(`Search failed: ${error.message || 'Unknown error'}`);
+		} finally {
+			hideLoading();
+		}
+	});
+	
+	// Listener for the new Smart Prompt modal button
+	document.getElementById('sendPromptButton').addEventListener('click', async function () {
+		const userPrompt = document.getElementById('promptModalTextarea').value.trim();
+		const llmId = document.getElementById('llm-dropdown').value;
+		
+		if (!userPrompt) {
+			alert('Please enter a prompt.');
+			return;
+		}
+		if (!llmId) {
+			alert('Please select an LLM from the dropdown.');
+			return;
+		}
+		
+		promptModal.hide();
+		showLoading('Asking LLM to select relevant files...');
+		try {
+			const currentProject = getCurrentProject();
+			const response = await postData({
+				action: 'get_relevant_files_from_prompt',
+				rootIndex: currentProject.rootIndex,
+				projectPath: currentProject.path,
+				userPrompt: userPrompt,
+				llmId: llmId,
+			});
+			
+			if (response.relevant_files && response.relevant_files.length > 0) {
+				// Uncheck all files
+				document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
+					cb.checked = false;
+				});
+				
+				// Check only the relevant files, ensuring they are visible
+				let checkedCount = 0;
+				for (const filePath of response.relevant_files) {
+					const isVisible = await ensureFileIsVisible(filePath);
+					if (isVisible) {
+						const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${filePath}"]`);
+						if (checkbox) {
+							checkbox.checked = true;
+							checkedCount++;
+						}
+					}
+				}
+				
+				// Now update the main content area with the new selection
+				await updateSelectedContent();
+				
+				// Append the user's prompt to the end of the textarea
+				const selectedContentEl = document.getElementById('selected-content');
+				selectedContentEl.value += '\n\n' + userPrompt;
+				
+				saveCurrentProjectState();
+				alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
+			} else {
+				alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
+			}
+		} catch (error) {
+			console.error('Failed to get relevant files from prompt:', error);
+			alert(`An error occurred: ${error.message}`);
 		} finally {
 			hideLoading();
 		}

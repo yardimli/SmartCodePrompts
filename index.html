@@ -25,26 +25,18 @@
 			<i class="fa-solid fa-database" title="Data"></i>
 			<i class="fa-solid fa-clock-rotate-left" title="History"></i>
 		</div>
+		<!-- NEW: Moved from header and pushed to the bottom of the aside bar -->
+		<div class="mt-auto flex flex-col gap-2 w-full">
+			<a href="/projects" class="btn btn-sm" title="Select Projects"><i
+				class="fa-solid fa-check-double"></i> Projects</a>
+			<a href="/setup" class="btn btn-sm" title="Configure"><i
+				class="fa-solid fa-gears"></i> Setup</a>
+		</div>
 	</aside>
 	
 	<!-- Main Content Area -->
+	<!-- MODIFIED: Removed main header, content now starts from the top -->
 	<div class="flex flex-col flex-grow">
-		<!-- Main Header -->
-		<header class="flex items-center justify-between p-2 border-b border-base-300">
-			<div>
-				<h1 class="text-xl font-semibold" id="main-content-title">Prompt Builder</h1>
-			</div>
-			<div class="flex items-center gap-2">
-				<a href="/projects" class="btn btn-sm btn-outline" title="Select Projects"><i
-					class="fa-solid fa-check-double"></i> Projects</a>
-				<a href="/setup" class="btn btn-sm btn-outline" title="Configure"><i
-					class="fa-solid fa-gears"></i> Setup</a>
-				<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
-					<span class="loading loading-spinner loading-xs"></span> Loading...
-				</button>
-			</div>
-		</header>
-		
 		<!-- File Tree and Workspace -->
 		<!-- MODIFIED: Added id, changed grid-cols for resizer, and added overflow-hidden -->
 		<div id="main-split-pane" class="grid grid-cols-[320px_auto_1fr] flex-grow overflow-hidden">
@@ -77,7 +69,8 @@
 		<div id="horizontal-resizer"></div>
 		
 		<!-- NEW: Wrapper for the bottom panel, which is now a flex container -->
-		<div id="bottom-panel" class="flex flex-col flex-shrink-0" style="height: 120px;">
+		<!-- MODIFIED: Removed fixed height to allow for auto-expansion -->
+		<div id="bottom-panel" class="flex flex-col flex-shrink-0">
 			<!-- Status Bar -->
 			<div id="status-bar-container" class="border-t border-base-300 bg-base-100 py-1 px-3 flex-shrink-0">
 				<div class="flex justify-between items-center w-full">
@@ -87,6 +80,10 @@
 						          max="100"></progress>
 					</div>
 					<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
+					<!-- NEW: Loading indicator moved from header -->
+					<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
+						<span class="loading loading-spinner loading-xs"></span> Loading...
+					</button>
 					<div id="status-bar-tokens" class="flex items-center gap-4">
 						<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
 							<i class="fa-solid fa-list-ul"></i>
@@ -104,12 +101,11 @@
 			</div>
 			
 			<!-- Bottom Prompt Input -->
-			<!-- MODIFIED: Wrapper is now a flex-grow container to fill the resizable panel -->
-			<div class="p-3 border-t border-base-300 bg-base-100 flex-grow">
-				<div class="relative h-full">
-					<!-- MODIFIED: Changed input to textarea and styled it to fill its container -->
+			<!-- MODIFIED: Wrapper and textarea updated for auto-expansion -->
+			<div class="p-3 border-t border-base-300 bg-base-100">
+				<div class="relative">
 					<textarea id="bottom-prompt-input" placeholder="Start typing a prompt..."
-					          class="textarea textarea-bordered w-full pr-20 h-full" rows="1"></textarea>
+					          class="textarea textarea-bordered w-full pr-20" rows="1"></textarea>
 					<button id="bottom-run-button" class="btn btn-primary absolute top-0 right-0 rounded-l-none">
 						Run <i class="fa-solid fa-arrow-turn-right"></i>
 					</button>
@@ -197,7 +193,7 @@
 	</aside>
 </div>
 
-<!-- Modals (kept for search, prompts, etc.) -->
+<!-- Modals (kept for search, etc.) -->
 <dialog id="searchModal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>
@@ -217,32 +213,6 @@
 		</div>
 	</div>
 </dialog>
-
-<!-- Analysis Modal is now removed, its content will go into #analysis-view -->
-
-<dialog id="promptModal" class="modal">
-	<div class="modal-box w-11/12 max-w-3xl">
-		<h3 class="font-bold text-lg" id="promptModalLabel">Build Smart Prompt</h3>
-		<p class="py-4">Enter your high-level request below. The AI will review the analysis of <strong>all analyzed files
-			in the
-			project</strong> and choose the most relevant ones to build the final prompt.</p>
-		<div class="form-control">
-			<label class="label" for="promptModalTextarea">
-				<span class="label-text">Your Request:</span>
-			</label>
-			<textarea class="textarea textarea-bordered" id="promptModalTextarea" rows="5"
-			          placeholder="e.g., 'Refactor the login process to use a new authentication service.'"></textarea>
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-			<button class="btn btn-primary" id="sendPromptButton">Select Files & Build Prompt</button>
-		</div>
-	</div>
-</dialog>
-
-<!-- MODIFIED: Removed the analysisOptionsModal dialog -->
 
 <dialog id="logModal" class="modal">
 	<div class="modal-box w-11/12 max-w-7xl">

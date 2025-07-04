@@ -13,9 +13,8 @@ import {
 	handleSearchIconClick,
 	handleAnalysisIconClick,
 	setupModalEventListeners,
-	handlePromptButtonClick,
 	handleLogButtonClick,
-	performSmartPrompt // MODIFIED: Import the new smart prompt function
+	performSmartPrompt
 } from './modals.js';
 import {setupAnalysisActionsListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
@@ -146,6 +145,18 @@ function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedE
 }
 
 /**
+ * NEW: Adjusts the height of the bottom prompt textarea to fit its content.
+ */
+function adjustPromptTextareaHeight() {
+	const textarea = document.getElementById('bottom-prompt-input');
+	if (!textarea) return;
+	// Temporarily reset height to 'auto' to get the correct scrollHeight
+	textarea.style.height = 'auto';
+	// Set the height to the scrollHeight to fit the content
+	textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
+/**
  * Initializes the entire application on page load.
  */
 async function initializeApp() {
@@ -167,6 +178,8 @@ async function initializeApp() {
 		setLastSmartPrompt(data.last_smart_prompt || '');
 		// NEW: Populate the bottom prompt input with the last saved prompt.
 		document.getElementById('bottom-prompt-input').value = data.last_smart_prompt || '';
+		// NEW: Adjust textarea height based on the loaded content.
+		adjustPromptTextareaHeight();
 		
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
@@ -281,12 +294,23 @@ function initializeResizers() {
 	}
 }
 
+/**
+ * NEW: Sets up the event listener for the auto-expanding textarea.
+ */
+function initializeAutoExpandTextarea() {
+	const promptInput = document.getElementById('bottom-prompt-input');
+	if (promptInput) {
+		promptInput.addEventListener('input', adjustPromptTextareaHeight);
+	}
+}
+
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize components
 	initializeModals();
 	initializeApp();
-	initializeResizers(); // NEW: Setup layout resizers.
+	initializeResizers();
+	initializeAutoExpandTextarea(); // NEW: Setup auto-expanding textarea.
 	
 	// Setup event listeners
 	setupModalEventListeners();
@@ -428,7 +452,11 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (e.target.id === 'close-analysis-view') {
 			document.getElementById('analysis-view').classList.add('hidden');
 			document.getElementById('selected-content').classList.remove('hidden');
-			document.getElementById('main-content-title').textContent = 'Prompt Builder';
+			// MODIFIED: Null-check for the title element which has been removed.
+			const mainTitle = document.getElementById('main-content-title');
+			if (mainTitle) {
+				mainTitle.textContent = 'Prompt Builder';
+			}
 		}
 	});
 });

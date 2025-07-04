@@ -5,35 +5,18 @@ import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 // MODIFIED: Store direct references to the modal <dialog> elements.
 let searchModal = null;
-// MODIFIED: analysisModal is no longer a modal.
-let promptModal = null;
+// MODIFIED: promptModal is no longer used and has been removed.
 let logModal = null;
 let currentSearchFolderPath = null;
 
 /**
  * Initializes the modal element references.
  * MODIFIED: No longer instantiates Bootstrap modals. Just gets the DOM elements.
- * The analysisModal is no longer needed here.
+ * The analysisModal and promptModal are no longer needed here.
  */
 export function initializeModals() {
 	searchModal = document.getElementById('searchModal');
-	promptModal = document.getElementById('promptModal');
 	logModal = document.getElementById('logModal');
-}
-
-/**
- * Handles the click event on the main "PROMPT" button or new bottom input.
- * MODIFIED: Uses .showModal() on the <dialog> element. Can accept a pre-filled prompt.
- * @param {string} [promptText=''] - Optional text to pre-fill in the textarea.
- */
-export function handlePromptButtonClick(promptText = '') {
-	const textarea = document.getElementById('promptModalTextarea');
-	if (textarea) {
-		// If promptText is provided, use it. Otherwise, use the last saved prompt.
-		textarea.value = promptText || getLastSmartPrompt();
-		textarea.select();
-	}
-	promptModal.showModal();
 }
 
 /**
@@ -109,10 +92,11 @@ export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
 	const analysisView = document.getElementById('analysis-view');
 	const promptTextarea = document.getElementById('selected-content');
+	// MODIFIED: Null-check for the title element which has been removed.
 	const mainTitle = document.getElementById('main-content-title');
 	
 	// Show loading state and switch views
-	mainTitle.textContent = `Analyzing ${filePath}...`;
+	if (mainTitle) mainTitle.textContent = `Analyzing ${filePath}...`;
 	promptTextarea.classList.add('hidden');
 	analysisView.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
 	analysisView.classList.remove('hidden');
@@ -159,11 +143,11 @@ export async function handleAnalysisIconClick(target) {
                 ${bodyContent}
             </div>
         `;
-		mainTitle.textContent = 'File Analysis';
+		if (mainTitle) mainTitle.textContent = 'File Analysis';
 		
 	} catch (error) {
 		analysisView.innerHTML = `<p class="text-error p-4">Error fetching analysis: ${error.message}</p>`;
-		mainTitle.textContent = 'Error';
+		if (mainTitle) mainTitle.textContent = 'Error';
 	}
 }
 
@@ -291,15 +275,5 @@ export function setupModalEventListeners() {
 		}
 	});
 	
-	// MODIFIED: Listener for the Smart Prompt modal button now calls the refactored function.
-	document.getElementById('sendPromptButton').addEventListener('click', async function () {
-		const promptTextarea = document.getElementById('promptModalTextarea');
-		const userPrompt = promptTextarea.value;
-		
-		// MODIFIED: Use .close() on the <dialog> element.
-		promptModal.close();
-		
-		// MODIFIED: Call the new refactored function
-		await performSmartPrompt(userPrompt);
-	});
+	// MODIFIED: The 'sendPromptButton' and its associated modal have been removed.
 }

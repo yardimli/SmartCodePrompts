@@ -3,24 +3,27 @@ import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
+// MODIFIED: Store direct references to the modal <dialog> elements.
 let searchModal = null;
 let analysisModal = null;
 let promptModal = null;
-let logModal = null; // Modal instance for the LLM log.
+let logModal = null;
 let currentSearchFolderPath = null;
 
 /**
- * Initializes the Bootstrap modal instances.
+ * Initializes the modal element references.
+ * MODIFIED: No longer instantiates Bootstrap modals. Just gets the DOM elements.
  */
 export function initializeModals() {
-	searchModal = new bootstrap.Modal(document.getElementById('searchModal'));
-	analysisModal = new bootstrap.Modal(document.getElementById('analysisModal'));
-	promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
-	logModal = new bootstrap.Modal(document.getElementById('logModal')); // Initialize the log modal.
+	searchModal = document.getElementById('searchModal');
+	analysisModal = document.getElementById('analysisModal');
+	promptModal = document.getElementById('promptModal');
+	logModal = document.getElementById('logModal');
 }
 
 /**
  * Handles the click event on the main "PROMPT" button.
+ * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export function handlePromptButtonClick() {
 	const textarea = document.getElementById('promptModalTextarea');
@@ -28,43 +31,46 @@ export function handlePromptButtonClick() {
 		textarea.value = getLastSmartPrompt();
 		textarea.select();
 	}
-	promptModal.show();
+	promptModal.showModal();
 }
 
 /**
  * NEW: Handles the click on the LLM Log button in the status bar.
  * Fetches log data and displays the modal.
+ * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export async function handleLogButtonClick() {
 	const modalBody = document.getElementById('logModalBody');
-	modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-	logModal.show();
+	modalBody.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
+	logModal.showModal();
 	
 	try {
 		const logData = await postData({action: 'get_llm_log'});
 		if (!logData || logData.length === 0) {
-			modalBody.innerHTML = '<p class="text-muted p-3">No LLM calls have been made in this session yet.</p>';
+			modalBody.innerHTML = '<p class="text-base-content/70 p-3">No LLM calls have been made in this session yet.</p>';
 			return;
 		}
 		
+		// MODIFIED: Use DaisyUI table classes
 		let tableHtml = `
-            <table class="table table-sm table-hover">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Reason</th>
-                        <th>Model</th>
-                        <th class="text-end">Prompt Tokens</th>
-                        <th class="text-end">Completion Tokens</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Reason</th>
+                            <th>Model</th>
+                            <th class="text-right">Prompt Tokens</th>
+                            <th class="text-right">Completion Tokens</th>
+                        </tr>
+                    </thead>
+                    <tbody>
         `;
 		
 		for (const entry of logData) {
 			const timestamp = new Date(entry.timestamp).toLocaleTimeString();
 			tableHtml += `
-                <tr>
+                <tr class="hover">
                     <td class="log-timestamp">${timestamp}</td>
                     <td class="log-reason">${entry.reason}</td>
                     <td class="log-model">${entry.modelId || 'N/A'}</td>
@@ -74,35 +80,35 @@ export async function handleLogButtonClick() {
             `;
 		}
 		
-		tableHtml += '</tbody></table>';
+		tableHtml += '</tbody></table></div>';
 		modalBody.innerHTML = tableHtml;
 	} catch (error) {
 		console.error("Failed to fetch LLM log:", error);
-		modalBody.innerHTML = `<p class="text-danger p-3">Could not load LLM log: ${error.message}</p>`;
+		modalBody.innerHTML = `<p class="text-error p-3">Could not load LLM log: ${error.message}</p>`;
 	}
 }
 
 /**
  * Handles the click event on a folder's search icon.
- * @param {HTMLElement} target - The clicked icon element.
+ * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export function handleSearchIconClick(target) {
 	currentSearchFolderPath = target.closest('.folder').dataset.path;
 	document.getElementById('searchModalFolderPath').textContent = currentSearchFolderPath || 'Root';
-	searchModal.show();
+	searchModal.showModal();
 }
 
 /**
  * Handles the click event on a file's analysis icon.
- * @param {HTMLElement} target - The clicked icon element.
+ * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
 	const modalTitle = document.getElementById('analysisModalLabel');
 	const modalBody = document.getElementById('analysisModalBody');
 	modalTitle.textContent = `Analysis for ${filePath}`;
-	modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-	analysisModal.show();
+	modalBody.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
+	analysisModal.showModal();
 	
 	try {
 		const currentProject = getCurrentProject();
@@ -135,7 +141,7 @@ export async function handleAnalysisIconClick(target) {
 		}
 		modalBody.innerHTML = bodyContent;
 	} catch (error) {
-		modalBody.innerHTML = `<p class="text-danger">Error fetching analysis: ${error.message}</p>`;
+		modalBody.innerHTML = `<p class="text-error">Error fetching analysis: ${error.message}</p>`;
 	}
 }
 
@@ -151,7 +157,8 @@ export function setupModalEventListeners() {
 	
 	document.getElementById('performSearchButton').addEventListener('click', async function () {
 		const searchTerm = document.getElementById('searchTermInput').value.trim();
-		searchModal.hide();
+		// MODIFIED: Use .close() on the <dialog> element.
+		searchModal.close();
 		if (!searchTerm || !currentSearchFolderPath) return;
 		
 		showLoading('Searching files...');
@@ -210,7 +217,8 @@ export function setupModalEventListeners() {
 			return;
 		}
 		
-		promptModal.hide();
+		// MODIFIED: Use .close() on the <dialog> element.
+		promptModal.close();
 		showLoading('Asking LLM to select relevant files...');
 		try {
 			const currentProject = getCurrentProject();

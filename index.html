@@ -1,240 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts</title>
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
-	      crossorigin="anonymous">
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
-	        crossorigin="anonymous"></script>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css" rel="stylesheet" type="text/css"/>
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 	<script type="module" src="js/main.js"></script>
 	<link rel="stylesheet" href="css/index.css">
 </head>
-<!-- MODIFIED: Removed inline padding-bottom style. The main content height is now calculated in CSS to prevent overlap with the fixed status bar. -->
-<body class="">
-<div class="container-fluid mt-2">
-	<header class="d-flex flex-wrap justify-content-center py-3 mb-1 border-bottom">
-		<a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-decoration-none">
-			<span class="fs-4 text-body">Smart Code Prompts</span>
+<body>
+<div class="container mx-auto px-4 mt-2">
+	<header class="flex flex-wrap items-center justify-between py-3 mb-1 border-b border-base-300">
+		<a href="/" class="flex items-center no-underline">
+			<span class="text-xl font-semibold">Smart Code Prompts</span>
 		</a>
-		<ul class="nav nav-pills align-items-center">
-			<li class="nav-item me-2">
-				<select id="projects-dropdown" class="form-select"></select>
-			</li>
-			<li class="nav-item me-2">
-				<select id="llm-dropdown" class="form-select" title="Select LLM"></select>
-			</li>
-			<li class="nav-item me-2">
-				<button id="refresh-llms" class="btn btn-outline-secondary" title="Refresh LLM List">
-					<i class="fas fa-sync-alt"></i>
-				</button>
-			</li>
-			<!-- MODIFIED: Replaced 'analyze-files' and 'reanalyze-files' with a single button to open a modal -->
-			<li class="nav-item me-2">
-				<button id="analysis-actions-button" class="btn btn-outline-info" title="Analysis Actions">
-					<i class="fa-solid fa-microscope"></i> Analysis
-				</button>
-			</li>
-			<!-- NEW: Compress Extensions Dropdown -->
-			<li class="nav-item dropdown me-2">
-				<button class="btn btn-outline-secondary dropdown-toggle" type="button" id="compressDropdownButton"
-				        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+		<div class="flex items-center gap-2 flex-wrap">
+			<!-- MODIFIED: Added w-48 and max-w-xs utility classes to control the width -->
+			<select id="projects-dropdown" class="select select-bordered select-sm w-48 max-w-xs"></select>
+			<!-- MODIFIED: Added w-48 and max-w-xs utility classes to control the width -->
+			<select id="llm-dropdown" class="select select-bordered select-sm w-48 max-w-xs" title="Select LLM"></select>
+			<button id="refresh-llms" class="btn btn-sm btn-outline" title="Refresh LLM List">
+				<i class="fas fa-sync-alt"></i>
+			</button>
+			<button id="analysis-actions-button" class="btn btn-sm btn-outline btn-info" title="Analysis Actions">
+				<i class="fa-solid fa-microscope"></i> Analysis
+			</button>
+			<div class="dropdown dropdown-end">
+				<button tabindex="0" role="button" class="btn btn-sm btn-outline"
 				        title="Select extensions to compress in prompt">
 					<i class="fa-solid fa-compress"></i>
 				</button>
-				<div class="dropdown-menu" aria-labelledby="compressDropdownButton" id="compress-extensions-list">
-					<!-- Checkboxes will be injected here by JS -->
-					<div class="p-2 text-muted small">Loading...</div>
-				</div>
-			</li>
-			<li class="nav-item me-2">
-				<button id="prompt-button" class="btn btn-outline-success" title="Build Prompt with AI">
-					<i class="fa-solid fa-wand-magic-sparkles"></i> PROMPT
-				</button>
-			</li>
-			<li class="nav-item me-2">
-				<a href="/projects" class="btn btn-outline-primary" title="Select Projects"><i
-					class="fa-solid fa-check-double"></i></a>
-			</li>
-			<li class="nav-item me-2">
-				<a href="/setup" class="btn btn-outline-primary" title="Configure"><i class="fa-solid fa-gears"></i></a>
-			</li>
-			<li class="nav-item me-2">
-				<button id="loading-indicator" class="btn btn-outline-secondary" style="display: none;">
-					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...
-				</button>
-			</li>
-			<li class="nav-item me-2">
-				<button id="unselect-all" class="btn btn-outline-secondary" title="Unselect All Files"><i
-					class="fa-solid fa-rotate-right"></i></button>
-			</li>
-			<li class="nav-item">
-				<button id="toggle-mode" class="btn btn-outline-primary">
-					<i class="fas fa-sun"></i>
-				</button>
-			</li>
-		</ul>
+				<ul tabindex="0" id="compress-extensions-list"
+				    class="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-52 max-h-96 overflow-y-auto">
+					<li><a>Loading...</a></li>
+				</ul>
+			</div>
+			<button id="prompt-button" class="btn btn-sm btn-outline btn-success" title="Build Prompt with AI">
+				<i class="fa-solid fa-wand-magic-sparkles"></i> PROMPT
+			</button>
+			<a href="/projects" class="btn btn-sm btn-outline btn-primary" title="Select Projects"><i
+				class="fa-solid fa-check-double"></i></a>
+			<a href="/setup" class="btn btn-sm btn-outline btn-primary" title="Configure"><i
+				class="fa-solid fa-gears"></i></a>
+			<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
+				<span class="loading loading-spinner loading-xs"></span> Loading...
+			</button>
+			<button id="unselect-all" class="btn btn-sm btn-outline" title="Unselect All Files"><i
+				class="fa-solid fa-rotate-right"></i></button>
+			<button id="toggle-mode" class="btn btn-sm btn-outline">
+				<i class="fas fa-sun"></i>
+			</button>
+		</div>
 	</header>
-	<div class="row">
-		<div class="col-lg-5 col-md-6">
-			<div id="file-tree"></div>
+	<div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+		<div class="md:col-span-5">
+			<div id="file-tree"
+			     class="border border-base-300 rounded-lg p-2 h-[calc(100vh-145px)] max-h-[calc(100vh-145px)] overflow-auto font-mono text-sm"></div>
 		</div>
-		<div class="col-lg-7 col-md-6">
-			<textarea id="selected-content" class="form-control"></textarea>
-		</div>
-	</div>
-</div>
-
-<!-- Search Modal -->
-<div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="searchModalLabel">Search in Folder</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<p>Searching within: <strong id="searchModalFolderPath"></strong></p>
-				<div class="mb-3">
-					<label for="searchTermInput" class="form-label">Search Term (case-insensitive):</label>
-					<input type="text" class="form-control" id="searchTermInput" placeholder="Enter text to search for...">
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				<button type="button" class="btn btn-primary" id="performSearchButton">Search Files</button>
-			</div>
+		<div class="md:col-span-7">
+			<textarea id="selected-content"
+			          class="textarea textarea-bordered w-full h-[calc(100vh-145px)] max-h-[calc(100vh-145px)] font-mono text-xs"></textarea>
 		</div>
 	</div>
 </div>
 
-<!-- Analysis Modal -->
-<div class="modal fade" id="analysisModal" tabindex="-1" aria-labelledby="analysisModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg modal-dialog-scrollable">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="analysisModalLabel">File Analysis</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body" id="analysisModalBody">
-				<!-- Analysis content will be injected here by JavaScript -->
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-			</div>
+<!-- Modals... (no changes needed here) -->
+<dialog id="searchModal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>
+		<p class="py-4">Searching within: <strong id="searchModalFolderPath"></strong></p>
+		<div class="form-control">
+			<label class="label" for="searchTermInput">
+				<span class="label-text">Search Term (case-insensitive):</span>
+			</label>
+			<input type="text" class="input input-bordered" id="searchTermInput" placeholder="Enter text to search for...">
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+			<button class="btn btn-primary" id="performSearchButton">Search Files</button>
 		</div>
 	</div>
-</div>
+</dialog>
 
-<!-- Prompt Modal -->
-<div class="modal fade" id="promptModal" tabindex="-1" aria-labelledby="promptModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="promptModalLabel">Build Smart Prompt</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<p>Enter your high-level request below. The AI will review the analysis of <strong>all analyzed files in the
-					project</strong> and choose the most relevant ones to build the final prompt.</p>
-				<div class="mb-3">
-					<label for="promptModalTextarea" class="form-label">Your Request:</label>
-					<textarea class="form-control" id="promptModalTextarea" rows="5"
-					          placeholder="e.g., 'Refactor the login process to use a new authentication service.'"></textarea>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				<button type="button" class="btn btn-primary" id="sendPromptButton">Select Files & Build Prompt</button>
-			</div>
+<dialog id="analysisModal" class="modal">
+	<div class="modal-box w-11/12 max-w-5xl">
+		<h3 class="font-bold text-lg" id="analysisModalLabel">File Analysis</h3>
+		<div class="py-4" id="analysisModalBody">
+			<!-- Analysis content will be injected here by JavaScript -->
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
 		</div>
 	</div>
-</div>
+</dialog>
 
-<!-- NEW: Consolidated Analysis Options Modal -->
-<div class="modal fade" id="analysisOptionsModal" tabindex="-1" aria-labelledby="analysisOptionsModalLabel"
-     aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="analysisOptionsModalLabel">Choose Analysis Action</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<p>How would you like to analyze the files in this project?</p>
-				<div class="d-grid gap-2">
-					<button type="button" class="btn btn-primary" id="analyzeSelectedButton">
-						<i class="fa-solid fa-check-square me-2"></i>Analyze Selected Files
-					</button>
-					<hr>
-					<button type="button" class="btn btn-info" id="reanalyzeModifiedOnlyButton">
-						<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified Only
-					</button>
-					<button type="button" class="btn btn-danger" id="reanalyzeForceAllButton">
-						<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
-					</button>
-				</div>
-				<div class="mt-3 small text-muted">
-					<p><strong>Analyze Selected:</strong><br>Performs a one-time analysis on the files currently checked in the
-						file tree.</p>
-					<p><strong>Re-analyze Modified (Faster):</strong><br>Scans for files changed since their last analysis and
-						re-analyzes only those.</p>
-					<p><strong>Force Re-analyze All (Slower):</strong><br>Re-analyzes every file that has a previous analysis,
-						regardless of changes.</p>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-			</div>
+<dialog id="promptModal" class="modal">
+	<div class="modal-box w-11/12 max-w-3xl">
+		<h3 class="font-bold text-lg" id="promptModalLabel">Build Smart Prompt</h3>
+		<p class="py-4">Enter your high-level request below. The AI will review the analysis of <strong>all analyzed files
+			in the
+			project</strong> and choose the most relevant ones to build the final prompt.</p>
+		<div class="form-control">
+			<label class="label" for="promptModalTextarea">
+				<span class="label-text">Your Request:</span>
+			</label>
+			<textarea class="textarea textarea-bordered" id="promptModalTextarea" rows="5"
+			          placeholder="e.g., 'Refactor the login process to use a new authentication service.'"></textarea>
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+			<button class="btn btn-primary" id="sendPromptButton">Select Files & Build Prompt</button>
 		</div>
 	</div>
-</div>
+</dialog>
 
-
-<!-- LLM Log Modal -->
-<div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-xl modal-dialog-scrollable">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="logModalLabel">LLM Call Log (This Session)</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body" id="logModalBody">
-				<!-- Log content will be injected here by JavaScript -->
-				<p class="text-muted">No LLM calls have been made in this session yet.</p>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-			</div>
+<dialog id="analysisOptionsModal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg" id="analysisOptionsModalLabel">Choose Analysis Action</h3>
+		<p class="py-4">How would you like to analyze the files in this project?</p>
+		<div class="grid gap-2">
+			<button class="btn btn-primary" id="analyzeSelectedButton">
+				<i class="fa-solid fa-check-square me-2"></i>Analyze Selected Files
+			</button>
+			<div class="divider"></div>
+			<button class="btn btn-info" id="reanalyzeModifiedOnlyButton">
+				<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified Only
+			</button>
+			<button class="btn btn-error" id="reanalyzeForceAllButton">
+				<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
+			</button>
+		</div>
+		<div class="mt-4 text-sm text-base-content/70 space-y-2">
+			<p><strong>Analyze Selected:</strong><br>Performs a one-time analysis on the files currently checked in the
+				file tree.</p>
+			<p><strong>Re-analyze Modified (Faster):</strong><br>Scans for files changed since their last analysis and
+				re-analyzes only those.</p>
+			<p><strong>Force Re-analyze All (Slower):</strong><br>Re-analyzes every file that has a previous analysis,
+				regardless of changes.</p>
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
 		</div>
 	</div>
-</div>
+</dialog>
 
-<!-- Status Bar -->
-<footer id="status-bar" class="fixed-bottom border-top text-muted py-1 px-3">
-	<div class="d-flex justify-content-between align-items-center">
-		<div id="status-bar-progress-container" class="align-items-center" style="display: none; width: 50%;">
-			<span id="status-bar-progress-text" class="me-2 small"></span>
-			<div class="progress flex-grow-1" style="height: 1rem;">
-				<div id="status-bar-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info"
-				     role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-			</div>
+<dialog id="logModal" class="modal">
+	<div class="modal-box w-11/12 max-w-7xl">
+		<h3 class="font-bold text-lg" id="logModalLabel">LLM Call Log (This Session)</h3>
+		<div class="py-4" id="logModalBody">
+			<p class="text-base-content/70">No LLM calls have been made in this session yet.</p>
 		</div>
-		<div id="status-bar-message" class="flex-grow-1 text-center small text-truncate" title=""></div>
-		<div id="status-bar-tokens" class="text-end d-flex align-items-center">
-			<button id="log-modal-button" class="btn btn-sm btn-outline-secondary me-3" title="View LLM Call Log">
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>
+
+<footer id="status-bar" class="fixed bottom-0 left-0 right-0 border-t border-base-300 bg-base-100 py-1 px-3">
+	<div class="flex justify-between items-center w-full">
+		<div id="status-bar-progress-container" class="items-center gap-2" style="display: none; width: 50%;">
+			<span id="status-bar-progress-text" class="text-sm"></span>
+			<progress id="status-bar-progress-bar" class="progress progress-info w-full" value="0" max="100"></progress>
+		</div>
+		<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
+		<div id="status-bar-tokens" class="flex items-center gap-4">
+			<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
 				<i class="fa-solid fa-list-ul"></i>
 			</button>
-			<span class="small" title="Prompt Tokens this Session">
-                <i class="fa-solid fa-circle-up"></i>
-                <span id="prompt-tokens">0</span>
-            </span>
-			<span class="ms-3 small" title="Completion Tokens this Session">
-                <i class="fa-solid fa-circle-down"></i>
-                <span id="completion-tokens">0</span>
-            </span>
+			<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
+				<i class="fa-solid fa-circle-up text-success"></i>
+				<span id="prompt-tokens">0</span>
+			</div>
+			<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
+				<i class="fa-solid fa-circle-down text-info"></i>
+				<span id="completion-tokens">0</span>
+			</div>
 		</div>
 	</div>
 </footer>

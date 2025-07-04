@@ -46,7 +46,8 @@ async function performSelectionAnalysis() {
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
-					icon.className = 'fas fa-info-circle analysis-icon';
+					// MODIFIED: Updated icon classes for Tailwind/DaisyUI
+					icon.className = 'fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
 					icon.dataset.path = filePath;
 					icon.title = 'View Analysis';
 					// Insert icon before the file name span for consistent placement
@@ -117,20 +118,16 @@ async function performReanalysis(forceReanalysis) {
 
 /**
  * MODIFIED: Sets up the event listener for the main "Analysis Actions" button.
- * This button now opens a modal with three choices:
- * 1. Analyze Selected Files
- * 2. Re-analyze Modified Files
- * 3. Force Re-analyze All Files
- * This assumes a button with id "analysis-actions-button" and a modal with id "analysisOptionsModal" exist in the HTML.
+ * This now uses the native <dialog> element's API (.showModal() and .close()).
  */
 export function setupAnalysisActionsListener() {
 	const analysisButton = document.getElementById('analysis-actions-button');
-	const analysisModalEl = document.getElementById('analysisOptionsModal');
+	// MODIFIED: Get the dialog element directly. No more Bootstrap instantiation.
+	const analysisModal = document.getElementById('analysisOptionsModal');
 	
-	if (!analysisButton || !analysisModalEl) {
+	if (!analysisButton || !analysisModal) {
 		return;
 	}
-	const analysisModal = new bootstrap.Modal(analysisModalEl);
 	
 	analysisButton.addEventListener('click', function () {
 		const llmId = document.getElementById('llm-dropdown').value;
@@ -143,22 +140,26 @@ export function setupAnalysisActionsListener() {
 			alert('No project selected.');
 			return;
 		}
-		analysisModal.show();
+		// MODIFIED: Use the standard .showModal() method to display the dialog.
+		analysisModal.showModal();
 	});
 	
 	// Listener for the "Analyze Selected" button in the modal.
 	document.getElementById('analyzeSelectedButton').addEventListener('click', async () => {
-		analysisModal.hide();
+		// MODIFIED: Use the standard .close() method to hide the dialog.
+		analysisModal.close();
 		await performSelectionAnalysis();
 	});
 	
 	document.getElementById('reanalyzeModifiedOnlyButton').addEventListener('click', async () => {
-		analysisModal.hide();
+		// MODIFIED: Use the standard .close() method to hide the dialog.
+		analysisModal.close();
 		await performReanalysis(false);
 	});
 	
 	document.getElementById('reanalyzeForceAllButton').addEventListener('click', async () => {
-		analysisModal.hide();
+		// MODIFIED: Use the standard .close() method to hide the dialog.
+		analysisModal.close();
 		await performReanalysis(true);
 	});
 }

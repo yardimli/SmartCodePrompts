@@ -3,9 +3,10 @@ import {postData, getProjectIdentifier} from './utils.js';
 
 /**
  * Applies dark mode styling based on the body's class list.
+ * MODIFIED: Toggles DaisyUI theme attribute and icon class.
  */
 function applyDarkMode() {
-	const isDarkMode = document.body.classList.contains('dark-mode');
+	const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
 	const toggleIcon = document.querySelector('#toggle-mode i');
 	if (toggleIcon) {
 		toggleIcon.classList.toggle('fa-sun', !isDarkMode);
@@ -22,7 +23,7 @@ function renderProjectList(projects) {
 	projectsListContainer.innerHTML = '';
 	
 	if (!projects || projects.length === 0) {
-		projectsListContainer.innerHTML = '<p class="text-center text-danger">No top-level folders found in your configured root directories.</p>';
+		projectsListContainer.innerHTML = '<p class="text-center text-error">No top-level folders found in your configured root directories.</p>';
 		return;
 	}
 	
@@ -38,25 +39,26 @@ function renderProjectList(projects) {
 	// Build the HTML for each group and append it to the container.
 	let html = '';
 	for (const rootPath in groupedProjects) {
-		html += `<h5 class="mt-4 text-muted w-100">${rootPath}</h5>`;
-		html += '<div class="row">';
+		// MODIFIED: Use Tailwind/DaisyUI classes for headings and layout.
+		html += `<h5 class="mt-4 text-base-content/70 w-full col-span-full">${rootPath}</h5>`;
 		groupedProjects[rootPath].forEach(function (project) {
 			const isChecked = project.isChecked;
 			const identifier = getProjectIdentifier(project);
-			// Using data-* attributes to store project info directly on the element.
+			// MODIFIED: Use DaisyUI card and form-control structure.
 			html += `
-                <div class="col-12 col-md-6 col-lg-3 mb-3">
-                    <div class="project-card form-check p-3 border rounded h-100">
-                        <input class="form-check-input" type="checkbox" value="${identifier}" id="proj-${identifier}" data-root-index="${project.rootIndex}" data-path="${project.path}" ${isChecked ? 'checked' : ''}>
-                        <label class="form-check-label" for="proj-${identifier}">
-                            ${project.path}
+                <div class="card bg-base-200 shadow-md hover:bg-base-300 transition-colors">
+                    <div class="card-body p-4">
+                        <label for="proj-${identifier}" class="label cursor-pointer justify-start gap-4">
+                             <input class="checkbox checkbox-primary" type="checkbox" value="${identifier}" id="proj-${identifier}" data-root-index="${project.rootIndex}" data-path="${project.path}" ${isChecked ? 'checked' : ''}>
+                             <span class="label-text text-lg">${project.path}</span>
                         </label>
                     </div>
                 </div>
             `;
 		});
-		html += '</div>';
 	}
+	// MODIFIED: Use Tailwind grid for the project list layout.
+	projectsListContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4';
 	projectsListContainer.insertAdjacentHTML('beforeend', html);
 }
 
@@ -71,12 +73,15 @@ async function loadPageData() {
 		
 		// Fetch main app settings, primarily for dark mode consistency.
 		const mainData = await postData({action: 'get_main_page_data'});
+		// MODIFIED: Set DaisyUI theme attribute instead of a body class.
 		if (mainData.darkMode) {
-			document.body.classList.add('dark-mode');
+			document.documentElement.setAttribute('data-theme', 'dark');
+		} else {
+			document.documentElement.setAttribute('data-theme', 'light');
 		}
 		applyDarkMode();
 	} catch (error) {
-		document.getElementById('projects-list').innerHTML = '<p class="text-center text-danger">Error loading project list. Check server logs.</p>';
+		document.getElementById('projects-list').innerHTML = '<p class="text-center text-error">Error loading project list. Check server logs.</p>';
 		console.error("Error fetching page data:", error);
 	}
 }
@@ -84,12 +89,15 @@ async function loadPageData() {
 // --- Event Listeners ---
 
 // Event listener for the dark mode toggle button.
+// MODIFIED: Toggles the `data-theme` attribute for DaisyUI.
 document.getElementById('toggle-mode').addEventListener('click', () => {
-	document.body.classList.toggle('dark-mode');
-	const isDarkMode = document.body.classList.contains('dark-mode');
+	const html = document.documentElement;
+	const isDarkMode = html.getAttribute('data-theme') === 'dark';
+	const newTheme = isDarkMode ? 'light' : 'dark';
+	html.setAttribute('data-theme', newTheme);
 	applyDarkMode();
 	// Save the dark mode state to the server.
-	postData({action: 'set_dark_mode', isDarkMode: isDarkMode})
+	postData({action: 'set_dark_mode', isDarkMode: !isDarkMode})
 		.catch(err => console.error("Failed to save dark mode setting.", err));
 });
 

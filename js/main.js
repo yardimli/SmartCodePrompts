@@ -43,8 +43,7 @@ function updateStatusBar(stats) {
 	if (stats.reanalysis && stats.reanalysis.running && stats.reanalysis.total > 0) {
 		const percent = Math.round((stats.reanalysis.current / stats.reanalysis.total) * 100);
 		progressText.textContent = `Re-analyzing... (${stats.reanalysis.current}/${stats.reanalysis.total})`;
-		progressBar.style.width = `${percent}%`;
-		progressBar.setAttribute('aria-valuenow', percent);
+		progressBar.value = percent; // MODIFIED: Set value for <progress> element
 		progressContainer.style.display = 'flex';
 		statusMessageEl.textContent = stats.reanalysis.message;
 		statusMessageEl.title = stats.reanalysis.message;
@@ -83,7 +82,7 @@ async function loadProject(identifier) {
 	const project = parseProjectIdentifier(identifier);
 	const fileTree = document.getElementById('file-tree');
 	if (!project) {
-		fileTree.innerHTML = '<p class="p-3 text-muted">Please select a project.</p>';
+		fileTree.innerHTML = '<p class="p-3 text-base-content/70">Please select a project.</p>';
 		return;
 	}
 	showLoading(`Loading project "${project.path}"...`);
@@ -119,7 +118,7 @@ function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedE
 		const compressed = new Set(JSON.parse(compressedExtensionsJson));
 		
 		if (!Array.isArray(allowed) || allowed.length === 0) {
-			container.innerHTML = '<div class="p-2 text-muted small">No extensions configured.</div>';
+			container.innerHTML = '<li><a class="p-2 text-base-content/70 text-sm">No extensions configured.</a></li>';
 			return;
 		}
 		
@@ -128,21 +127,20 @@ function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedE
 		for (const ext of allowed) {
 			const isChecked = compressed.has(ext);
 			const id = `compress-ext-${ext.replace('.', '')}`;
+			// MODIFIED: Use DaisyUI structure for checkbox items in a dropdown menu.
 			content += `
-                <li class="px-2 py-1">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="${ext}" id="${id}" ${isChecked ? 'checked' : ''}>
-                        <label class="form-check-label" for="${id}">
-                            .${ext}
-                        </label>
-                    </div>
+                <li>
+                    <label for="${id}" class="label cursor-pointer p-2">
+                        <span class="label-text">.${ext}</span>
+                        <input type="checkbox" value="${ext}" id="${id}" class="checkbox checkbox-primary" ${isChecked ? 'checked' : ''}>
+                    </label>
                 </li>
             `;
 		}
 		container.innerHTML = content;
 	} catch (e) {
 		console.error("Failed to parse extension settings:", e);
-		container.innerHTML = '<div class="p-2 text-danger small">Error loading settings.</div>';
+		container.innerHTML = '<li><a class="p-2 text-error text-sm">Error loading settings.</a></li>';
 	}
 }
 
@@ -154,9 +152,13 @@ async function initializeApp() {
 		const data = await postData({action: 'get_main_page_data'});
 		
 		// 1. Apply Dark Mode
+		// MODIFIED: Use DaisyUI theme system instead of a body class.
 		if (data.darkMode) {
-			document.body.classList.add('dark-mode');
+			document.documentElement.setAttribute('data-theme', 'dark');
 			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
+		} else {
+			document.documentElement.setAttribute('data-theme', 'light');
+			document.querySelector('#toggle-mode i').classList.replace('fa-moon', 'fa-sun');
 		}
 		
 		// 2. Set global prompts from state
@@ -179,7 +181,7 @@ async function initializeApp() {
 		dropdown.innerHTML = '';
 		if (!data.projects || data.projects.length === 0) {
 			dropdown.innerHTML = '<option value="">No projects selected</option>';
-			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-muted">No projects configured. Please go to "Select Projects" to begin.</p>';
+			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please go to "Select Projects" to begin.</p>';
 			return;
 		}
 		data.projects.forEach(project => {
@@ -215,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	
+	// MODIFIED: Event listener for DaisyUI dropdown needs to be on the parent `ul`.
 	document.getElementById('compress-extensions-list').addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
 			const checkboxes = document.querySelectorAll('#compress-extensions-list input[type="checkbox"]:checked');
@@ -248,12 +251,17 @@ document.addEventListener('DOMContentLoaded', function () {
 		saveCurrentProjectState();
 	});
 	
+	// MODIFIED: Dark mode toggle now sets the `data-theme` attribute on the <html> element.
 	document.getElementById('toggle-mode').addEventListener('click', function () {
-		document.body.classList.toggle('dark-mode');
-		const isDarkMode = document.body.classList.contains('dark-mode');
-		this.querySelector('i').classList.toggle('fa-sun');
-		this.querySelector('i').classList.toggle('fa-moon');
-		postData({action: 'set_dark_mode', isDarkMode: isDarkMode});
+		const html = document.documentElement;
+		const isDarkMode = html.getAttribute('data-theme') === 'dark';
+		const newTheme = isDarkMode ? 'light' : 'dark';
+		html.setAttribute('data-theme', newTheme);
+		
+		this.querySelector('i').classList.toggle('fa-sun', !isDarkMode);
+		this.querySelector('i').classList.toggle('fa-moon', isDarkMode);
+		
+		postData({action: 'set_dark_mode', isDarkMode: !isDarkMode});
 	});
 	
 	// Delegated event listener for the file tree

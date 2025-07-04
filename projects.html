@@ -1,40 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<!-- MODIFIED: Added data-theme for DaisyUI -->
+<html lang="en" data-theme="light">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Select Projects</title>
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
-	      crossorigin="anonymous">
+	<!-- MODIFIED: Replaced Bootstrap with Tailwind and DaisyUI CDN -->
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css" rel="stylesheet" type="text/css"/>
+	<!-- Kept Font Awesome for icons -->
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-	<!-- MODIFIED: Script tag now uses type="module" -->
 	<script type="module" src="js/projects.js"></script>
-	<link rel="stylesheet" href="css/projects.css">
+	<!-- REMOVED: projects.css is no longer needed -->
 </head>
-<body class="">
-<!-- REMOVED: Immediate script that used localStorage. Dark mode is now applied via JS after fetching the setting. -->
-<div class="container mt-4">
-	<header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
-		<h1 class="fs-4">Select Your Projects</h1>
-		<div>
-			<button id="toggle-mode" class="btn btn-outline-secondary me-2">
+<body>
+<div class="container mx-auto px-4 mt-4">
+	<!-- MODIFIED: Header rebuilt with Flexbox and DaisyUI components -->
+	<header class="flex justify-between items-center py-3 mb-4 border-b border-base-300">
+		<h1 class="text-2xl font-bold">Select Your Projects</h1>
+		<div class="flex items-center gap-2">
+			<button id="toggle-mode" class="btn btn-outline">
 				<i class="fas fa-sun"></i>
 			</button>
 			<a href="/" class="btn btn-primary">Back to Prompt Builder</a>
 		</div>
 	</header>
 	<main>
-		<p class="text-muted">
+		<p class="text-base-content/70 mb-4">
 			Select the root folders you want to treat as projects. They will appear in the "Projects" dropdown on the main
 			page.
 			Your selections are saved automatically to the server.
 		</p>
+		<!-- MODIFIED: Container for project list, will be populated by JS -->
 		<div id="projects-list">
-			<!-- NEW: A spinner is shown while the project list is being fetched from the server. -->
 			<div class="text-center p-5">
-				<div class="spinner-border" role="status">
-					<span class="visually-hidden">Loading...</span>
-				</div>
+				<span class="loading loading-spinner loading-lg"></span>
 			</div>
 		</div>
 	</main>

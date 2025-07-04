@@ -19,14 +19,15 @@ const toggleModeBtn = document.getElementById('toggle-mode');
 /**
  * Applies dark mode styling based on the provided boolean.
  * @param {boolean} isDarkMode - Whether dark mode should be enabled.
+ * MODIFIED: Toggles DaisyUI theme attribute and icon class.
  */
 function applyDarkMode(isDarkMode) {
 	const toggleIcon = toggleModeBtn.querySelector('i');
 	if (isDarkMode) {
-		document.body.classList.add('dark-mode');
+		document.documentElement.setAttribute('data-theme', 'dark');
 		if (toggleIcon) toggleIcon.classList.replace('fa-sun', 'fa-moon');
 	} else {
-		document.body.classList.remove('dark-mode');
+		document.documentElement.setAttribute('data-theme', 'light');
 		if (toggleIcon) toggleIcon.classList.replace('fa-moon', 'fa-sun');
 	}
 }
@@ -55,15 +56,17 @@ async function loadSetupData() {
 		loadingIndicator.style.display = 'none';
 		form.style.display = 'block';
 	} catch (error) {
-		loadingIndicator.innerHTML = `<p class="text-center text-danger">Error loading setup data: ${error.message}</p>`;
+		loadingIndicator.innerHTML = `<p class="text-center text-error">Error loading setup data: ${error.message}</p>`;
 	}
 }
 
 // --- Event Listeners ---
+// MODIFIED: Toggles the `data-theme` attribute for DaisyUI.
 toggleModeBtn.addEventListener('click', () => {
-	const isDarkMode = document.body.classList.toggle('dark-mode');
-	applyDarkMode(isDarkMode);
-	postData({action: 'set_dark_mode', isDarkMode: isDarkMode})
+	const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+	const newTheme = isDarkMode ? 'light' : 'dark';
+	applyDarkMode(!isDarkMode); // apply the new state
+	postData({action: 'set_dark_mode', isDarkMode: !isDarkMode})
 		.catch(err => console.error("Failed to save dark mode setting.", err));
 });
 

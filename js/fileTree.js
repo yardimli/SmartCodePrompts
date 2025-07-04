@@ -33,36 +33,38 @@ export function loadFolders(path, element) {
 				return resolve();
 			}
 			const ul = document.createElement('ul');
-			ul.className = 'list-unstyled';
+			// MODIFIED: Removed Bootstrap class, no replacement needed for ul.
 			ul.style.display = 'none';
 			let content = '';
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
 				const fullPath = `${path}/${folder}`;
+				// MODIFIED: HTML structure for folder items.
 				content += `
- <li>
- <span class="folder" data-path="${fullPath}">
- ${folder}
- <span class="folder-controls">
- <i class="fas fa-search folder-search-icon" title="Search in this folder"></i>
- <i class="fas fa-eraser folder-clear-icon" title="Clear selection in this folder"></i>
- </span>
- </span>
- </li>`;
+                    <li>
+                        <span class="folder" data-path="${fullPath}">
+                            ${folder}
+                            <span class="folder-controls inline-block align-middle ml-2">
+                                <i class="fas fa-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
+                                <i class="fas fa-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
+                            </span>
+                        </span>
+                    </li>`;
 			});
 			response.files.forEach(fileInfo => {
-				const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
-				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation" title="File has been modified since last analysis"></i>` : '';
+				// MODIFIED: HTML structure for file items, using Tailwind classes for icons.
+				const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
+				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 				content += `
- <li>
- <div class="checkbox-wrapper">
- <input type="checkbox" data-path="${fileInfo.path}">
- </div>
- ${analysisIcon}
- <span class="file" title="${fileInfo.path}">${fileInfo.name}</span>
- ${modifiedIcon}
- </li>`;
+                    <li>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
+                        </div>
+                        ${analysisIcon}
+                        <span class="file align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
+                        ${modifiedIcon}
+                    </li>`;
 			});
 			ul.innerHTML = content;
 			if (element) {

@@ -3,70 +3,178 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Smart Code Prompts</title>
+	<title>Smart Code Prompts - Studio</title>
 	<script src="https://cdn.tailwindcss.com"></script>
 	<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css" rel="stylesheet" type="text/css"/>
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 	<script type="module" src="js/main.js"></script>
 	<link rel="stylesheet" href="css/index.css">
 </head>
-<body>
-<div class="container mx-auto px-4 mt-2">
-	<header class="flex flex-wrap items-center justify-between py-3 mb-1 border-b border-base-300">
-		<a href="/" class="flex items-center no-underline">
-			<span class="text-xl font-semibold">Smart Code Prompts</span>
+<!-- MODIFIED: Body now uses flex to create the main layout structure -->
+<body class="h-screen overflow-hidden">
+<div class="flex h-full">
+	<!-- Left Icon Sidebar -->
+	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
+		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
+			<i class="fa-solid fa-brain"></i>
 		</a>
-		<div class="flex items-center gap-2 flex-wrap">
-			<!-- MODIFIED: Added w-48 and max-w-xs utility classes to control the width -->
-			<select id="projects-dropdown" class="select select-bordered select-sm w-48 max-w-xs"></select>
-			<!-- MODIFIED: Added w-48 and max-w-xs utility classes to control the width -->
-			<select id="llm-dropdown" class="select select-bordered select-sm w-48 max-w-xs" title="Select LLM"></select>
-			<button id="refresh-llms" class="btn btn-sm btn-outline" title="Refresh LLM List">
-				<i class="fas fa-sync-alt"></i>
-			</button>
-			<button id="analysis-actions-button" class="btn btn-sm btn-outline btn-info" title="Analysis Actions">
-				<i class="fa-solid fa-microscope"></i> Analysis
-			</button>
-			<div class="dropdown dropdown-end">
-				<button tabindex="0" role="button" class="btn btn-sm btn-outline"
-				        title="Select extensions to compress in prompt">
-					<i class="fa-solid fa-compress"></i>
-				</button>
-				<ul tabindex="0" id="compress-extensions-list"
-				    class="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-52 max-h-96 overflow-y-auto">
-					<li><a>Loading...</a></li>
-				</ul>
+		<div class="flex flex-col gap-5 text-xl text-base-content/60">
+			<i class="fa-solid fa-comments" title="Chat"></i>
+			<i class="fa-solid fa-sliders" title="Tune"></i>
+			<i class="fa-solid fa-image" title="Images"></i>
+			<i class="fa-solid fa-database" title="Data"></i>
+			<i class="fa-solid fa-clock-rotate-left" title="History"></i>
+		</div>
+	</aside>
+	
+	<!-- Main Content Area -->
+	<div class="flex flex-col flex-grow">
+		<!-- Main Header -->
+		<header class="flex items-center justify-between p-2 border-b border-base-300">
+			<div>
+				<h1 class="text-xl font-semibold" id="main-content-title">Prompt Builder</h1>
 			</div>
-			<button id="prompt-button" class="btn btn-sm btn-outline btn-success" title="Build Prompt with AI">
-				<i class="fa-solid fa-wand-magic-sparkles"></i> PROMPT
-			</button>
-			<a href="/projects" class="btn btn-sm btn-outline btn-primary" title="Select Projects"><i
-				class="fa-solid fa-check-double"></i></a>
-			<a href="/setup" class="btn btn-sm btn-outline btn-primary" title="Configure"><i
-				class="fa-solid fa-gears"></i></a>
-			<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
-				<span class="loading loading-spinner loading-xs"></span> Loading...
-			</button>
-			<button id="unselect-all" class="btn btn-sm btn-outline" title="Unselect All Files"><i
-				class="fa-solid fa-rotate-right"></i></button>
+			<div class="flex items-center gap-2">
+				<a href="/projects" class="btn btn-sm btn-outline" title="Select Projects"><i
+					class="fa-solid fa-check-double"></i> Projects</a>
+				<a href="/setup" class="btn btn-sm btn-outline" title="Configure"><i
+					class="fa-solid fa-gears"></i> Setup</a>
+				<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
+					<span class="loading loading-spinner loading-xs"></span> Loading...
+				</button>
+			</div>
+		</header>
+		
+		<!-- File Tree and Workspace -->
+		<div class="grid grid-cols-[320px_1fr] flex-grow overflow-hidden">
+			<div class="flex flex-col h-full border-r border-base-300">
+				<div class="p-2 border-b border-base-300">
+					<select id="projects-dropdown" class="select select-bordered select-sm w-full"></select>
+				</div>
+				<div id="file-tree" class="flex-grow p-2 overflow-auto font-mono text-sm"></div>
+			</div>
+			
+			<div id="workspace" class="flex flex-col h-full bg-base-200/30">
+				<!-- The main prompt building textarea -->
+				<textarea id="selected-content"
+				          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
+				<!-- The new container for the analysis view, replacing the old modal -->
+				<div id="analysis-view" class="hidden h-full overflow-y-auto">
+					<!-- Analysis content will be injected here -->
+				</div>
+			</div>
+		</div>
+		
+		<!-- Status Bar -->
+		<div id="status-bar-container" class="border-t border-base-300 bg-base-100 py-1 px-3">
+			<div class="flex justify-between items-center w-full">
+				<div id="status-bar-progress-container" class="items-center gap-2" style="display: none; width: 50%;">
+					<span id="status-bar-progress-text" class="text-sm"></span>
+					<progress id="status-bar-progress-bar" class="progress progress-info w-full" value="0"
+					          max="100"></progress>
+				</div>
+				<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
+				<div id="status-bar-tokens" class="flex items-center gap-4">
+					<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
+						<i class="fa-solid fa-list-ul"></i>
+					</button>
+					<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
+						<i class="fa-solid fa-circle-up text-success"></i>
+						<span id="prompt-tokens">0</span>
+					</div>
+					<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
+						<i class="fa-solid fa-circle-down text-info"></i>
+						<span id="completion-tokens">0</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Bottom Prompt Input -->
+		<div class="p-3 border-t border-base-300 bg-base-100">
+			<div class="relative">
+				<input type="text" id="bottom-prompt-input" placeholder="Start typing a prompt..."
+				       class="input input-bordered w-full pr-20">
+				<button id="bottom-run-button" class="btn btn-primary absolute top-0 right-0 rounded-l-none">
+					Run <i class="fa-solid fa-arrow-turn-right"></i>
+				</button>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Right Settings Sidebar -->
+	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto">
+		<div class="flex justify-between items-center mb-4">
+			<h2 class="text-lg font-bold">Run settings</h2>
 			<button id="toggle-mode" class="btn btn-sm btn-outline">
 				<i class="fas fa-sun"></i>
 			</button>
 		</div>
-	</header>
-	<div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-		<div class="md:col-span-5">
-			<div id="file-tree"
-			     class="border border-base-300 rounded-lg p-2 h-[calc(100vh-145px)] max-h-[calc(100vh-145px)] overflow-auto font-mono text-sm"></div>
+		
+		<div class="space-y-4">
+			<div class="form-control">
+				<label class="label"><span class="label-text">LLM Model</span></label>
+				<div class="flex gap-2">
+					<select id="llm-dropdown" class="select select-bordered select-sm w-full" title="Select LLM"></select>
+					<button id="refresh-llms" class="btn btn-sm btn-square btn-outline" title="Refresh LLM List">
+						<i class="fas fa-sync-alt"></i>
+					</button>
+				</div>
+			</div>
+			
+			<div class="divider"></div>
+			
+			<h3 class="font-bold">Tools</h3>
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="label-text">Analysis Actions</span>
+					<button id="analysis-actions-button" class="btn btn-xs btn-info" title="Analysis Actions">
+						<i class="fa-solid fa-microscope"></i> Open
+					</button>
+				</label>
+			</div>
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="label-text">Compress Extensions</span>
+					<div class="dropdown dropdown-end dropdown-top">
+						<button tabindex="0" role="button" class="btn btn-xs btn-outline"
+						        title="Select extensions to compress in prompt">
+							<i class="fa-solid fa-compress"></i> Select
+						</button>
+						<ul tabindex="0" id="compress-extensions-list"
+						    class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-52 max-h-60 overflow-y-auto">
+							<li><a>Loading...</a></li>
+						</ul>
+					</div>
+				</label>
+			</div>
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="label-text">Unselect All Files</span>
+					<button id="unselect-all" class="btn btn-xs btn-outline" title="Unselect All Files"><i
+						class="fa-solid fa-rotate-right"></i> Clear
+					</button>
+				</label>
+			</div>
+			
+			<div class="divider"></div>
+			
+			<!-- Placeholder settings to match screenshot -->
+			<div class="form-control">
+				<label class="label"><span class="label-text">Temperature</span></label>
+				<input type="range" min="0" max="1" value="0.25" step="0.01" class="range range-sm"/>
+			</div>
+			<div class="form-control">
+				<label class="label cursor-pointer">
+					<span class="label-text">Thinking Mode</span>
+					<input type="checkbox" class="toggle toggle-primary" checked/>
+				</label>
+			</div>
 		</div>
-		<div class="md:col-span-7">
-			<textarea id="selected-content"
-			          class="textarea textarea-bordered w-full h-[calc(100vh-145px)] max-h-[calc(100vh-145px)] font-mono text-xs"></textarea>
-		</div>
-	</div>
+	</aside>
 </div>
 
-<!-- Modals... (no changes needed here) -->
+<!-- Modals (kept for search, prompts, etc.) -->
 <dialog id="searchModal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>
@@ -75,7 +183,8 @@
 			<label class="label" for="searchTermInput">
 				<span class="label-text">Search Term (case-insensitive):</span>
 			</label>
-			<input type="text" class="input input-bordered" id="searchTermInput" placeholder="Enter text to search for...">
+			<input type="text" class="input input-bordered" id="searchTermInput"
+			       placeholder="Enter text to search for...">
 		</div>
 		<div class="modal-action">
 			<form method="dialog">
@@ -86,19 +195,7 @@
 	</div>
 </dialog>
 
-<dialog id="analysisModal" class="modal">
-	<div class="modal-box w-11/12 max-w-5xl">
-		<h3 class="font-bold text-lg" id="analysisModalLabel">File Analysis</h3>
-		<div class="py-4" id="analysisModalBody">
-			<!-- Analysis content will be injected here by JavaScript -->
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-		</div>
-	</div>
-</dialog>
+<!-- Analysis Modal is now removed, its content will go into #analysis-view -->
 
 <dialog id="promptModal" class="modal">
 	<div class="modal-box w-11/12 max-w-3xl">
@@ -168,27 +265,7 @@
 	</div>
 </dialog>
 
-<footer id="status-bar" class="fixed bottom-0 left-0 right-0 border-t border-base-300 bg-base-100 py-1 px-3">
-	<div class="flex justify-between items-center w-full">
-		<div id="status-bar-progress-container" class="items-center gap-2" style="display: none; width: 50%;">
-			<span id="status-bar-progress-text" class="text-sm"></span>
-			<progress id="status-bar-progress-bar" class="progress progress-info w-full" value="0" max="100"></progress>
-		</div>
-		<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
-		<div id="status-bar-tokens" class="flex items-center gap-4">
-			<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
-				<i class="fa-solid fa-list-ul"></i>
-			</button>
-			<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
-				<i class="fa-solid fa-circle-up text-success"></i>
-				<span id="prompt-tokens">0</span>
-			</div>
-			<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
-				<i class="fa-solid fa-circle-down text-info"></i>
-				<span id="completion-tokens">0</span>
-			</div>
-		</div>
-	</div>
-</footer>
+<!-- The old footer is removed and its contents are now in #status-bar-container -->
+
 </body>
 </html>

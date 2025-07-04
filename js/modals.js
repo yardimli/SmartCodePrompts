@@ -5,7 +5,7 @@ import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 // MODIFIED: Store direct references to the modal <dialog> elements.
 let searchModal = null;
-let analysisModal = null;
+// MODIFIED: analysisModal is no longer a modal.
 let promptModal = null;
 let logModal = null;
 let currentSearchFolderPath = null;
@@ -13,22 +13,24 @@ let currentSearchFolderPath = null;
 /**
  * Initializes the modal element references.
  * MODIFIED: No longer instantiates Bootstrap modals. Just gets the DOM elements.
+ * The analysisModal is no longer needed here.
  */
 export function initializeModals() {
 	searchModal = document.getElementById('searchModal');
-	analysisModal = document.getElementById('analysisModal');
 	promptModal = document.getElementById('promptModal');
 	logModal = document.getElementById('logModal');
 }
 
 /**
- * Handles the click event on the main "PROMPT" button.
- * MODIFIED: Uses .showModal() on the <dialog> element.
+ * Handles the click event on the main "PROMPT" button or new bottom input.
+ * MODIFIED: Uses .showModal() on the <dialog> element. Can accept a pre-filled prompt.
+ * @param {string} [promptText=''] - Optional text to pre-fill in the textarea.
  */
-export function handlePromptButtonClick() {
+export function handlePromptButtonClick(promptText = '') {
 	const textarea = document.getElementById('promptModalTextarea');
 	if (textarea) {
-		textarea.value = getLastSmartPrompt();
+		// If promptText is provided, use it. Otherwise, use the last saved prompt.
+		textarea.value = promptText || getLastSmartPrompt();
 		textarea.select();
 	}
 	promptModal.showModal();
@@ -100,15 +102,20 @@ export function handleSearchIconClick(target) {
 
 /**
  * Handles the click event on a file's analysis icon.
- * MODIFIED: Uses .showModal() on the <dialog> element.
+ * MODIFIED: Instead of showing a modal, this now injects the analysis
+ * content directly into the #analysis-view div in the main workspace.
  */
 export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
-	const modalTitle = document.getElementById('analysisModalLabel');
-	const modalBody = document.getElementById('analysisModalBody');
-	modalTitle.textContent = `Analysis for ${filePath}`;
-	modalBody.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
-	analysisModal.showModal();
+	const analysisView = document.getElementById('analysis-view');
+	const promptTextarea = document.getElementById('selected-content');
+	const mainTitle = document.getElementById('main-content-title');
+	
+	// Show loading state and switch views
+	mainTitle.textContent = `Analyzing ${filePath}...`;
+	promptTextarea.classList.add('hidden');
+	analysisView.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
+	analysisView.classList.remove('hidden');
 	
 	try {
 		const currentProject = getCurrentProject();
@@ -139,9 +146,24 @@ export async function handleAnalysisIconClick(target) {
 				}
 			}
 		}
-		modalBody.innerHTML = bodyContent;
+		
+		// Construct the full analysis view HTML
+		analysisView.innerHTML = `
+            <div id="analysis-view-header">
+                <h2 id="analysis-view-title">Analysis for ${filePath}</h2>
+                <button id="close-analysis-view" class="btn btn-sm btn-ghost">
+                    <i class="fa-solid fa-times"></i> Close
+                </button>
+            </div>
+            <div id="analysis-view-body">
+                ${bodyContent}
+            </div>
+        `;
+		mainTitle.textContent = 'File Analysis';
+		
 	} catch (error) {
-		modalBody.innerHTML = `<p class="text-error">Error fetching analysis: ${error.message}</p>`;
+		analysisView.innerHTML = `<p class="text-error p-4">Error fetching analysis: ${error.message}</p>`;
+		mainTitle.textContent = 'Error';
 	}
 }
 

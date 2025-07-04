@@ -32,15 +32,34 @@
     vertical-align: middle;
 }
 
-/* NEW: Custom styles for the analysis modal's content */
-#analysisModalBody h6 {
+/* NEW: Custom styles for the integrated analysis view */
+#analysis-view {
+    padding: 1rem;
+}
+
+#analysis-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+#analysis-view-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    word-break: break-all;
+}
+
+#analysis-view-body h6 {
     margin-top: 1rem;
     border-bottom: 1px solid hsl(var(--b2)); /* DaisyUI border color */
     padding-bottom: 5px;
     font-weight: bold;
 }
 
-#analysisModalBody pre {
+#analysis-view-body pre {
     background-color: hsl(var(--b2)); /* DaisyUI base-200 color */
     padding: 10px;
     border-radius: 5px;

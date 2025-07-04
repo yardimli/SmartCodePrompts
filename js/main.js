@@ -238,7 +238,15 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Start polling for status updates for tokens and progress.
 	pollSessionStats();
 	
-	document.getElementById('prompt-button').addEventListener('click', handlePromptButtonClick);
+	// MODIFIED: Replaced old #prompt-button listener with one for the new bottom bar.
+	document.getElementById('bottom-run-button').addEventListener('click', () => {
+		const promptInput = document.getElementById('bottom-prompt-input');
+		const promptText = promptInput.value;
+		// Use the existing smart prompt modal functionality
+		handlePromptButtonClick(promptText);
+		promptInput.value = ''; // Clear the input after use
+	});
+	
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
 	
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
@@ -336,6 +344,15 @@ document.addEventListener('DOMContentLoaded', function () {
 			e.stopPropagation();
 			updateSelectedContent();
 			saveCurrentProjectState();
+		}
+	});
+	
+	// NEW: Delegated listener for the workspace, specifically for closing the analysis view.
+	document.getElementById('workspace').addEventListener('click', (e) => {
+		if (e.target.id === 'close-analysis-view') {
+			document.getElementById('analysis-view').classList.add('hidden');
+			document.getElementById('selected-content').classList.remove('hidden');
+			document.getElementById('main-content-title').textContent = 'Prompt Builder';
 		}
 	});
 });

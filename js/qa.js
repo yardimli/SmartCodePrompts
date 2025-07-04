@@ -9,6 +9,67 @@ let qaSendButton = null;
 let qaModalTitle = null;
 
 /**
+ * A simple markdown to HTML converter that also escapes any raw HTML in the source text.
+ * It supports fenced code blocks, inline code, bold, and italics.
+ * @param {string} text The raw text from the LLM, which may contain markdown.
+ * @returns {string} Sanitized and formatted HTML string.
+ */
+function simpleMarkdownToHtml(text) {
+	// Split the text by code blocks (```) to treat them separately.
+	const parts = text.split('```');
+	
+	const finalHtml = parts.map((part, index) => {
+		// An odd index (1, 3, 5...) indicates a code block.
+		if (index % 2 === 1) {
+			let codeContent = part;
+			const firstNewline = part.indexOf('\n');
+			
+			// Simple check to strip a language hint from the first line (e.g., ```javascript)
+			if (firstNewline !== -1) {
+				const langHint = part.substring(0, firstNewline).trim();
+				// A simple regex to see if it looks like a language name.
+				if (langHint.match(/^[a-z0-9_-]+$/i) && langHint.length < 20) {
+					codeContent = part.substring(firstNewline + 1);
+				}
+			}
+			
+			// MODIFIED: Escape HTML entities inside the code block to display them as text.
+			// This prevents any HTML inside a code block from being rendered.
+			const escapedCode = codeContent
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+			
+			// Wrap in <pre> and <code>. The classes are for styling with Tailwind/DaisyUI.
+			return `<pre class="bg-base-300 p-2 my-2 rounded-md text-sm overflow-x-auto"><code>${escapedCode.trim()}</code></pre>`;
+			
+		} else {
+			// An even index (0, 2, 4...) indicates regular text.
+			// MODIFIED: Escape it first to prevent rendering of any raw HTML.
+			// This ensures that if the LLM includes HTML tags, they are shown as text.
+			let regularText = part
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+			
+			// Order of replacement matters for markdown parsing. Use non-greedy matchers.
+			// Bold: **text**
+			regularText = regularText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+			// Italic: *text*
+			regularText = regularText.replace(/\*(.+?)\*/g, '<em>$1</em>');
+			// Inline code: `text`
+			regularText = regularText.replace(/`(.+?)`/g, '<code class="bg-base-300 px-1 rounded-sm">$1</code>');
+			
+			// Convert newlines to <br> tags for this part only.
+			return regularText.replace(/\n/g, '<br>');
+		}
+	}).join('');
+	
+	return finalHtml;
+}
+
+
+/**
  * Initializes references to the QA modal and its elements.
  */
 export function initializeQAModal() {
@@ -22,7 +83,7 @@ export function initializeQAModal() {
 /**
  * Adds a message to the chat window in the QA modal.
  * @param {string} role - 'user' or 'assistant'.
- * @param {string} content - The HTML content of the message.
+ * @param {string} content - The content of the message.
  * @param {boolean} isPlaceholder - If true, returns the element for later updates.
  * @returns {HTMLElement|null} The new message element if it's a placeholder, otherwise null.
  */
@@ -32,7 +93,23 @@ function addMessageToChat(role, content, isPlaceholder = false) {
 	
 	const messageBubble = document.createElement('div');
 	messageBubble.className = `chat-bubble ${role === 'user' ? 'chat-bubble-primary' : ''}`;
-	messageBubble.innerHTML = content.replace(/\n/g, '<br>');
+	
+	// Handle content based on role and placeholder status
+	if (role === 'user') {
+		// Escape HTML entities in user messages to display them as text
+		const escapedContent = content
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/\n/g, '<br>');
+		messageBubble.innerHTML = escapedContent;
+	} else if (isPlaceholder) {
+		// System messages (placeholders) can contain HTML
+		messageBubble.innerHTML = content.replace(/\n/g, '<br>');
+	} else {
+		// Assistant's final answers are already processed by simpleMarkdownToHtml
+		messageBubble.innerHTML = content;
+	}
 	
 	messageWrapper.appendChild(messageBubble);
 	qaChatWindow.appendChild(messageWrapper);
@@ -101,8 +178,9 @@ async function handleQuestionSubmit() {
 			temperature: parseFloat(temperature)
 		});
 		
-		// Replace placeholder with the actual answer
-		thinkingPlaceholder.innerHTML = qaResponse.answer;
+		// Replace placeholder with the sanitized and formatted answer.
+		// The new simpleMarkdownToHtml function handles HTML escaping and markdown conversion.
+		thinkingPlaceholder.innerHTML = simpleMarkdownToHtml(qaResponse.answer);
 		
 	} catch (error) {
 		console.error('Error during QA process:', error);

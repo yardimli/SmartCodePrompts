@@ -29,10 +29,10 @@ async function initializeApp() {
 		// 1. Apply Dark Mode
 		if (data.darkMode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
-			document.querySelector('#toggle-mode i').classList.replace('fa-sun', 'fa-moon');
+			document.querySelector('#toggle-mode i').classList = 'bi-moon';
 		} else {
 			document.documentElement.setAttribute('data-theme', 'light');
-			document.querySelector('#toggle-mode i').classList.replace('fa-moon', 'fa-sun');
+			document.querySelector('#toggle-mode i').classList = 'bi-sun';
 		}
 		
 		// 2. Set global prompts from state

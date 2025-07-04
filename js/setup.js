@@ -21,10 +21,10 @@ function applyDarkMode(isDarkMode) {
 	const toggleIcon = toggleModeBtn.querySelector('i');
 	if (isDarkMode) {
 		document.documentElement.setAttribute('data-theme', 'dark');
-		if (toggleIcon) toggleIcon.classList.replace('fa-sun', 'fa-moon');
+		if (toggleIcon) toggleIcon.classList.replace('bi-sun', 'bi-moon');
 	} else {
 		document.documentElement.setAttribute('data-theme', 'light');
-		if (toggleIcon) toggleIcon.classList.replace('fa-moon', 'fa-sun');
+		if (toggleIcon) toggleIcon.classList.replace('bi-moon', 'bi-sun');
 	}
 }
 

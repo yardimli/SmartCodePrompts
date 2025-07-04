@@ -6,8 +6,8 @@ function applyDarkMode() {
 	const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
 	const toggleIcon = document.querySelector('#toggle-mode i');
 	if (toggleIcon) {
-		toggleIcon.classList.toggle('fa-sun', !isDarkMode);
-		toggleIcon.classList.toggle('fa-moon', isDarkMode);
+		toggleIcon.classList.toggle('bi-sun', !isDarkMode);
+		toggleIcon.classList.toggle('bi-moon', isDarkMode);
 	}
 }
 

@@ -14,16 +14,19 @@
 	<!-- Left Icon Sidebar -->
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
 		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
-			<!-- MODIFIED: Icon changed -->
-			<i class="bi bi-brain"></i>
+			<i class="bi bi-award"></i>
 		</a>
 		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center">
-			<!-- MODIFIED: Icon changed -->
+			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
+				<i class="bi bi-sun"></i>
+			</div>
 			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
-			<!-- NEW: QA Modal Trigger -->
 			<a href="#" id="qa-modal-button" title="Ask a Question"><i class="bi bi-question-circle"></i></a>
-			<!-- MODIFIED: Icon changed -->
 			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
+			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
+				<i class="bi bi-eraser"></i>
+			</div>
+		
 		</div>
 	</aside>
 	
@@ -46,7 +49,8 @@
 					<textarea id="selected-content"
 					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
 					
-					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10" title="Copy to Clipboard">
+					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10"
+					        title="Copy to Clipboard">
 						<!-- MODIFIED: Icon changed -->
 						<i class="bi bi-clipboard"></i> Copy
 					</button>
@@ -109,13 +113,6 @@
 	
 	<!-- Right Settings Sidebar -->
 	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto">
-		<div class="flex justify-between items-center mb-4">
-			<h2 class="text-lg font-bold">Run settings</h2>
-			<button id="toggle-mode" class="btn btn-sm btn-outline">
-				<i class="bi bi-sun"></i>
-			</button>
-		</div>
-		
 		<div class="space-y-4">
 			<div class="form-control">
 				<label class="label"><span class="label-text">LLM Model</span></label>
@@ -152,21 +149,15 @@
 					<span class="label-text">Compress Extensions</span>
 				</label>
 				<div id="compress-extensions-dropdown" class="dropdown dropdown-bottom w-full">
-					<label id="compress-extensions-button" class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200" title="Select extensions to compress">Select extensions...</label>
-					<ul id="compress-extensions-dropdown-menu" class="dropdown-content z-[1] p-2 shadow bg-base-300 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
+					<label id="compress-extensions-button"
+					       class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200"
+					       title="Select extensions to compress">Select extensions...</label>
+					<ul id="compress-extensions-dropdown-menu"
+					    class="dropdown-content z-[1] p-2 shadow bg-base-300 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
 						<!-- Checkboxes will be populated by JS -->
 						<li><a>Loading...</a></li>
 					</ul>
 				</div>
-			</div>
-			<div class="form-control">
-				<label class="label cursor-pointer">
-					<span class="label-text">Unselect All Files</span>
-					<button id="unselect-all" class="btn btn-xs btn-outline" title="Unselect All Files">
-						<!-- MODIFIED: Icon changed -->
-						<i class="bi bi-arrow-counterclockwise"></i> Clear
-					</button>
-				</label>
 			</div>
 			
 			<div class="divider"></div>
@@ -244,7 +235,8 @@
 			<!-- Chat messages will be appended here -->
 		</div>
 		<div class="flex gap-2">
-			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..." rows="1"></textarea>
+			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..."
+			          rows="1"></textarea>
 			<button id="qa-send-button" class="btn btn-primary">Send</button>
 		</div>
 	</div>

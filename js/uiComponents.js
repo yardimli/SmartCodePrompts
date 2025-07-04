@@ -233,8 +233,11 @@ export function setupUIEventListeners() {
 		const newTheme = isDarkMode ? 'light' : 'dark';
 		html.setAttribute('data-theme', newTheme);
 		
-		this.querySelector('i').classList.toggle('fa-sun', !isDarkMode);
-		this.querySelector('i').classList.toggle('fa-moon', isDarkMode);
+		if (newTheme === 'dark') {
+			this.querySelector('i').classList = 'bi-moon';
+		} else { // newTheme === 'light'
+			this.querySelector('i').classList = 'bi-sun';
+		}
 		
 		postData({action: 'set_dark_mode', isDarkMode: !isDarkMode});
 	});

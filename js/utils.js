@@ -89,9 +89,10 @@ export async function postData(data) {
 }
 
 /**
- * NEW: A simple markdown to HTML converter that also escapes any raw HTML in the source text.
+ * A simple markdown to HTML converter that also escapes any raw HTML in the source text.
  * This function is moved here to be shared between the QA and Direct Prompt features.
  * It supports fenced code blocks, inline code, bold, and italics.
+ * Code blocks are enhanced with a "Copy to Clipboard" button.
  * @param {string} text The raw text from the LLM, which may contain markdown.
  * @returns {string} Sanitized and formatted HTML string.
  */
@@ -120,8 +121,15 @@ export function simpleMarkdownToHtml(text) {
 				.replace(/</g, '&lt;')
 				.replace(/>/g, '&gt;');
 			
-			// Wrap in <pre> and <code>. The classes are for styling with Tailwind/DaisyUI.
-			return `<pre class="bg-base-300 p-2 my-2 rounded-md text-sm overflow-x-auto"><code>${escapedCode.trim()}</code></pre>`;
+			// MODIFIED: Wrap in a div with a copy button.
+			// The button is initially hidden and appears on hover of the container (`group`).
+			// It uses event delegation, so the click handler is attached in the respective modules (qa.js, directPrompt.js).
+			return `<div class="relative group my-2">
+                        <button class="copy-code-button btn btn-xs btn-ghost absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Copy code">
+                            <i class="bi bi-clipboard"></i> Copy
+                        </button>
+                        <pre class="bg-base-300 p-2 rounded-md text-sm overflow-x-auto pt-8"><code>${escapedCode.trim()}</code></pre>
+                    </div>`;
 			
 		} else {
 			// An even index (0, 2, 4...) indicates regular text.

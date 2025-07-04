@@ -12,22 +12,28 @@
 <body class="h-screen overflow-hidden">
 <div class="flex h-full" id="app-container"> <!-- MODIFIED: Added ID for sidebar control -->
 	<!-- Left Icon Sidebar -->
+	<!-- MODIFIED: Added flex-grow to the main icon container to push bottom icons down -->
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
 		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
 			<i class="bi bi-award"></i>
 		</a>
-		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center">
+		<!-- MODIFIED: Added flex-grow to this div to push the bottom-icons div down -->
+		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center flex-grow">
 			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
 				<i class="bi bi-sun"></i>
 			</div>
+			<a href="#" id="qa-modal-button" title="Ask a Question" class=" text-success"><i class="bi bi-chat-dots"></i></i></a>
+			<!-- MODIFIED: Moved "Send Selection as Prompt" and added prominent-icon class -->
+			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt" class=" text-success"><i class="bi bi-asterisk"></i></a>
+		</div>
+		<!-- NEW: Container for icons moved to the bottom -->
+		<div class="bottom-icons">
+			<!-- MODIFIED: Moved "Ask a Question" and added prominent-icon class -->
 			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
-			<a href="#" id="qa-modal-button" title="Ask a Question"><i class="bi bi-question-circle"></i></a>
 			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
 			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
 				<i class="bi bi-eraser"></i>
 			</div>
-			<!-- NEW: Direct prompt button -->
-			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt"><i class="bi bi-send"></i></a>
 			<!-- NEW: Right sidebar toggle button -->
 			<div id="toggle-right-sidebar" class="cursor-pointer" title="Toggle Settings Panel">
 				<i class="bi bi-layout-sidebar-reverse"></i>
@@ -241,7 +247,7 @@
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 		</form>
 		<h3 class="font-bold text-lg" id="qa-modal-title">Ask a Question</h3>
-		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-4 p-2 bg-base-200 rounded-lg">
+		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
 			<!-- Chat messages will be appended here -->
 		</div>
 		<div class="flex gap-2">
@@ -259,10 +265,10 @@
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 		</form>
 		<h3 class="font-bold text-lg">LLM Response</h3>
-		<div id="direct-prompt-response" class="flex-grow overflow-y-auto my-4 p-2 bg-base-200 rounded-lg">
+		<div id="direct-prompt-response" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
 			<!-- LLM response will be appended here -->
 		</div>
-		<div class="modal-action border-t border-base-300 pt-4">
+		<div class="modal-action border-t border-base-300 pt-1">
 			<form method="dialog">
 				<button class="btn">Close</button>
 			</form>

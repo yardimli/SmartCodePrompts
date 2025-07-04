@@ -46,6 +46,9 @@ async function initializeApp() {
 		// NEW: Apply sidebar collapsed state from server
 		if (data.rightSidebarCollapsed) {
 			document.getElementById('app-container').classList.add('right-sidebar-collapsed');
+		} else {
+			// Ensure it's not collapsed if the server says it's not
+			document.getElementById('app-container').classList.remove('right-sidebar-collapsed');
 		}
 		
 		// 2. Set global prompts from state

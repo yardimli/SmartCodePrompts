@@ -1,3 +1,4 @@
+// SmartCodePrompts/node-config.js
 const path = require('path');
 const Database = require('better-sqlite3');
 
@@ -103,6 +104,8 @@ function setDefaultAppSettings() {
 		// NEW: Persistent token counters
 		initSettingsStmt.run('total_prompt_tokens', '0');
 		initSettingsStmt.run('total_completion_tokens', '0');
+		// NEW: Default for right sidebar collapsed state
+		initSettingsStmt.run('rightSidebarCollapsed', 'false');
 		
 		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, JSON object format.
 		Do not include any text outside of the JSON object.
@@ -201,9 +204,9 @@ Add comments to new lines and modified sections.
 `;
 		
 		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}
-		
+
 		USER REQUEST: \${userPrompt}
-		
+
 		AVAILABLE FILES AND THEIR ANALYSIS:
 		\${analysisDataString}`;
 		
@@ -388,6 +391,14 @@ function setDarkMode(isDarkMode) {
 }
 
 /**
+ * NEW: Sets the right sidebar collapsed preference in the database.
+ * @param {boolean} isCollapsed - The new collapsed state.
+ */
+function setRightSidebarCollapsed(isCollapsed) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(isCollapsed ? 'true' : 'false', 'rightSidebarCollapsed');
+}
+
+/**
  * Saves the ID of the last selected LLM.
  * @param {string} llmId - The ID of the selected LLM.
  */
@@ -434,6 +445,8 @@ function getMainPageData() {
 		projects,
 		lastSelectedProject: appSettings.lastSelectedProject || '',
 		darkMode: appSettings.darkMode === 'true',
+		// NEW: Pass the right sidebar collapsed state to the client
+		rightSidebarCollapsed: appSettings.rightSidebarCollapsed === 'true',
 		llms,
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
 		prompt_content_footer: appSettings.prompt_content_footer || '',
@@ -456,6 +469,7 @@ module.exports = {
 	getSetupData,
 	saveSetupData,
 	setDarkMode,
+	setRightSidebarCollapsed, // NEW: Export the new function
 	saveSelectedLlm,
 	saveLastSmartPrompt,
 	saveCompressExtensions,

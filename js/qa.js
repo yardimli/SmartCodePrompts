@@ -1,5 +1,5 @@
 // SmartCodePrompts/js/qa.js
-import {showLoading, hideLoading, postData, simpleMarkdownToHtml} from './utils.js'; // MODIFIED: Import simpleMarkdownToHtml
+import {showLoading, hideLoading, postData, simpleMarkdownToHtml} from './utils.js';
 import {getCurrentProject} from './state.js';
 
 let qaModal = null;
@@ -7,8 +7,6 @@ let qaChatWindow = null;
 let qaInput = null;
 let qaSendButton = null;
 let qaModalTitle = null;
-
-// REMOVED: The local simpleMarkdownToHtml function has been moved to utils.js to be shared.
 
 /**
  * Initializes references to the QA modal and its elements.
@@ -159,4 +157,31 @@ export function setupQAListeners() {
 			handleQuestionSubmit();
 		}
 	});
+	
+	// NEW: Event delegation for copy-to-clipboard buttons on code blocks.
+	if (qaChatWindow) {
+		qaChatWindow.addEventListener('click', (e) => {
+			const copyButton = e.target.closest('.copy-code-button');
+			if (!copyButton) return;
+			
+			const pre = copyButton.nextElementSibling;
+			if (pre && pre.tagName === 'PRE') {
+				const code = pre.querySelector('code');
+				if (code) {
+					navigator.clipboard.writeText(code.innerText).then(() => {
+						const originalHtml = copyButton.innerHTML;
+						copyButton.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+						copyButton.disabled = true;
+						setTimeout(() => {
+							copyButton.innerHTML = originalHtml;
+							copyButton.disabled = false;
+						}, 2000);
+					}).catch(err => {
+						console.error('Failed to copy code: ', err);
+						alert('Failed to copy code to clipboard.');
+					});
+				}
+			}
+		});
+	}
 }

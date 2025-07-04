@@ -51,6 +51,11 @@ async function handlePostRequest(req, res) {
 					configManager.setDarkMode(postData.get('isDarkMode') === 'true');
 					result = {success: true};
 					break;
+				// NEW: Action to set the right sidebar collapsed state
+				case 'set_right_sidebar_collapsed':
+					configManager.setRightSidebarCollapsed(postData.get('isCollapsed') === 'true');
+					result = {success: true};
+					break;
 				case 'save_selected_llm':
 					configManager.saveSelectedLlm(postData.get('llmId'));
 					result = {success: true};

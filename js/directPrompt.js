@@ -53,7 +53,8 @@ async function handleDirectPrompt() {
 }
 
 /**
- * Sets up the event listener for the direct prompt trigger button in the sidebar.
+ * Sets up the event listener for the direct prompt trigger button in the sidebar
+ * and adds event delegation for copy buttons in the response modal.
  */
 export function setupDirectPromptListeners() {
 	const button = document.getElementById('direct-prompt-button');
@@ -61,6 +62,34 @@ export function setupDirectPromptListeners() {
 		button.addEventListener('click', (e) => {
 			e.preventDefault();
 			handleDirectPrompt();
+		});
+	}
+	
+	// NEW: Event delegation for copy-to-clipboard buttons on code blocks.
+	if (directPromptResponse) {
+		directPromptResponse.addEventListener('click', (e) => {
+			const copyButton = e.target.closest('.copy-code-button');
+			if (!copyButton) return;
+			
+			// The <pre> element is the button's next sibling in our structure.
+			const pre = copyButton.nextElementSibling;
+			if (pre && pre.tagName === 'PRE') {
+				const code = pre.querySelector('code');
+				if (code) {
+					navigator.clipboard.writeText(code.innerText).then(() => {
+						const originalHtml = copyButton.innerHTML;
+						copyButton.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+						copyButton.disabled = true;
+						setTimeout(() => {
+							copyButton.innerHTML = originalHtml;
+							copyButton.disabled = false;
+						}, 2000);
+					}).catch(err => {
+						console.error('Failed to copy code: ', err);
+						alert('Failed to copy code to clipboard.');
+					});
+				}
+			}
 		});
 	}
 }

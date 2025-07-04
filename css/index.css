@@ -1,8 +1,8 @@
+/* SmartCodePrompts/css/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* SmartCodePrompts/css/index.css */
 /* MODIFIED: Apply pointer cursor to the folder and the new file-entry container */
 .folder, .file-entry {
     cursor: pointer;
@@ -220,4 +220,24 @@
 #file-tree .bi-exclamation-triangle-fill,
 #file-tree .folder-controls {
     flex-shrink: 0;
+}
+
+/* NEW: Styles for the bottom icons in the left sidebar */
+.bottom-icons {
+    margin-top: auto; /* Pushes the div to the bottom */
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Spacing between icons */
+    width: 100%; /* Ensure it takes full width of its parent for alignment */
+    align-items: center; /* Center icons horizontally */
+}
+
+/* NEW: Styles for the prominent icons */
+.prominent-icon {
+    color: hsl(var(--p)); /* Primary color for prominence */
+}
+
+/* NEW: Hover effect for prominent icons */
+.prominent-icon:hover {
+    color: hsl(var(--pf)); /* Primary focus color on hover */
 }

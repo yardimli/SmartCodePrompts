@@ -105,42 +105,60 @@ async function loadProject(identifier) {
 }
 
 /**
- * NEW: Populates the compress extensions dropdown with checkboxes.
+ * NEW: Updates the text of the compress extensions dropdown button based on the number of selected extensions.
+ */
+function updateCompressExtensionsButton() {
+	const menuElement = document.getElementById('compress-extensions-dropdown-menu');
+	const buttonLabel = document.getElementById('compress-extensions-button');
+	if (!menuElement || !buttonLabel) return;
+	
+	const count = menuElement.querySelectorAll('.compress-extension-checkbox:checked').length;
+	
+	if (count === 0) {
+		buttonLabel.textContent = 'Select extensions...';
+	} else {
+		buttonLabel.textContent = `${count} extension(s) selected`;
+	}
+}
+
+/**
+ * Populates the compress extensions dropdown with checkboxes.
  * @param {string} allowedExtensionsJson - JSON string array of all possible extensions.
- * @param {string} compressedExtensionsJson - JSON string array of extensions to be checked.
+ * @param {string} compressedExtensionsJson - JSON string array of extensions to be selected.
  */
 function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedExtensionsJson) {
-	const container = document.getElementById('compress-extensions-list');
-	if (!container) return;
+	// MODIFIED: Target the new <ul> menu for the dropdown.
+	const menuElement = document.getElementById('compress-extensions-dropdown-menu');
+	if (!menuElement) return;
 	
 	try {
 		const allowed = JSON.parse(allowedExtensionsJson);
 		const compressed = new Set(JSON.parse(compressedExtensionsJson));
 		
 		if (!Array.isArray(allowed) || allowed.length === 0) {
-			container.innerHTML = '<li><a class="p-2 text-base-content/70 text-sm">No extensions configured.</a></li>';
+			menuElement.innerHTML = '<li class="w-full"><a>No extensions configured.</a></li>';
 			return;
 		}
 		
 		allowed.sort(); // Sort alphabetically for consistency
 		let content = '';
 		for (const ext of allowed) {
-			const isChecked = compressed.has(ext);
-			const id = `compress-ext-${ext.replace('.', '')}`;
-			// MODIFIED: Use DaisyUI structure for checkbox items in a dropdown menu.
+			const isSelected = compressed.has(ext);
+			// MODIFIED: Create <li> elements with labels and checkboxes for the dropdown menu.
 			content += `
-                <li>
-                    <label for="${id}" class="label cursor-pointer p-2">
+                <li class="w-full">
+                    <label class="label cursor-pointer justify-start gap-3">
+                        <input type="checkbox" value="${ext}" ${isSelected ? 'checked' : ''} class="checkbox checkbox-primary checkbox-sm compress-extension-checkbox" />
                         <span class="label-text">.${ext}</span>
-                        <input type="checkbox" value="${ext}" id="${id}" class="checkbox checkbox-primary" ${isChecked ? 'checked' : ''}>
                     </label>
-                </li>
-            `;
+                </li>`;
 		}
-		container.innerHTML = content;
+		menuElement.innerHTML = content;
+		// NEW: Update the button text to reflect the initial selection count.
+		updateCompressExtensionsButton();
 	} catch (e) {
 		console.error("Failed to parse extension settings:", e);
-		container.innerHTML = '<li><a class="p-2 text-error text-sm">Error loading settings.</a></li>';
+		menuElement.innerHTML = '<li><a>Error loading settings.</a></li>';
 	}
 }
 
@@ -317,21 +335,45 @@ document.addEventListener('DOMContentLoaded', function () {
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	
-	// MODIFIED: Event listener for DaisyUI dropdown needs to be on the parent `ul`.
-	document.getElementById('compress-extensions-list').addEventListener('change', (e) => {
-		if (e.target.matches('input[type="checkbox"]')) {
-			const checkboxes = document.querySelectorAll('#compress-extensions-list input[type="checkbox"]:checked');
-			const selectedExtensions = Array.from(checkboxes).map(cb => cb.value);
-			postData({
-				action: 'save_compress_extensions',
-				extensions: JSON.stringify(selectedExtensions)
-			}).then(() => {
-				// On success, reload the content of selected files to apply new settings.
-				updateSelectedContent();
-			}).catch(err => {
-				console.error("Failed to save compress extensions setting:", err);
-				alert("Could not save compression setting. See console for details.");
-			});
+	// MODIFIED: Event listener for the new dropdown menu for compress extensions.
+	// Using event delegation on the menu to handle changes on checkboxes.
+	document.getElementById('compress-extensions-dropdown-menu').addEventListener('change', (e) => {
+		if (!e.target.classList.contains('compress-extension-checkbox')) {
+			return;
+		}
+		// Update the button text to show the new count.
+		updateCompressExtensionsButton();
+		
+		const checkedCheckboxes = document.querySelectorAll('#compress-extensions-dropdown-menu .compress-extension-checkbox:checked');
+		const selectedExtensions = Array.from(checkedCheckboxes).map(checkbox => checkbox.value);
+		
+		postData({
+			action: 'save_compress_extensions',
+			extensions: JSON.stringify(selectedExtensions)
+		}).then(() => {
+			// On success, reload the content of selected files to apply new settings.
+			updateSelectedContent();
+		}).catch(err => {
+			console.error("Failed to save compress extensions setting:", err);
+			alert("Could not save compression setting. See console for details.");
+		});
+	});
+	
+	// NEW: Event listeners to manually control the compress extensions dropdown toggle.
+	const compressDropdown = document.getElementById('compress-extensions-dropdown');
+	const compressButton = document.getElementById('compress-extensions-button');
+	
+	if (compressDropdown && compressButton) {
+		compressButton.addEventListener('click', (e) => {
+			e.stopPropagation(); // Prevent the document click listener from firing immediately.
+			compressDropdown.classList.toggle('dropdown-open');
+		});
+	}
+	
+	// NEW: Listener to close the dropdown when clicking anywhere else on the page.
+	document.addEventListener('click', () => {
+		if (compressDropdown) {
+			compressDropdown.classList.remove('dropdown-open');
 		}
 	});
 	

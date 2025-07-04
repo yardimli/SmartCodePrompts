@@ -155,20 +155,19 @@
 					<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
 				</button>
 			</div>
+			<!-- MODIFIED: Replaced multi-select listbox with a dropdown with checkboxes for better UX. -->
 			<div class="form-control">
-				<label class="label cursor-pointer">
+				<label class="label">
 					<span class="label-text">Compress Extensions</span>
-					<div class="dropdown dropdown-end dropdown-top">
-						<button tabindex="0" role="button" class="btn btn-xs btn-outline"
-						        title="Select extensions to compress in prompt">
-							<i class="fa-solid fa-compress"></i> Select
-						</button>
-						<ul tabindex="0" id="compress-extensions-list"
-						    class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-52 max-h-60 overflow-y-auto">
-							<li><a>Loading...</a></li>
-						</ul>
-					</div>
 				</label>
+				<!-- MODIFIED: Changed to dropdown-bottom and added an ID to manage state with JS. Removed tabindex attributes. -->
+				<div id="compress-extensions-dropdown" class="dropdown dropdown-bottom w-full">
+					<label id="compress-extensions-button" class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200" title="Select extensions to compress">Select extensions...</label>
+					<ul id="compress-extensions-dropdown-menu" class="dropdown-content z-[1] p-2 shadow bg-base-300 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
+					<!-- Checkboxes will be populated by JS -->
+						<li><a>Loading...</a></li>
+					</ul>
+				</div>
 			</div>
 			<div class="form-control">
 				<label class="label cursor-pointer">

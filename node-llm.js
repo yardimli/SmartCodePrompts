@@ -6,8 +6,7 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {getFileContent, getRawFileContent, getFileAnalysis, calculateChecksum} = require('./node-files');
 
-// MODIFIED: Session-specific state is now only for re-analysis progress.
-// Token usage and logs are now persistent in the database.
+// Session-specific state is now only for re-analysis progress.
 let reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
 
 /**
@@ -84,7 +83,7 @@ async function callLlm(prompt, modelId, callReason = 'Unknown', temperature, res
 			model: modelId,
 			messages: [{role: "user", content: prompt}],
 		};
-		// MODIFIED: Conditionally add response_format
+		// Conditionally add response_format
 		if (responseFormat) {
 			requestBody.response_format = {type: responseFormat};
 		}
@@ -118,7 +117,7 @@ async function callLlm(prompt, modelId, callReason = 'Unknown', temperature, res
 						const promptTokens = responseJson.usage ? responseJson.usage.prompt_tokens || 0 : 0;
 						const completionTokens = responseJson.usage ? responseJson.usage.completion_tokens || 0 : 0;
 						
-						// NEW: Persist log and token counts to the database
+						// Persist log and token counts to the database
 						const logStmt = db.prepare('INSERT INTO llm_log (timestamp, reason, model_id, prompt_tokens, completion_tokens) VALUES (?, ?, ?, ?, ?)');
 						const updatePromptTokensStmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_prompt_tokens'");
 						const updateCompletionTokensStmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_completion_tokens'");
@@ -356,7 +355,7 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 }
 
 /**
- * NEW: Asks a question about the code, using provided files as context.
+ * Asks a question about the code, using provided files as context.
  * @param {object} params - The parameters for the operation.
  * @returns {Promise<object>} A promise resolving to an object with the `answer`.
  */
@@ -391,14 +390,33 @@ async function askQuestionAboutCode({rootIndex, projectPath, question, relevantF
 }
 
 /**
+ * NEW: Handles a direct prompt from the user, sending it to the LLM.
+ * @param {object} params - The parameters for the operation.
+ * @param {string} params.prompt - The user-provided prompt.
+ * @param {string} params.llmId - The ID of the LLM to use.
+ * @param {number} params.temperature - The temperature for the LLM call.
+ * @returns {Promise<object>} A promise resolving to an object with the `answer`.
+ */
+async function handleDirectPrompt({prompt, llmId, temperature}) {
+	if (!llmId) {
+		throw new Error('No LLM selected for the prompt.');
+	}
+	if (!prompt) {
+		throw new Error('Prompt content is empty.');
+	}
+	
+	// Call the LLM expecting a free-text response, not JSON
+	const answer = await callLlm(prompt, llmId, `Direct Prompt`, temperature, 'text');
+	
+	return {answer: answer};
+}
+
+/**
  * Returns the current session statistics.
- * This function should be exposed via a new 'get_session_stats' action in the main server handler.
- * The main 'get_main_page_data' action should also be modified to include `tokens` from this function
- * in its initial response payload.
  * @returns {object} An object containing session token usage and re-analysis progress.
  */
 function getSessionStats() {
-	// MODIFIED: Fetch persistent token counts from the database.
+	// Fetch persistent token counts from the database.
 	const promptTokensRow = db.prepare("SELECT value FROM app_settings WHERE key = 'total_prompt_tokens'").get();
 	const completionTokensRow = db.prepare("SELECT value FROM app_settings WHERE key = 'total_completion_tokens'").get();
 	
@@ -416,7 +434,7 @@ function getSessionStats() {
  * @returns {Array<object>} The array of log entries.
  */
 function getLlmLog() {
-	// MODIFIED: Fetch the log from the database instead of in-memory.
+	// Fetch the log from the database instead of in-memory.
 	return db.prepare(`
         SELECT timestamp,
                reason,
@@ -435,5 +453,6 @@ module.exports = {
 	reanalyzeModifiedFiles,
 	getSessionStats,
 	getLlmLog,
-	askQuestionAboutCode // NEW: Export the QA function
+	askQuestionAboutCode,
+	handleDirectPrompt // NEW: Export the Direct Prompt function
 };

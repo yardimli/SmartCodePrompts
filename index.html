@@ -26,6 +26,8 @@
 			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
 				<i class="bi bi-eraser"></i>
 			</div>
+			<!-- NEW: Direct prompt button -->
+			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt"><i class="bi bi-send"></i></a>
 			<!-- NEW: Right sidebar toggle button -->
 			<div id="toggle-right-sidebar" class="cursor-pointer" title="Toggle Settings Panel">
 				<i class="bi bi-layout-sidebar-reverse"></i>
@@ -246,6 +248,24 @@
 			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..."
 			          rows="1"></textarea>
 			<button id="qa-send-button" class="btn btn-primary">Send</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- NEW: Direct Prompt Modal -->
+<dialog id="directPromptModal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg">LLM Response</h3>
+		<div id="direct-prompt-response" class="flex-grow overflow-y-auto my-4 p-2 bg-base-200 rounded-lg">
+			<!-- LLM response will be appended here -->
+		</div>
+		<div class="modal-action border-t border-base-300 pt-4">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
 		</div>
 	</div>
 </dialog>

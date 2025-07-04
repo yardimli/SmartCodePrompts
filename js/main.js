@@ -17,7 +17,8 @@ import {
 	initializeTemperatureSlider,
 	setupUIEventListeners
 } from './uiComponents.js';
-import {initializeQAModal, setupQAListeners} from './qa.js'; // NEW: Import QA module
+import {initializeQAModal, setupQAListeners} from './qa.js';
+import {initializeDirectPromptModal, setupDirectPromptListeners} from './directPrompt.js'; // NEW: Import Direct Prompt module
 
 /**
  * Initializes the entire application on page load.
@@ -33,7 +34,7 @@ async function initializeApp() {
 	try {
 		const data = await postData({action: 'get_main_page_data'});
 		
-		// 1. Apply UI States (Dark Mode, Sidebar) // MODIFIED: Comment updated to reflect new responsibility
+		// 1. Apply UI States (Dark Mode, Sidebar)
 		if (data.darkMode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
 			document.querySelector('#toggle-mode i').classList = 'bi-moon';
@@ -92,7 +93,8 @@ async function initializeApp() {
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize UI elements first
 	initializeModals();
-	initializeQAModal(); // NEW: Initialize QA modal
+	initializeQAModal();
+	initializeDirectPromptModal(); // NEW: Initialize Direct Prompt modal
 	initializeResizers();
 	initializeAutoExpandTextarea();
 	initializeTemperatureSlider();
@@ -102,7 +104,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	// Setup all event listeners from the various modules
 	setupModalEventListeners();
-	setupQAListeners(); // NEW: Setup QA listeners
+	setupQAListeners();
+	setupDirectPromptListeners(); // NEW: Setup Direct Prompt listeners
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	setupProjectListeners();

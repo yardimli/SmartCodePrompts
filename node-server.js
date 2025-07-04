@@ -112,6 +112,14 @@ async function handlePostRequest(req, res) {
 						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
+				// NEW: Action for the Direct Prompt feature
+				case 'direct_prompt':
+					result = await llmManager.handleDirectPrompt({
+						prompt: postData.get('prompt'),
+						llmId: postData.get('llmId'),
+						temperature: parseFloat(postData.get('temperature'))
+					});
+					break;
 				
 				// --- Project Actions (from node-projects.js) ---
 				case 'get_projects_page_data':

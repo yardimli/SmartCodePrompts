@@ -35,6 +35,7 @@ export function loadFolders(path, element) {
 			const ul = document.createElement('ul');
 			// MODIFIED: Removed Bootstrap class, no replacement needed for ul.
 			ul.style.display = 'none';
+			ul.className = 'pl-4'; // Tailwind class for padding-left
 			let content = '';
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));

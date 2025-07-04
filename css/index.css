@@ -1,3 +1,8 @@
+/* NEW: Added Tailwind directives to be processed by the build script. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* SmartCodePrompts/css/index.css */
 /* MODIFIED: Removed all Bootstrap-related and dark-mode styles. */
 /* These are now handled by Tailwind utilities and DaisyUI themes. */
@@ -115,4 +120,5 @@
     /* NEW: Add max-height and overflow for auto-expansion */
     max-height: 150px;
     overflow-y: auto;
+    max-width: calc(100% - 75px); /* Account for padding */
 }

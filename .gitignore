@@ -5,3 +5,4 @@ config.json
 package-lock.json
 llm-helper.sqlite
 llm-log.txt
+/dist

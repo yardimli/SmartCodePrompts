@@ -1,2 +1,2 @@
-   #!/bin/bash
-   node node-server.js
+#!/bin/bash
+npm start

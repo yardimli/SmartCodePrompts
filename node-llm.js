@@ -242,6 +242,8 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
  * Scans all analyzed files in a project and re-analyzes any that have been modified.
  * Can also be forced to re-analyze all files regardless of modification status.
  * Now reports progress via the module-level `reanalysisProgress` state.
+ * If a previously analyzed file is no longer found on the filesystem, its entry
+ * is removed from the `file_metadata` table.
  * @param {object} params - The parameters for the operation.
  * @param {number} params.rootIndex - The index of the project's root directory.
  * @param {string} params.projectPath - The path of the project.
@@ -266,13 +268,28 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 	};
 	let analyzedCount = 0;
 	let skippedCount = 0;
+	let deletedCount = 0; // Counter for deleted files
 	const errors = [];
+	
+	const deleteStmt = db.prepare('DELETE FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?');
+	
 	try {
 		for (const file of analyzedFiles) {
 			// Update progress before processing each file.
 			reanalysisProgress.current++;
 			reanalysisProgress.message = `Processing ${file.file_path}`;
 			try {
+				// Resolve the full path to check for existence
+				const fullPath = path.join(config.root_directories[rootIndex], file.file_path);
+				
+				if (!fs.existsSync(fullPath)) {
+					// If the file no longer exists, remove its metadata from the database
+					console.log(`File not found, removing metadata: ${file.file_path}`);
+					deleteStmt.run(rootIndex, projectPath, file.file_path);
+					deletedCount++;
+					continue; // Skip to the next file
+				}
+				
 				const rawFileContent = getRawFileContent(file.file_path, rootIndex);
 				const currentChecksum = calculateChecksum(rawFileContent);
 				
@@ -290,7 +307,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 				errors.push(`${file.file_path}: ${error.message}`);
 			}
 		}
-		return {success: true, analyzed: analyzedCount, skipped: skippedCount, errors: errors};
+		return {success: true, analyzed: analyzedCount, skipped: skippedCount, deleted: deletedCount, errors: errors};
 	} finally {
 		// Reset progress state regardless of success or failure to clean up the UI.
 		reanalysisProgress = {total: 0, current: 0, running: false, message: ''};

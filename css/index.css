@@ -151,30 +151,39 @@
 /* Styles for the resizable pane handles */
 #vertical-resizer,
 #horizontal-resizer {
-    background-color: hsl(var(--b2)); /* Use DaisyUI base-200 color */
+   background-color: #EEE; /* Default color for resizers */
+    border: 1px solid #CCC; /* Default border color */
     transition: background-color 0.2s ease;
 }
 
 #vertical-resizer:hover,
 #horizontal-resizer:hover {
-    background-color: hsl(var(--p)); /* Use DaisyUI primary color on hover */
+    background-color: #b3b3b3; /* Lighter shade for hover effect */
+    border-color: #CCC; /* Lighter border on hover */
 }
 
 /* NEW: Add a subtle border to resizers for visibility in dark mode */
 [data-theme="dark"] #vertical-resizer,
 [data-theme="dark"] #horizontal-resizer {
-    border: 1px solid hsl(var(--b3)); /* A slightly lighter border for contrast */
+    background-color: #333; /* Darker background for contrast */
+    border: 1px solid #444; /* A slightly lighter border for contrast */
+}
+
+[data-theme="dark"] #vertical-resizer:hover,
+[data-theme="dark"] #horizontal-resizer:hover {
+    background-color: #444; /* Slightly lighter on hover */
+    border-color: #555; /* Lighter border on hover */
 }
 
 
 #vertical-resizer {
     cursor: col-resize;
-    width: 6px; /* A bit wider for easier grabbing */
+    width: 4px; /* A bit wider for easier grabbing */
 }
 
 #horizontal-resizer {
     cursor: row-resize;
-    height: 6px; /* A bit wider for easier grabbing */
+    height: 4px; /* A bit wider for easier grabbing */
 }
 
 /* Styles for the auto-expanding prompt textarea */

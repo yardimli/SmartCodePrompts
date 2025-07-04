@@ -9,6 +9,7 @@ import {getCurrentProject} from './state.js';
 async function performSelectionAnalysis() {
 	const checkedBoxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
 	const llmId = document.getElementById('llm-dropdown').value;
+	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (checkedBoxes.length === 0) {
 		alert('Please select at least one file to analyze.');
@@ -37,7 +38,8 @@ async function performSelectionAnalysis() {
 				rootIndex: currentProject.rootIndex,
 				projectPath: currentProject.path,
 				filePath: filePath,
-				llmId: llmId
+				llmId: llmId,
+				temperature: parseFloat(temperature)
 			});
 			
 			if (response.status === 'analyzed') {
@@ -83,6 +85,7 @@ async function performSelectionAnalysis() {
 async function performReanalysis(forceReanalysis) {
 	const llmId = document.getElementById('llm-dropdown').value;
 	const currentProject = getCurrentProject();
+	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!llmId || !currentProject) {
 		return;
@@ -95,7 +98,8 @@ async function performReanalysis(forceReanalysis) {
 			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			llmId: llmId,
-			force: forceReanalysis
+			force: forceReanalysis,
+			temperature: parseFloat(temperature)
 		});
 		
 		// The status bar will clear itself on the next poll since the backend state is reset.

@@ -115,7 +115,7 @@
 }
 
 /* MODIFIED: Styles for the auto-expanding prompt textarea */
-#bottom-prompt-input {
+#prompt-input {
     resize: none;
     /* NEW: Add max-height and overflow for auto-expansion */
     max-height: 150px;

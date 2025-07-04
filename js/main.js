@@ -148,7 +148,7 @@ function initializeCompressExtensionsDropdown(allowedExtensionsJson, compressedE
  * NEW: Adjusts the height of the bottom prompt textarea to fit its content.
  */
 function adjustPromptTextareaHeight() {
-	const textarea = document.getElementById('bottom-prompt-input');
+	const textarea = document.getElementById('prompt-input');
 	if (!textarea) return;
 	// Temporarily reset height to 'auto' to get the correct scrollHeight
 	textarea.style.height = 'auto';
@@ -177,7 +177,7 @@ async function initializeApp() {
 		setContentFooterPrompt(data.prompt_content_footer || '');
 		setLastSmartPrompt(data.last_smart_prompt || '');
 		// NEW: Populate the bottom prompt input with the last saved prompt.
-		document.getElementById('bottom-prompt-input').value = data.last_smart_prompt || '';
+		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
 		// NEW: Adjust textarea height based on the loaded content.
 		adjustPromptTextareaHeight();
 		
@@ -298,7 +298,7 @@ function initializeResizers() {
  * NEW: Sets up the event listener for the auto-expanding textarea.
  */
 function initializeAutoExpandTextarea() {
-	const promptInput = document.getElementById('bottom-prompt-input');
+	const promptInput = document.getElementById('prompt-input');
 	if (promptInput) {
 		promptInput.addEventListener('input', adjustPromptTextareaHeight);
 	}
@@ -340,11 +340,53 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	// MODIFIED: The bottom run button now directly invokes the smart prompt action.
 	document.getElementById('bottom-run-button').addEventListener('click', () => {
-		const promptInput = document.getElementById('bottom-prompt-input');
-		const promptText = promptInput.value;
+		const promptInput = document.getElementById('prompt-input');
+		const promptText = promptInput.value.trim();
+		if (!promptText) {
+			alert('Please enter a prompt first.');
+			return;
+		}
 		// MODIFIED: Directly call the smart prompt action instead of opening a modal.
 		// The input is not cleared, and the prompt is saved by performSmartPrompt.
 		performSmartPrompt(promptText);
+	});
+	
+	// NEW: Event listener for the "Re-Analyze and Run" button.
+	document.getElementById('reanalyze-and-run-button').addEventListener('click', async () => {
+		const promptInput = document.getElementById('prompt-input');
+		const promptText = promptInput.value.trim();
+		if (!promptText) {
+			alert('Please enter a prompt first.');
+			return;
+		}
+		
+		const llmId = document.getElementById('llm-dropdown').value;
+		const currentProject = getCurrentProject();
+		const temperature = document.getElementById('temperature-slider').value;
+		
+		if (!llmId || !currentProject) {
+			alert('Please select a project and an LLM.');
+			return;
+		}
+		
+		showLoading('Re-analyzing modified files...');
+		try {
+			await postData({
+				action: 'reanalyze_modified_files',
+				rootIndex: currentProject.rootIndex,
+				projectPath: currentProject.path,
+				llmId: llmId,
+				force: false, // Only re-analyze modified files
+				temperature: parseFloat(temperature)
+			});
+			// The status bar polling will handle progress display and clearing.
+			await performSmartPrompt(promptText);
+		} catch (error) {
+			console.error('Failed to re-analyze and run:', error);
+			alert(`An error occurred during the process: ${error.message}`);
+		} finally {
+			hideLoading();
+		}
 	});
 	
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);

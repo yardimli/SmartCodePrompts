@@ -62,6 +62,23 @@
 		<!-- NEW: Wrapper for the bottom panel, which is now a flex container -->
 		<!-- MODIFIED: Removed fixed height to allow for auto-expansion -->
 		<div id="bottom-panel" class="flex flex-col flex-shrink-0">
+			
+			<!-- Bottom Prompt Input -->
+			<div class="p-3 border-t border-base-300 bg-base-100">
+				<div class="flex items-start gap-2">
+        <textarea id="prompt-input" placeholder="Start typing a prompt..."
+                  class="textarea textarea-bordered w-full flex-grow" rows="1"></textarea>
+					<div class="flex-shrink-0 flex flex-col items-center gap-2">
+						<button id="bottom-run-button" class="btn btn-primary btn-sm">
+							Run <i class="fa-solid fa-arrow-right"></i>
+						</button>
+						<button id="reanalyze-and-run-button" class="btn btn-secondary btn-sm" title="Re-analyze modified files, then run the prompt">
+							<i class="fa-solid fa-arrows-rotate"></i>Run
+						</button>
+					</div>
+				</div>
+			</div>
+			
 			<!-- Status Bar -->
 			<div id="status-bar-container" class="border-t border-base-300 bg-base-100 py-1 px-3 flex-shrink-0">
 				<div class="flex justify-between items-center w-full">
@@ -88,18 +105,6 @@
 							<span id="completion-tokens">0</span>
 						</div>
 					</div>
-				</div>
-			</div>
-			
-			<!-- Bottom Prompt Input -->
-			<!-- MODIFIED: Wrapper and textarea updated for auto-expansion -->
-			<div class="p-3 border-t border-base-300 bg-base-100">
-				<div class="relative">
-					<textarea id="bottom-prompt-input" placeholder="Start typing a prompt..."
-					          class="textarea textarea-bordered w-full pr-20" rows="1"></textarea>
-					<button id="bottom-run-button" class="btn btn-primary absolute top-0 right-0 rounded-l-none">
-						Run <i class="fa-solid fa-arrow-turn-right"></i>
-					</button>
 				</div>
 			</div>
 		</div>
@@ -172,13 +177,8 @@
 			<!-- Placeholder settings to match screenshot -->
 			<div class="form-control">
 				<label class="label"><span class="label-text">Temperature</span></label>
-				<input type="range" min="0" max="1" value="0.25" step="0.01" class="range range-sm"/>
-			</div>
-			<div class="form-control">
-				<label class="label cursor-pointer">
-					<span class="label-text">Thinking Mode</span>
-					<input type="checkbox" class="toggle toggle-primary" checked/>
-				</label>
+				<input id="temperature-slider" type="range" min="0" max="1" value="0.25" step="0.01"
+				       class="range range-sm"/>
 			</div>
 		</div>
 	</aside>

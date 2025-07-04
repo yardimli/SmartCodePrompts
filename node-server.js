@@ -75,7 +75,8 @@ async function handlePostRequest(req, res) {
 						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						filePath: postData.get('filePath'),
-						llmId: postData.get('llmId')
+						llmId: postData.get('llmId'),
+						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
 				case 'reanalyze_modified_files':
@@ -83,7 +84,8 @@ async function handlePostRequest(req, res) {
 						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						llmId: postData.get('llmId'),
-						force: postData.get('force') === 'true'
+						force: postData.get('force') === 'true',
+						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
 				case 'get_relevant_files_from_prompt':
@@ -91,7 +93,8 @@ async function handlePostRequest(req, res) {
 						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						userPrompt: postData.get('userPrompt'),
-						llmId: postData.get('llmId')
+						llmId: postData.get('llmId'),
+						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
 				

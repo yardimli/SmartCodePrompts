@@ -73,18 +73,24 @@ async function fetchOpenRouterModels() {
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} modelId - The ID of the OpenRouter model to use.
  * @param {string} [callReason='Unknown'] - A short description of why the LLM is being called.
+ * @param {number} [temperature] - The temperature for the LLM call.
  * @returns {Promise<string>} A promise that resolves to the content of the LLM's response.
  */
-async function callLlm(prompt, modelId, callReason = 'Unknown') {
+async function callLlm(prompt, modelId, callReason = 'Unknown', temperature) {
 	if (!config.openrouter_api_key || config.openrouter_api_key === 'YOUR_API_KEY_HERE') {
 		throw new Error('OpenRouter API key is not configured. Please add it on the Setup page.');
 	}
 	return new Promise((resolve, reject) => {
-		const postData = JSON.stringify({
+		const requestBody = {
 			model: modelId,
 			messages: [{role: "user", content: prompt}],
 			response_format: {type: "json_object"} // Request JSON output
-		});
+		};
+		// Only add temperature to the request if it's a valid number
+		if (typeof temperature === 'number' && !isNaN(temperature)) {
+			requestBody.temperature = temperature;
+		}
+		const postData = JSON.stringify(requestBody);
 		const options = {
 			hostname: 'openrouter.ai',
 			path: '/api/v1/chat/completions',
@@ -191,9 +197,10 @@ async function refreshLlms() {
  * @param {string} params.filePath - The path of the file to analyze.
  * @param {string} params.llmId - The ID of the LLM to use for analysis.
  * @param {boolean} [params.force=false] - If true, analysis is performed even if checksums match.
+ * @param {number} [params.temperature] - The temperature for the LLM call.
  * @returns {Promise<object>} A promise that resolves to a success object with a status ('analyzed' or 'skipped').
  */
-async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = false}) {
+async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = false, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
@@ -215,13 +222,13 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 	const overviewPrompt = overviewPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	const overviewResult = await callLlm(overviewPrompt, llmId, `File Overview: ${shortFileName}`);
+	const overviewResult = await callLlm(overviewPrompt, llmId, `File Overview: ${shortFileName}`, temperature);
 	
 	const functionsPromptTemplate = config.prompt_functions_logic;
 	const functionsPrompt = functionsPromptTemplate
 		.replace(/\$\{filePath\}/g, filePath)
 		.replace(/\$\{fileContent\}/g, fileContent);
-	const functionsResult = await callLlm(functionsPrompt, llmId, `Functions/Logic: ${shortFileName}`);
+	const functionsResult = await callLlm(functionsPrompt, llmId, `Functions/Logic: ${shortFileName}`, temperature);
 	
 	db.prepare(`
         INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
@@ -240,9 +247,10 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
  * @param {string} params.projectPath - The path of the project.
  * @param {string} params.llmId - The ID of the LLM to use for analysis.
  * @param {boolean} [params.force=false] - If true, re-analyzes all files, ignoring checksums.
+ * @param {number} [params.temperature] - The temperature for the LLM call.
  * @returns {Promise<object>} A summary of the operation.
  */
-async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = false}) {
+async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = false, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
@@ -271,8 +279,8 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 				if (force || currentChecksum !== file.last_checksum) {
 					reanalysisProgress.message = `Analyzing ${file.file_path}`; // More specific message
 					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-					// Pass `force: true` to analyzeFile to ensure it runs without its own redundant check.
-					await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: true});
+					// Pass `force: true` to analyzeFile to ensure it runs without its own redundant check, and pass temperature.
+					await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: true, temperature});
 					analyzedCount++;
 				} else {
 					skippedCount++;
@@ -294,7 +302,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
  * @param {object} params - The parameters for the operation.
  * @returns {Promise<object>} A promise resolving to an object with a `relevant_files` array.
  */
-async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, llmId}) {
+async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, llmId, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
@@ -329,7 +337,7 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 		.replace(/\$\{userPrompt\}/g, userPrompt)
 		.replace(/\$\{analysisDataString\}/g, analysisDataString);
 	
-	const llmResponse = await callLlm(masterPrompt, llmId, 'Smart Prompt File Selection');
+	const llmResponse = await callLlm(masterPrompt, llmId, 'Smart Prompt File Selection', temperature);
 	
 	try {
 		const parsedResponse = JSON.parse(llmResponse);

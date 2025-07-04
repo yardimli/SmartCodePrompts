@@ -241,3 +241,21 @@
 .prominent-icon:hover {
     color: hsl(var(--pf)); /* Primary focus color on hover */
 }
+
+/* NEW: Remove resize handle from selected-content textarea */
+#selected-content {
+    resize: none;
+}
+
+/* MODIFIED: Adjust margin for direct prompt modal action to reduce space */
+#directPromptModal .modal-action {
+    margin-top: 0.5rem; /* Reduced margin-top */
+}
+
+/* NEW: Make directPromptModal larger */
+#directPromptModal .modal-box {
+    width: 95vw; /* Occupy 95% of viewport width */
+    max-width: 95vw; /* Ensure it doesn't exceed 95vw */
+    height: 95vh; /* Occupy 95% of viewport height */
+    max-height: 95vh; /* Ensure it doesn't exceed 95vh */
+}

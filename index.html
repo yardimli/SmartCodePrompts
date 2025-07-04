@@ -28,6 +28,10 @@
 		</div>
 		<!-- NEW: Container for icons moved to the bottom -->
 		<div class="bottom-icons">
+			<!-- NEW: Icon for selecting unanalyzed files -->
+			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
+				<i class="bi bi-file-earmark-plus"></i>
+			</div>
 			<!-- MODIFIED: Moved "Ask a Question" and added prominent-icon class -->
 			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
 			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
@@ -260,14 +264,17 @@
 
 <!-- NEW: Direct Prompt Modal -->
 <dialog id="directPromptModal" class="modal">
+	<!-- MODIFIED: Added flex-col to modal-box for proper layout and adjusted width/height for larger size -->
 	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 		</form>
 		<h3 class="font-bold text-lg">LLM Response</h3>
-		<div id="direct-prompt-response" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
+		<!-- MODIFIED: Adjusted margin-top and margin-bottom to reduce space -->
+		<div id="direct-prompt-response" class="flex-grow overflow-y-auto mt-1 mb-1 p-2 bg-base-200 rounded-lg">
 			<!-- LLM response will be appended here -->
 		</div>
+		<!-- MODIFIED: Adjusted padding-top to reduce space above the action buttons -->
 		<div class="modal-action border-t border-base-300 pt-1">
 			<form method="dialog">
 				<button class="btn">Close</button>

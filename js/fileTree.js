@@ -3,9 +3,9 @@ import {showLoading, hideLoading, getParentPath, postData} from './utils.js';
 import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt, saveCurrentProjectState} from './state.js';
 import {handleAnalysisIconClick, handleSearchIconClick} from './modals.js';
 
-//A cache for the content of all selected files to avoid re-fetching on prompt changes.
+// A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cachedFileContentString = '';
-//A handle for the file tree update polling interval.
+// A handle for the file tree update polling interval.
 let fileTreeUpdateInterval = null;
 
 /**
@@ -13,7 +13,7 @@ let fileTreeUpdateInterval = null;
  * @param {string} filename - The name of the file.
  * @returns {string} The CSS class for the filetype, or an empty string if no specific icon is found.
  */
-function getFiletypeClass(filename) {
+function getFiletypeClass (filename) {
 	const extension = filename.split('.').pop().toLowerCase();
 	const extensionMap = {
 		js: 'filetype-js',
@@ -42,7 +42,7 @@ function getFiletypeClass(filename) {
 /**
  * An internal helper to update the main textarea from the cache and current prompts.
  */
-function _updateTextareaWithCachedContent() {
+function _updateTextareaWithCachedContent () {
 	const selectedContentEl = document.getElementById('selected-content');
 	if (!selectedContentEl) return;
 	
@@ -70,7 +70,7 @@ function _updateTextareaWithCachedContent() {
  * @param {HTMLElement|null} element - The folder element that was clicked.
  * @returns {Promise<void>}
  */
-export function loadFolders(path, element) {
+export function loadFolders (path, element) {
 	return new Promise(async (resolve, reject) => {
 		const currentProject = getCurrentProject();
 		if (!currentProject) return reject(new Error('No project selected'));
@@ -119,10 +119,11 @@ export function loadFolders(path, element) {
 				// MODIFIED: Restructured file item HTML for proper text-overflow ellipsis.
 				const analysisIcon = fileInfo.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
 				const modifiedIcon = fileInfo.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+				// NEW: Added data-has-analysis attribute to the checkbox for easy selection.
 				content += `
                     <li>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
+                            <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has-analysis="${fileInfo.has_analysis ? 'true' : 'false'}">
                         </div>
                         ${analysisIcon}
                         <div class="file-entry align-middle">
@@ -154,7 +155,7 @@ export function loadFolders(path, element) {
  * Gathers content from all selected files and displays it in the main textarea.
  * This function now caches file content and uses a helper to render the textarea.
  */
-export async function updateSelectedContent() {
+export async function updateSelectedContent () {
 	const checkedBoxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
 	const selectedContentEl = document.getElementById('selected-content');
 	
@@ -168,7 +169,7 @@ export async function updateSelectedContent() {
 	
 	const requestPromises = Array.from(checkedBoxes).map(box => {
 		const path = box.dataset.path;
-		return postData({ action: 'get_file_content', rootIndex: getCurrentProject().rootIndex, path: path })
+		return postData({action: 'get_file_content', rootIndex: getCurrentProject().rootIndex, path: path})
 			.then(response => `${path}:\n\n${response.content}\n\n`)
 			.catch(error => `/* --- ERROR loading ${path}: ${error.message || 'Unknown error'} --- */\n\n`);
 	});
@@ -177,7 +178,6 @@ export async function updateSelectedContent() {
 		const results = await Promise.all(requestPromises);
 		cachedFileContentString = results.join(''); // Update the cache.
 		_updateTextareaWithCachedContent();
-		
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selectedContentEl.value = '/* --- An unexpected error occurred while loading file contents. --- */';
@@ -191,11 +191,11 @@ export async function updateSelectedContent() {
  * Updates only the prompt portion of the main textarea using cached file content.
  * This avoids re-fetching all file contents, making prompt updates fast.
  */
-export function refreshPromptDisplay() {
+export function refreshPromptDisplay () {
 	_updateTextareaWithCachedContent();
 }
 
-function restoreCheckedStates(selectedFiles) {
+function restoreCheckedStates (selectedFiles) {
 	document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 	selectedFiles.forEach(path => {
 		const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${path}"]`);
@@ -211,7 +211,7 @@ function restoreCheckedStates(selectedFiles) {
  * Restores the UI state (open folders, checked files) from saved data.
  * @param {object} state - The state object with `openFolders` and `selectedFiles`.
  */
-export async function restoreState(state) {
+export async function restoreState (state) {
 	console.log('Restoring state:', state);
 	const currentProject = getCurrentProject();
 	const pathsToEnsureOpen = new Set(state.openFolders || []);
@@ -239,7 +239,7 @@ export async function restoreState(state) {
  * @param {string} filePath - The path of the file to make visible.
  * @returns {Promise<boolean>} True if successful, false otherwise.
  */
-export async function ensureFileIsVisible(filePath) {
+export async function ensureFileIsVisible (filePath) {
 	const parts = filePath.split('/');
 	let currentPath = parts[0];
 	for (let i = 1; i < parts.length - 1; i++) {
@@ -264,7 +264,7 @@ export async function ensureFileIsVisible(filePath) {
  * This function is called by the polling mechanism.
  * @param {object} updates - An object with `modified`, `unmodified`, and `deleted` file path arrays.
  */
-function handleModificationStatusUpdates(updates) {
+function handleModificationStatusUpdates (updates) {
 	const fileTree = document.getElementById('file-tree');
 	if (!fileTree) return;
 	
@@ -279,7 +279,7 @@ function handleModificationStatusUpdates(updates) {
 		if (!existingIcon) {
 			const fileSpan = fileLi.querySelector('.file-entry');
 			if (fileSpan) {
-				fileSpan.insertAdjacentHTML('afterend', ` <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
+				fileSpan.insertAdjacentHTML('afterend', ' <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>');
 				hasChanges = true;
 			}
 		}
@@ -323,7 +323,7 @@ function handleModificationStatusUpdates(updates) {
 /**
  * Stops the periodic polling for file tree updates.
  */
-export function stopFileTreePolling() {
+export function stopFileTreePolling () {
 	if (fileTreeUpdateInterval) {
 		clearInterval(fileTreeUpdateInterval);
 		fileTreeUpdateInterval = null;
@@ -336,7 +336,7 @@ export function stopFileTreePolling() {
  * MODIFIED: This now polls for the modification status of all analyzed files in the project,
  * rather than syncing the contents of open folders.
  */
-export function startFileTreePolling() {
+export function startFileTreePolling () {
 	stopFileTreePolling(); // Ensure no multiple intervals are running
 	
 	const pollInterval = 10000; // Poll every 10 seconds.
@@ -356,21 +356,18 @@ export function startFileTreePolling() {
 			});
 			
 			handleModificationStatusUpdates(updates);
-			
 		} catch (error) {
 			console.error('Error polling for file tree updates:', error);
 		}
-		
 	}, pollInterval);
 	console.log('File tree polling started for modification status.');
 }
-
 
 /**
  * Sets up delegated event listeners for the file tree container and its controls.
  * This function was created by moving logic out of main.js.
  */
-export function setupFileTreeListeners() {
+export function setupFileTreeListeners () {
 	const fileTree = document.getElementById('file-tree');
 	
 	// Delegated event listener for clicks within the file tree
@@ -458,5 +455,21 @@ export function setupFileTreeListeners() {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		updateSelectedContent();
 		saveCurrentProjectState();
+	});
+	
+	// NEW: Event listener for the "Select Unanalyzed" button
+	document.getElementById('select-unanalyzed').addEventListener('click', function () {
+		let checkedCount = 0;
+		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
+			// Check if the checkbox is not already checked and its data-has-analysis attribute is 'false'
+			if (!cb.checked && cb.dataset.hasAnalysis === 'false') {
+				cb.checked = true;
+				checkedCount++;
+			}
+		});
+		if (checkedCount > 0) {
+			updateSelectedContent();
+			saveCurrentProjectState();
+		}
 	});
 }

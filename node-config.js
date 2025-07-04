@@ -119,109 +119,61 @@ File Path: \${filePath}
 File Content:
 \${fileContent}`;
 		
-		const defaultFunctionsPrompt = `Analyze the following file content and provide a response in a single, JSON object format. Do not include any text outside of the JSON object.
-
-PROMPT: Create a comprehensive function analysis by analyzing source code
+		const defaultFunctionsPrompt = `PROMPT: Create a concise function analysis summary
 
 INSTRUCTIONS:
-Perform a detailed analysis of all functions, methods, and callable code blocks in the source file:
+Analyze all functions and provide a minimal but comprehensive overview:
 
-Function Identification
-- Identify all function declarations (named functions, anonymous functions, arrow functions, lambda expressions)
-- Detect class methods (public, private, protected, static methods)
-- Find constructors, destructors, and initializers
-- Locate getters, setters, and property accessors
-- Identify event handlers and callback functions
-- Detect lifecycle methods and hooks
-- Find generator functions and async functions
+Function Analysis:
+- List all functions with their primary purpose (one line max)
+- Include only essential parameters (name and type if typed)
+- Note return type only if explicitly defined
+- Flag only: async, generator, constructor, or security-sensitive functions
+- List direct dependencies only (called functions, not callers)
+- Include only critical side effects or state mutations
 
-Function Signature Analysis
-- Extract exact function names and aliases
-- Document all parameters with types (if available)
-- Identify optional parameters and default values
-- Note rest parameters and spread operators
-- Detect function overloads and polymorphic signatures
-- Document return types (explicit or inferred)
+Class Analysis:
+- Class name, parent class, and one-line purpose
+- List method names only (no details unless critical)
 
-Function Purpose and Behavior
-- Determine the primary purpose of each function
-- Identify side effects and state mutations
-- Note pure vs impure functions
-- Detect recursive functions
-- Identify higher-order functions
-- Document error handling within functions
-- Note any security-sensitive operations
+Global Scope:
+- List imports, exports, and entry point only
 
-Function Dependencies
-- List all external functions called within each function
-- Identify global variables accessed or modified
-- Note imported modules and libraries used
-- Document API calls and external service interactions
-- Track database operations and file system access
-- Identify shared resources and synchronization points
-
-Function Relationships
-- Map caller-callee relationships
-- Identify function chains and pipelines
-- Note inheritance and override patterns
-- Document interface implementations
-- Track event emitters and listeners
-- Identify decorator and wrapper patterns
-
-The JSON object should have the following structure, if a structure is empty, it should not be included in the output. The documentation should be short.:
+Output Format (exclude empty fields):
 {
-"language": "The primary programming language detected",
-"frameworks": ["List of frameworks and major libraries detected"],
-"functions": [
-{
-"name": "functionName",
-"type": "function|method|constructor|getter|setter|async|generator|arrow|anonymous",
-"visibility": "public|private|protected|static",
-"purpose": "Short description of what the function does",
-"parameters": [
-{
-"name": "paramName",
-"type": "parameter type if available",
-"optional": true|false,
-"default": "default value if any",
-"description": "what this parameter is for"
+  "language": "detected language",
+  "functions": [
+    {
+      "name": "functionName",
+      "type": "only if not regular function",
+      "purpose": "one line description",
+      "params": ["param1: type", "param2?: type"],
+      "returns": "type only if explicit",
+      "async": true, // only if true
+      "calls": ["critical dependencies only"],
+      "sideEffects": "only if significant",
+      "security": "only if security-relevant"
+    }
+  ],
+  "classes": [
+    {
+      "name": "ClassName",
+      "extends": "ParentClass",
+      "purpose": "one line",
+      "methods": ["method1", "method2"]
+    }
+  ],
+  "imports": ["module names only"],
+  "exports": ["exported items"],
+  "entryPoint": "main() or initialization"
 }
-],
-"returns": {
-"type": "return type if available",
-"description": "what is returned and when"
-},
-"throws": ["List of exceptions or errors that may be thrown"],
-"calls": ["List of other functions this function calls"],
-"called_by": ["List of functions that call this function"],
-"accesses": ["Global variables or external resources accessed"],
-"modifies": ["State or data that this function modifies"],
-"async_behavior": "Description of any asynchronous behavior",
-"security_notes": "Any security-relevant observations"
-}
-],
-"classes": [
-{
-"name": "ClassName",
-"extends": "ParentClass if any",
-"implements": ["List of interfaces implemented"],
-"purpose": "What this class represents or does",
-"methods": ["List of method names in this class"],
-"properties": ["List of class properties"]
-}
-],
-"global_scope": {
-"variables": ["List of global variables"],
-"constants": ["List of global constants"],
-"imports": ["List of imported modules or libraries"],
-"exports": ["List of exported items"]
-},
-"entry_point": "Short description of the main entry point or initialization logic",
-}
+
+Keep descriptions under 10 words. Omit obvious information.
 
 File Path: \${filePath}
 File Content:
 \${fileContent}`;
+		
 		const defaultContentFooter = `
 		\${userPrompt}
 
@@ -234,15 +186,19 @@ Don't refactor code that is not needed to be changed.
 Comment as needed.
 Add comments to new lines and modified sections.
 `;
-		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}\n\nUSER REQUEST: \${userPrompt}\n\nAVAILABLE FILES AND THEIR ANALYSIS:\n---\n\${analysisDataString}\n---`;
+		
+		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}
+		
+		USER REQUEST: \${userPrompt}
+		
+		AVAILABLE FILES AND THEIR ANALYSIS:
+		\${analysisDataString}`;
 		
 		// NEW: Default prompt for the QA feature
 		const defaultQAPrompt = `You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
 
 CONTEXT:
 \${fileContext}
-
----
 
 QUESTION:
 \${userQuestion}`;

@@ -199,12 +199,17 @@
 </dialog>
 
 <dialog id="logModal" class="modal">
-	<div class="modal-box w-11/12 max-w-7xl">
-		<h3 class="font-bold text-lg" id="logModalLabel">LLM Call Log (This Session)</h3>
-		<div class="py-4" id="logModalBody">
-			<p class="text-base-content/70">No LLM calls have been made in this session yet.</p>
+	<!-- MODIFIED: Added flex classes for fixed footer -->
+	<div class="modal-box w-11/12 max-w-7xl h-5/6 flex flex-col">
+		<h3 class="font-bold text-lg flex-shrink-0" id="logModalLabel">LLM Call Log (Persistent)</h3>
+		<!-- MODIFIED: Added flex-grow and overflow for scrolling content -->
+		<div class="py-4 flex-grow overflow-y-auto" id="logModalBody">
+			<p class="text-base-content/70">No LLM calls have been made yet.</p>
 		</div>
-		<div class="modal-action">
+		<!-- MODIFIED: This is now the fixed footer -->
+		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
+			<!-- NEW: Button to reset the log and token counts -->
+			<button class="btn btn-error" id="reset-log-button">Reset Log & Tokens</button>
 			<form method="dialog">
 				<button class="btn">Close</button>
 			</form>

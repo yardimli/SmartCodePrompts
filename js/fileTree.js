@@ -83,7 +83,7 @@ export function loadFolders(path, element) {
 			});
 			const fileTree = document.getElementById('file-tree');
 			if (element) {
-				const nextUl = element.nextElementSibling;
+				const nextUl = element.closest('li').nextElementSibling; // MODIFIED: Look for sibling of <li>
 				if (nextUl && nextUl.tagName === 'UL') {
 					nextUl.remove();
 				}
@@ -102,11 +102,11 @@ export function loadFolders(path, element) {
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
 				const fullPath = `${path}/${folder}`;
-				// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
+				// MODIFIED: Wrapped folder name in a span for text-overflow ellipsis.
 				content += `
                     <li>
                         <span class="folder" data-path="${fullPath}">
-                            ${folder}
+                            <span class="folder-name" title="${fullPath}">${folder}</span>
                             <span class="folder-controls inline-block align-middle ml-2">
                                 <i class="bi bi-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
                                 <i class="bi bi-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
@@ -115,8 +115,8 @@ export function loadFolders(path, element) {
                     </li>`;
 			});
 			response.files.forEach(fileInfo => {
-				const filetypeClass = getFiletypeClass(fileInfo.name); // MODIFIED: Get filetype class for specific icons.
-				// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
+				const filetypeClass = getFiletypeClass(fileInfo.name);
+				// MODIFIED: Restructured file item HTML for proper text-overflow ellipsis.
 				const analysisIcon = fileInfo.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
 				const modifiedIcon = fileInfo.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 				content += `
@@ -125,13 +125,18 @@ export function loadFolders(path, element) {
                             <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
                         </div>
                         ${analysisIcon}
-                        <span class="file ${filetypeClass} align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
+                        <div class="file-entry align-middle">
+                            <span class="file ${filetypeClass}"></span>
+                            <span class="file-name" title="${fileInfo.path}">${fileInfo.name}</span>
+                        </div>
                         ${modifiedIcon}
                     </li>`;
 			});
 			ul.innerHTML = content;
 			if (element) {
-				element.after(ul);
+				// MODIFIED: Insert the new <ul> after the parent <li>, not inside it.
+				// This is the key fix for the column layout issue.
+				element.closest('li').after(ul);
 			} else {
 				fileTree.appendChild(ul);
 			}
@@ -272,7 +277,7 @@ function handleModificationStatusUpdates(updates) {
 		
 		const existingIcon = fileLi.querySelector('.bi-exclamation-triangle-fill');
 		if (!existingIcon) {
-			const fileSpan = fileLi.querySelector('.file');
+			const fileSpan = fileLi.querySelector('.file-entry');
 			if (fileSpan) {
 				fileSpan.insertAdjacentHTML('afterend', ` <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
 				hasChanges = true;
@@ -343,17 +348,13 @@ export function startFileTreePolling() {
 			return;
 		}
 		
-		// MODIFICATION: We no longer need to find open folders. The check is project-wide.
-		
 		try {
-			// MODIFICATION: The action and payload have changed to check all analyzed files.
 			const updates = await postData({
 				action: 'check_folder_updates',
 				rootIndex: currentProject.rootIndex,
 				projectPath: currentProject.path
 			});
 			
-			// MODIFICATION: Call the new handler function.
 			handleModificationStatusUpdates(updates);
 			
 		} catch (error) {
@@ -361,7 +362,6 @@ export function startFileTreePolling() {
 		}
 		
 	}, pollInterval);
-	// MODIFIED: Updated log message to reflect new functionality.
 	console.log('File tree polling started for modification status.');
 }
 
@@ -413,13 +413,18 @@ export function setupFileTreeListeners() {
 		
 		if (folder) {
 			e.stopPropagation();
-			const ul = folder.nextElementSibling;
+			// MODIFIED: Find the <ul> that is the next sibling of the folder's parent <li>.
+			const li = folder.closest('li');
+			const ul = li.nextElementSibling;
+			
 			if (folder.classList.contains('open')) {
 				folder.classList.remove('open');
-				if (ul) ul.style.display = 'none';
+				// MODIFIED: Check if the sibling is a UL before trying to hide it.
+				if (ul && ul.tagName === 'UL') ul.style.display = 'none';
 				saveCurrentProjectState();
 			} else {
-				if (ul) {
+				// MODIFIED: Check if the sibling is a UL before trying to show it.
+				if (ul && ul.tagName === 'UL') {
 					folder.classList.add('open');
 					ul.style.display = 'block';
 					saveCurrentProjectState();

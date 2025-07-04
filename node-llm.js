@@ -6,11 +6,9 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {getFileContent, getRawFileContent, getFileAnalysis, calculateChecksum} = require('./node-files');
 
-// Module-level state to track session-wide data.
-// This will persist as long as the Node.js process is running.
-let sessionTokenUsage = {prompt: 0, completion: 0};
+// MODIFIED: Session-specific state is now only for re-analysis progress.
+// Token usage and logs are now persistent in the database.
 let reanalysisProgress = {total: 0, current: 0, running: false, message: ''};
-let sessionLlmLog = []; // In-memory log for LLM calls this session.
 
 /**
  * Logs an interaction with the LLM to a file.
@@ -120,22 +118,20 @@ async function callLlm(prompt, modelId, callReason = 'Unknown', temperature, res
 						const promptTokens = responseJson.usage ? responseJson.usage.prompt_tokens || 0 : 0;
 						const completionTokens = responseJson.usage ? responseJson.usage.completion_tokens || 0 : 0;
 						
-						// Track total token usage for the session
-						sessionTokenUsage.prompt += promptTokens;
-						sessionTokenUsage.completion += completionTokens;
+						// NEW: Persist log and token counts to the database
+						const logStmt = db.prepare('INSERT INTO llm_log (timestamp, reason, model_id, prompt_tokens, completion_tokens) VALUES (?, ?, ?, ?, ?)');
+						const updatePromptTokensStmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_prompt_tokens'");
+						const updateCompletionTokensStmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_completion_tokens'");
 						
-						// Add to session log for the UI modal
-						sessionLlmLog.unshift({ // unshift to add to the beginning (most recent first)
-							timestamp: new Date().toISOString(),
-							reason: callReason,
-							promptTokens: promptTokens,
-							completionTokens: completionTokens,
-							modelId: modelId || 'N/A', // Use 'N/A' if modelId is not provided
-						});
-						// Keep the log from growing indefinitely
-						if (sessionLlmLog.length > 100) {
-							sessionLlmLog.pop();
-						}
+						db.transaction(() => {
+							logStmt.run(new Date().toISOString(), callReason, modelId || 'N/A', promptTokens, completionTokens);
+							if (promptTokens > 0) {
+								updatePromptTokensStmt.run(promptTokens);
+							}
+							if (completionTokens > 0) {
+								updateCompletionTokensStmt.run(completionTokens);
+							}
+						})();
 						
 						if (responseJson.choices && responseJson.choices.length > 0) {
 							const llmContent = responseJson.choices[0].message.content;
@@ -402,8 +398,15 @@ async function askQuestionAboutCode({rootIndex, projectPath, question, relevantF
  * @returns {object} An object containing session token usage and re-analysis progress.
  */
 function getSessionStats() {
+	// MODIFIED: Fetch persistent token counts from the database.
+	const promptTokensRow = db.prepare("SELECT value FROM app_settings WHERE key = 'total_prompt_tokens'").get();
+	const completionTokensRow = db.prepare("SELECT value FROM app_settings WHERE key = 'total_completion_tokens'").get();
+	
 	return {
-		tokens: sessionTokenUsage,
+		tokens: {
+			prompt: promptTokensRow ? parseInt(promptTokensRow.value, 10) : 0,
+			completion: completionTokensRow ? parseInt(completionTokensRow.value, 10) : 0
+		},
 		reanalysis: reanalysisProgress
 	};
 }
@@ -413,7 +416,16 @@ function getSessionStats() {
  * @returns {Array<object>} The array of log entries.
  */
 function getLlmLog() {
-	return sessionLlmLog;
+	// MODIFIED: Fetch the log from the database instead of in-memory.
+	return db.prepare(`
+        SELECT timestamp,
+               reason,
+               model_id          as modelId,
+               prompt_tokens     as promptTokens,
+               completion_tokens as completionTokens
+        FROM llm_log
+        ORDER BY timestamp DESC
+    `).all();
 }
 
 module.exports = {

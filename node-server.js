@@ -43,6 +43,10 @@ async function handlePostRequest(req, res) {
 				case 'reset_prompts':
 					result = configManager.resetPromptsToDefault();
 					break;
+				// NEW: Action to reset the LLM log and tokens
+				case 'reset_llm_log':
+					result = configManager.resetLlmLog();
+					break;
 				case 'set_dark_mode':
 					configManager.setDarkMode(postData.get('isDarkMode') === 'true');
 					result = {success: true};

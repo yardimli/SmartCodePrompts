@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* SmartCodePrompts/css/index.css */
-.folder, .file {
+/* MODIFIED: Apply pointer cursor to the folder and the new file-entry container */
+.folder, .file-entry {
     cursor: pointer;
 }
 
@@ -181,4 +182,42 @@
 /* NEW: Styles for collapsible right sidebar */
 #app-container.right-sidebar-collapsed #right-sidebar {
     display: none;
+}
+
+/* NEW: Styles for file tree item layout to prevent wrapping and add ellipsis */
+#file-tree li {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+/* NEW: Container for file icon/name and folder icon/name/controls */
+#file-tree .folder,
+#file-tree .file-entry {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 0; /* Crucial for child text-overflow to work */
+}
+
+/* NEW: Target both file and folder names for truncation */
+#file-tree .file-name,
+#file-tree .folder-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1; /* Allow name to take up available space */
+    min-width: 0; /* Allow name to shrink and truncate */
+}
+
+/* NEW: Ensure icons and controls do not shrink */
+#file-tree .file, /* The file icon container */
+#file-tree .checkbox-wrapper,
+#file-tree .analysis-icon,
+#file-tree .bi-exclamation-triangle-fill,
+#file-tree .folder-controls {
+    flex-shrink: 0;
 }

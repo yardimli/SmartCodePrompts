@@ -2,6 +2,7 @@
 import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
+import {updateStatusBar} from './statusBar.js'; // NEW: Import status bar updater
 
 let searchModal = null;
 let logModal = null;
@@ -29,7 +30,7 @@ export async function handleLogButtonClick() {
 	try {
 		const logData = await postData({action: 'get_llm_log'});
 		if (!logData || logData.length === 0) {
-			modalBody.innerHTML = '<p class="text-base-content/70 p-3">No LLM calls have been made in this session yet.</p>';
+			modalBody.innerHTML = '<p class="text-base-content/70 p-3">No LLM calls have been made yet.</p>';
 			return;
 		}
 		
@@ -49,7 +50,7 @@ export async function handleLogButtonClick() {
         `;
 		
 		for (const entry of logData) {
-			const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+			const timestamp = new Date(entry.timestamp).toLocaleString(); // MODIFIED: Use toLocaleString for date and time
 			tableHtml += `
                 <tr class="hover">
                     <td class="log-timestamp">${timestamp}</td>
@@ -268,6 +269,26 @@ export function setupModalEventListeners() {
 	
 	// LLM Log Modal Button Listener
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
+	
+	// NEW: LLM Log Reset Button Listener
+	document.getElementById('reset-log-button').addEventListener('click', async () => {
+		if (confirm('Are you sure you want to permanently delete the LLM call log and reset all token counters? This cannot be undone.')) {
+			showLoading('Resetting log...');
+			try {
+				await postData({action: 'reset_llm_log'});
+				// Refresh the modal view by re-triggering the log fetch
+				await handleLogButtonClick();
+				// Refresh the status bar with the new zeroed counts
+				const stats = await postData({action: 'get_session_stats'});
+				updateStatusBar(stats);
+			} catch (error) {
+				console.error('Failed to reset log:', error);
+				alert(`Failed to reset log: ${error.message}`);
+			} finally {
+				hideLoading();
+			}
+		}
+	});
 	
 	// Analysis View Close Button Listener (delegated)
 	document.getElementById('workspace').addEventListener('click', (e) => {

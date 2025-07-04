@@ -55,6 +55,16 @@ function createTables() {
             key TEXT PRIMARY KEY,
             value TEXT
         );
+
+        /* NEW: Table for persistent LLM call logs */
+        CREATE TABLE IF NOT EXISTS llm_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            reason TEXT,
+            model_id TEXT,
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER
+        );
     `);
 }
 
@@ -90,6 +100,9 @@ function setDefaultAppSettings() {
 		initSettingsStmt.run('lastSelectedProject', '');
 		initSettingsStmt.run('lastSelectedLlm', '');
 		initSettingsStmt.run('lastSmartPrompt', '');
+		// NEW: Persistent token counters
+		initSettingsStmt.run('total_prompt_tokens', '0');
+		initSettingsStmt.run('total_completion_tokens', '0');
 		
 		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, JSON object format.
 		Do not include any text outside of the JSON object.
@@ -352,6 +365,21 @@ function resetPromptsToDefault() {
 }
 
 /**
+ * NEW: Resets the LLM log and token counters in the database.
+ * @returns {{success: boolean}}
+ */
+function resetLlmLog() {
+	db.exec('DELETE FROM llm_log');
+	const stmt = db.prepare('UPDATE app_settings SET value = ? WHERE key = ?');
+	const transaction = db.transaction(() => {
+		stmt.run('0', 'total_prompt_tokens');
+		stmt.run('0', 'total_completion_tokens');
+	});
+	transaction();
+	return {success: true};
+}
+
+/**
  * Sets the dark mode preference in the database.
  * @param {boolean} isDarkMode - The new dark mode state.
  */
@@ -398,6 +426,10 @@ function getMainPageData() {
 	// Get allowed_extensions from app_setup.
 	const allowedExtensionsRow = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
 	
+	// MODIFIED: Fetch persistent token counts instead of session-based ones.
+	const promptTokens = appSettings.total_prompt_tokens || '0';
+	const completionTokens = appSettings.total_completion_tokens || '0';
+	
 	return {
 		projects,
 		lastSelectedProject: appSettings.lastSelectedProject || '',
@@ -406,6 +438,11 @@ function getMainPageData() {
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
 		prompt_content_footer: appSettings.prompt_content_footer || '',
 		last_smart_prompt: appSettings.lastSmartPrompt || '',
+		// MODIFIED: Pass the persistent total tokens to the client. Kept key name for compatibility.
+		sessionTokens: {
+			prompt: parseInt(promptTokens, 10),
+			completion: parseInt(completionTokens, 10)
+		},
 		// Add settings for the compress dropdown.
 		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
 		compress_extensions: appSettings.compress_extensions || '[]'
@@ -423,5 +460,6 @@ module.exports = {
 	saveLastSmartPrompt,
 	saveCompressExtensions,
 	getMainPageData,
-	resetPromptsToDefault
+	resetPromptsToDefault,
+	resetLlmLog // NEW: Export reset function
 };

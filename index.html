@@ -4,7 +4,8 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
-	<link href="/node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+	<!-- MODIFIED: Swapped Font Awesome for Bootstrap Icons -->
+	<link href="/node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 	<link rel="stylesheet" href="/dist/output.css">
 	<script type="module" src="js/main.js"></script>
 </head>
@@ -13,11 +14,14 @@
 	<!-- Left Icon Sidebar -->
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
 		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
-			<i class="fa-solid fa-brain"></i>
+			<!-- MODIFIED: Icon changed -->
+			<i class="bi bi-brain"></i>
 		</a>
 		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center">
-			<a href="/projects" title="Select Projects"><i class="fa-solid fa-database"></i></a>
-			<a href="/setup" title="Configure"><i class="fa-solid fa-gears"></i></a>
+			<!-- MODIFIED: Icon changed -->
+			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
+			<!-- MODIFIED: Icon changed -->
+			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
 		</div>
 	</aside>
 	
@@ -41,7 +45,8 @@
 					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
 					
 					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10" title="Copy to Clipboard">
-						<i class="fa-solid fa-clipboard"></i> Copy
+						<!-- MODIFIED: Icon changed -->
+						<i class="bi bi-clipboard"></i> Copy
 					</button>
 					
 					<!-- The new container for the analysis view, replacing the old modal -->
@@ -62,11 +67,9 @@
         <textarea id="prompt-input" placeholder="Start typing a prompt..."
                   class="textarea textarea-bordered w-full flex-grow" rows="1"></textarea>
 					<div class="flex-shrink-0 flex flex-col items-center gap-2">
-						<button id="bottom-run-button" class="btn btn-primary btn-sm">
-							Run <i class="fa-solid fa-arrow-right"></i>
-						</button>
-						<button id="reanalyze-and-run-button" class="btn btn-secondary btn-sm" title="Re-analyze modified files, then run the prompt">
-							<i class="fa-solid fa-arrows-rotate"></i>Run
+						<button id="smart-prompt-run-button" class="btn btn-primary btn-sm" title="Run prompt (Ctrl+Enter)">
+							Run <kbd class="kbd kbd-xs">ctrl + <i class="bi bi-arrow-return-left"></i></kbd>
+						
 						</button>
 					</div>
 				</div>
@@ -86,14 +89,14 @@
 					</button>
 					<div id="status-bar-tokens" class="flex items-center gap-4">
 						<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
-							<i class="fa-solid fa-list-ul"></i>
+							<i class="bi bi-card-list"></i>
 						</button>
 						<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
-							<i class="fa-solid fa-circle-up text-success"></i>
+							<i class="bi bi-arrow-up-circle text-success"></i>
 							<span id="prompt-tokens">0</span>
 						</div>
 						<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
-							<i class="fa-solid fa-circle-down text-info"></i>
+							<i class="bi bi-arrow-down-circle text-info"></i>
 							<span id="completion-tokens">0</span>
 						</div>
 					</div>
@@ -107,7 +110,7 @@
 		<div class="flex justify-between items-center mb-4">
 			<h2 class="text-lg font-bold">Run settings</h2>
 			<button id="toggle-mode" class="btn btn-sm btn-outline">
-				<i class="fas fa-sun"></i>
+				<i class="bi bi-sun"></i>
 			</button>
 		</div>
 		
@@ -117,7 +120,7 @@
 				<div class="flex gap-2">
 					<select id="llm-dropdown" class="select select-bordered select-sm w-full" title="Select LLM"></select>
 					<button id="refresh-llms" class="btn btn-sm btn-square btn-outline" title="Refresh LLM List">
-						<i class="fas fa-sync-alt"></i>
+						<i class="bi bi-arrow-clockwise"></i>
 					</button>
 				</div>
 			</div>
@@ -128,15 +131,18 @@
 			<div class="grid gap-2">
 				<button class="btn btn-primary btn-sm" id="analyzeSelectedButton"
 				        title="Performs a one-time analysis on the files currently checked in the file tree.">
-					<i class="fa-solid fa-check-square me-2"></i>Analyze Selected
+					<!-- MODIFIED: Icon changed -->
+					<i class="bi bi-check-square me-2"></i>Analyze Selected
 				</button>
 				<button class="btn btn-info btn-sm" id="reanalyzeModifiedOnlyButton"
 				        title="Scans for files changed since their last analysis and re-analyzes only those.">
-					<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified
+					<!-- MODIFIED: Icon changed -->
+					<i class="bi bi-file-earmark-diff me-2"></i>Re-analyze Modified
 				</button>
 				<button class="btn btn-error btn-sm" id="reanalyzeForceAllButton"
 				        title="Re-analyzes every file that has a previous analysis, regardless of changes.">
-					<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
+					<!-- MODIFIED: Icon changed -->
+					<i class="bi bi-arrow-repeat me-2"></i>Force Re-analyze All
 				</button>
 			</div>
 			<div class="form-control">
@@ -154,8 +160,9 @@
 			<div class="form-control">
 				<label class="label cursor-pointer">
 					<span class="label-text">Unselect All Files</span>
-					<button id="unselect-all" class="btn btn-xs btn-outline" title="Unselect All Files"><i
-						class="fa-solid fa-rotate-right"></i> Clear
+					<button id="unselect-all" class="btn btn-xs btn-outline" title="Unselect All Files">
+						<!-- MODIFIED: Icon changed -->
+						<i class="bi bi-arrow-counterclockwise"></i> Clear
 					</button>
 				</label>
 			</div>
@@ -205,6 +212,22 @@
 			<form method="dialog">
 				<button class="btn">Close</button>
 			</form>
+		</div>
+	</div>
+</dialog>
+
+<!-- NEW: Modal to prompt for re-analysis -->
+<dialog id="reanalysisPromptModal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
+		<p class="py-4">For the best results, it's recommended to re-analyze modified files before running the prompt.</p>
+		<p id="reanalysis-file-count" class="font-bold mb-4"></p>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
+			<button class="btn" id="run-without-reanalysis-button">Run Anyway</button>
+			<button class="btn btn-primary" id="run-with-reanalysis-button">Re-analyze and Run</button>
 		</div>
 	</div>
 </dialog>

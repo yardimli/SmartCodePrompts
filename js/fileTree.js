@@ -9,6 +9,37 @@ let cachedFileContentString = '';
 let fileTreeUpdateInterval = null;
 
 /**
+ * NEW: Gets a specific filetype class for styling based on the filename's extension.
+ * @param {string} filename - The name of the file.
+ * @returns {string} The CSS class for the filetype, or an empty string if no specific icon is found.
+ */
+function getFiletypeClass(filename) {
+	const extension = filename.split('.').pop().toLowerCase();
+	const extensionMap = {
+		js: 'filetype-js',
+		mjs: 'filetype-js',
+		ts: 'filetype-ts',
+		tsx: 'filetype-tsx',
+		css: 'filetype-css',
+		scss: 'filetype-scss',
+		html: 'filetype-html',
+		json: 'filetype-json',
+		md: 'filetype-md',
+		py: 'filetype-py',
+		php: 'filetype-php',
+		sql: 'filetype-sql',
+		yml: 'filetype-yml',
+		yaml: 'filetype-yml',
+		sh: 'filetype-sh',
+		java: 'filetype-java',
+		cs: 'filetype-cs',
+		svg: 'filetype-svg',
+		txt: 'filetype-txt'
+	};
+	return extensionMap[extension] || ''; // Return mapped class or empty string
+}
+
+/**
  * An internal helper to update the main textarea from the cache and current prompts.
  */
 function _updateTextareaWithCachedContent() {
@@ -71,27 +102,30 @@ export function loadFolders(path, element) {
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
 				const fullPath = `${path}/${folder}`;
+				// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
 				content += `
                     <li>
                         <span class="folder" data-path="${fullPath}">
                             ${folder}
                             <span class="folder-controls inline-block align-middle ml-2">
-                                <i class="fas fa-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
-                                <i class="fas fa-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
+                                <i class="bi bi-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
+                                <i class="bi bi-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
                             </span>
                         </span>
                     </li>`;
 			});
 			response.files.forEach(fileInfo => {
-				const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
-				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+				const filetypeClass = getFiletypeClass(fileInfo.name); // MODIFIED: Get filetype class for specific icons.
+				// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
+				const analysisIcon = fileInfo.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
+				const modifiedIcon = fileInfo.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 				content += `
                     <li>
                         <div class="checkbox-wrapper">
                             <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
                         </div>
                         ${analysisIcon}
-                        <span class="file align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
+                        <span class="file ${filetypeClass} align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
                         ${modifiedIcon}
                     </li>`;
 			});
@@ -275,11 +309,13 @@ function handleFileTreeUpdates(updates) {
 				// Item exists, check for modifications (for files)
 				const serverItem = serverItemsMap.get(path);
 				if (serverItem.type === 'file') {
-					const modifiedIcon = liNode.querySelector('.fa-triangle-exclamation');
+					// MODIFIED: Selector updated for Bootstrap Icons.
+					const modifiedIcon = liNode.querySelector('.bi-exclamation-triangle-fill');
 					const shouldHaveIcon = serverItem.info.is_modified;
 					if (shouldHaveIcon && !modifiedIcon) {
 						const fileSpan = liNode.querySelector('.file');
-						fileSpan.insertAdjacentHTML('afterend', ` <i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
+						// MODIFIED: Replaced Font Awesome icon with Bootstrap Icon.
+						fileSpan.insertAdjacentHTML('afterend', ` <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
 						hasChanges = true;
 					} else if (!shouldHaveIcon && modifiedIcon) {
 						modifiedIcon.remove();
@@ -298,24 +334,27 @@ function handleFileTreeUpdates(updates) {
 				const li = document.createElement('li');
 				let itemHtml = '';
 				if (item.type === 'folder') {
+					// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
 					itemHtml = `
                         <span class="folder" data-path="${path}">
                             ${item.name}
                             <span class="folder-controls inline-block align-middle ml-2">
-                                <i class="fas fa-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
-                                <i class="fas fa-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
+                                <i class="bi bi-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
+                                <i class="bi bi-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
                             </span>
                         </span>`;
 				} else { // file
 					const fileInfo = item.info;
-					const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
-					const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+					const filetypeClass = getFiletypeClass(fileInfo.name); // MODIFIED: Get filetype class for specific icons.
+					// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
+					const analysisIcon = fileInfo.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
+					const modifiedIcon = fileInfo.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 					itemHtml = `
                         <div class="checkbox-wrapper">
                             <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
                         </div>
                         ${analysisIcon}
-                        <span class="file align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
+                        <span class="file ${filetypeClass} align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
                         ${modifiedIcon}`;
 				}
 				li.innerHTML = itemHtml;

@@ -4,7 +4,8 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Application Setup</title>
-	<link href="/node_modules/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+	<!-- MODIFIED: Swapped Font Awesome for Bootstrap Icons -->
+	<link href="/node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 	<link rel="stylesheet" href="/dist/output.css">
 	<script type="module" src="js/setup.js"></script>
 </head>
@@ -14,7 +15,8 @@
 		<h1 class="text-2xl font-bold">Application Setup</h1>
 		<div class="flex items-center gap-2">
 			<button id="toggle-mode" class="btn btn-outline">
-				<i class="fas fa-sun"></i>
+				<!-- MODIFIED: Icon changed -->
+				<i class="bi bi-sun"></i>
 			</button>
 			<a href="/" class="btn btn-primary">Back to Prompt Builder</a>
 		</div>
@@ -23,7 +25,7 @@
 		<div id="loading-indicator" class="text-center p-5">
 			<span class="loading loading-spinner loading-lg"></span>
 		</div>
-
+		
 		<form id="setup-form" style="display: none;" class="space-y-6">
 			<div role="alert" class="alert alert-info">
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

@@ -233,4 +233,54 @@ function checkFolderUpdates(rootIndex, projectPath, openFolderPaths) {
 	return updates;
 }
 
-module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum, checkFolderUpdates}; // Export calculateChecksum and new function
+/**
+ * NEW: Checks all analyzed files in a project to see if any have been modified since their last analysis.
+ * @param {object} params - The parameters for the check.
+ * @param {number} params.rootIndex - The index of the project's root directory.
+ * @param {string} params.projectPath - The path of the project.
+ * @returns {{needsReanalysis: boolean, count: number}} An object indicating if re-analysis is needed and the count of modified files.
+ */
+function checkForModifiedFiles({rootIndex, projectPath}) {
+	// Get all files that have existing analysis metadata for this project.
+	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?');
+	const analyzedFiles = stmt.all(rootIndex, projectPath);
+	
+	if (analyzedFiles.length === 0) {
+		return {needsReanalysis: false, count: 0};
+	}
+	
+	let modifiedCount = 0;
+	
+	for (const file of analyzedFiles) {
+		try {
+			const fullPath = resolvePath(file.file_path, rootIndex);
+			
+			// If a file that was previously analyzed no longer exists, we don't count it as "modified"
+			// for the purpose of re-analysis, as there's nothing to re-analyze.
+			if (!fs.existsSync(fullPath)) {
+				console.warn(`Analyzed file not found (likely deleted): ${fullPath}`);
+				continue;
+			}
+			
+			const fileContent = fs.readFileSync(fullPath);
+			const currentChecksum = calculateChecksum(fileContent);
+			
+			if (currentChecksum !== file.last_checksum) {
+				modifiedCount++;
+			}
+		} catch (error) {
+			// This could happen if file permissions change, preventing a read.
+			// We'll log the error but treat it as a modification, as the state is uncertain.
+			console.error(`Error checking file for modification: ${file.file_path}`, error);
+			modifiedCount++;
+		}
+	}
+	
+	return {
+		needsReanalysis: modifiedCount > 0,
+		count: modifiedCount
+	};
+}
+
+// MODIFIED: Export the new function
+module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum, checkFolderUpdates, checkForModifiedFiles};

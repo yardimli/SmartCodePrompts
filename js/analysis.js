@@ -48,7 +48,8 @@ async function performSelectionAnalysis() {
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
-					icon.className = 'fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
+					// MODIFIED: Replaced Font Awesome icon with Bootstrap Icon.
+					icon.className = 'bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
 					icon.dataset.path = filePath;
 					icon.title = 'View Analysis';
 					const fileSpan = li.querySelector('.file');

@@ -5,6 +5,7 @@ import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
 let searchModal = null;
 let logModal = null;
+let reanalysisPromptModal = null; // ADDED: Reference for the new modal
 let currentSearchFolderPath = null;
 
 /**
@@ -13,6 +14,7 @@ let currentSearchFolderPath = null;
 export function initializeModals() {
 	searchModal = document.getElementById('searchModal');
 	logModal = document.getElementById('logModal');
+	reanalysisPromptModal = document.getElementById('reanalysisPromptModal'); // ADDED: Initialize the new modal
 }
 
 /**

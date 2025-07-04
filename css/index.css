@@ -7,23 +7,83 @@
     cursor: pointer;
 }
 
+/* MODIFIED: Grouped common properties for Bootstrap Icons */
+.folder::before, .file::before {
+    font-family: "bootstrap-icons";
+    margin-right: 5px;
+    /* font-weight is not needed for bootstrap icons font */
+}
+
+/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'folder' */
 .folder::before {
-    content: "\f07b";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    margin-right: 5px;
+    content: "\F3D9";
 }
 
+/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'folder2-open' */
 .folder.open::before {
-    content: "\f07c";
+    content: "\F3D8";
 }
 
+/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'file-earmark' as a default */
 .file::before {
-    content: "\f15b";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    margin-right: 5px;
+    content: "\F392";
 }
+
+/* NEW: Filetype-specific icons using Bootstrap Icons */
+.file.filetype-js::before,
+.file.filetype-mjs::before {
+    content: "\F74C"; /* filetype-js */
+}
+.file.filetype-ts::before {
+    content: "\F764"; /* filetype-ts */
+}
+.file.filetype-tsx::before {
+    content: "\F764"; /* filetype-tsx */
+}
+.file.filetype-css::before {
+    content: "\F742"; /* filetype-css */
+}
+.file.filetype-scss::before {
+    content: "\F760"; /* filetype-scss */
+}
+.file.filetype-html::before {
+    content: "\F749"; /* filetype-html */
+}
+.file.filetype-json::before {
+    content: "\F791"; /* filetype-json */
+}
+.file.filetype-md::before {
+    content: "\F750"; /* filetype-md */
+}
+.file.filetype-py::before {
+    content: "\F75C"; /* filetype-py */
+}
+.file.filetype-php::before {
+    content: "\F757"; /* filetype-php */
+}
+.file.filetype-sql::before {
+    content: "\F7F5"; /* filetype-sql */
+}
+.file.filetype-yml::before,
+.file.filetype-yaml::before {
+    content: "\F76C"; /* filetype-yml */
+}
+.file.filetype-sh::before {
+    content: "\F761"; /* filetype-sh */
+}
+.file.filetype-java::before {
+    content: "\F74A"; /* filetype-java */
+}
+.file.filetype-cs::before {
+    content: "\F741"; /* filetype-cs */
+}
+.file.filetype-svg::before {
+    content: "\F762"; /* filetype-svg */
+}
+.file.filetype-txt::before {
+    content: "\F766"; /* filetype-txt */
+}
+
 
 /* Kept for consistent checkbox alignment in the file tree */
 .checkbox-wrapper {

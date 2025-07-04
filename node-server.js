@@ -160,6 +160,13 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
+				// MODIFIED: Added new action to check for modified files.
+				case 'check_for_modified_files':
+					result = fileManager.checkForModifiedFiles({
+						rootIndex: parseInt(postData.get('rootIndex')),
+						projectPath: postData.get('projectPath')
+					});
+					break;
 				//Action to check for file system updates in open folders.
 				case 'check_folder_updates':
 					result = fileManager.checkFolderUpdates(

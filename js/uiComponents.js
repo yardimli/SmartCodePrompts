@@ -241,4 +241,14 @@ export function setupUIEventListeners() {
 		
 		postData({action: 'set_dark_mode', isDarkMode: !isDarkMode});
 	});
+	
+	// NEW: Right sidebar toggle listener.
+	document.getElementById('toggle-right-sidebar').addEventListener('click', function () {
+		const appContainer = document.getElementById('app-container');
+		const isCollapsed = appContainer.classList.toggle('right-sidebar-collapsed');
+		
+		// Persist the state to the server
+		postData({action: 'set_right_sidebar_collapsed', isCollapsed: isCollapsed})
+			.catch(err => console.error('Failed to save sidebar state:', err));
+	});
 }

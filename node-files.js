@@ -218,19 +218,56 @@ function getFileAnalysis({rootIndex, projectPath, filePath}) {
 }
 
 /**
- * Checks for updates (new/deleted/modified files) in a list of open folders.
+ * MODIFIED: This function has been repurposed based on the new polling strategy.
+ * It no longer checks for general filesystem changes in specific open folders.
+ * Instead, it checks the modification status of all *analyzed* files within a project
+ * by comparing their current checksums against those stored in the database.
+ * This is used for live-updating the "modified" icon in the file tree.
+ * Note: This change means new/deleted files in open folders will no longer appear/disappear
+ * automatically via polling; a folder must be collapsed and re-opened to refresh its contents.
  * @param {number} rootIndex - The index of the project's root directory.
  * @param {string} projectPath - The path of the project.
- * @param {string[]} openFolderPaths - An array of relative paths for the open folders.
- * @returns {object} An object where keys are folder paths and values are the current contents of that folder.
+ * @returns {object} An object containing arrays of file paths for `modified`, `unmodified`, and `deleted` files.
  */
-function checkFolderUpdates(rootIndex, projectPath, openFolderPaths) {
-	const updates = {};
-	for (const folderPath of openFolderPaths) {
-		// getFolders returns { folders: string[], files: { name, path, has_analysis, is_modified }[] }
-		updates[folderPath] = getFolders(folderPath, rootIndex, projectPath);
+function checkFolderUpdates(rootIndex, projectPath) {
+	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?');
+	const analyzedFiles = stmt.all(rootIndex, projectPath);
+	
+	const results = {
+		modified: [],
+		unmodified: [],
+		deleted: []
+	};
+	
+	if (analyzedFiles.length === 0) {
+		return results;
 	}
-	return updates;
+	
+	for (const file of analyzedFiles) {
+		try {
+			const fullPath = resolvePath(file.file_path, rootIndex);
+			
+			if (!fs.existsSync(fullPath)) {
+				results.deleted.push(file.file_path);
+				continue;
+			}
+			
+			const fileContent = fs.readFileSync(fullPath);
+			const currentChecksum = calculateChecksum(fileContent);
+			
+			if (currentChecksum !== file.last_checksum) {
+				results.modified.push(file.file_path);
+			} else {
+				results.unmodified.push(file.file_path);
+			}
+		} catch (error) {
+			// If we can't read the file, we can't get a checksum. Treat as modified.
+			console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
+			results.modified.push(file.file_path);
+		}
+	}
+	
+	return results;
 }
 
 /**

@@ -10,7 +10,7 @@
 	<script type="module" src="js/main.js"></script>
 </head>
 <body class="h-screen overflow-hidden">
-<div class="flex h-full">
+<div class="flex h-full" id="app-container"> <!-- MODIFIED: Added ID for sidebar control -->
 	<!-- Left Icon Sidebar -->
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
 		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
@@ -26,7 +26,10 @@
 			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
 				<i class="bi bi-eraser"></i>
 			</div>
-		
+			<!-- NEW: Right sidebar toggle button -->
+			<div id="toggle-right-sidebar" class="cursor-pointer" title="Toggle Settings Panel">
+				<i class="bi bi-layout-sidebar-reverse"></i>
+			</div>
 		</div>
 	</aside>
 	
@@ -112,7 +115,7 @@
 	</div>
 	
 	<!-- Right Settings Sidebar -->
-	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto">
+	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar"> <!-- MODIFIED: Added ID for sidebar control -->
 		<div class="space-y-4">
 			<div class="form-control">
 				<label class="label"><span class="label-text">LLM Model</span></label>

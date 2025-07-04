@@ -254,131 +254,64 @@ export async function ensureFileIsVisible(filePath) {
 }
 
 /**
- * Processes updates from the server and surgically refreshes the DOM for open folders.
- * This prevents losing the state of sub-folders and checkbox selections.
- * @param {object} updates - An object where keys are folder paths and values are their current contents.
+ * MODIFIED: Replaced the old DOM-diffing function with a simpler one that only handles
+ * modification status icons based on data for all analyzed files in the project.
+ * This function is called by the polling mechanism.
+ * @param {object} updates - An object with `modified`, `unmodified`, and `deleted` file path arrays.
  */
-function handleFileTreeUpdates(updates) {
+function handleModificationStatusUpdates(updates) {
 	const fileTree = document.getElementById('file-tree');
 	if (!fileTree) return;
 	
 	let hasChanges = false;
 	
-	for (const folderPath in updates) {
-		const serverData = updates[folderPath];
-		const folderElement = fileTree.querySelector(`.folder[data-path="${folderPath}"]`);
-		if (!folderElement) continue;
+	// Add 'modified' icon to files that have changed
+	updates.modified.forEach(filePath => {
+		const fileLi = fileTree.querySelector(`input[type="checkbox"][data-path="${filePath}"]`)?.closest('li');
+		if (!fileLi) return;
 		
-		const ul = folderElement.nextElementSibling;
-		if (!ul || ul.tagName !== 'UL') continue;
-		
-		// Create a map of current DOM nodes by their path for quick lookup
-		const domNodesMap = new Map();
-		ul.childNodes.forEach(li => {
-			if (li.nodeType !== Node.ELEMENT_NODE) return;
-			const folderSpan = li.querySelector('span.folder');
-			const fileCheckbox = li.querySelector('input[type="checkbox"]');
-			let path = null;
-			if (folderSpan) {
-				path = folderSpan.dataset.path;
-			} else if (fileCheckbox) {
-				path = fileCheckbox.dataset.path;
-			}
-			if (path) {
-				domNodesMap.set(path, li);
-			}
-		});
-		
-		// Create a map of new data from server by path
-		const serverItemsMap = new Map();
-		serverData.folders.forEach(folderName => {
-			const fullPath = `${folderPath}/${folderName}`;
-			serverItemsMap.set(fullPath, {type: 'folder', name: folderName});
-		});
-		serverData.files.forEach(fileInfo => {
-			serverItemsMap.set(fileInfo.path, {type: 'file', info: fileInfo});
-		});
-		
-		// Compare and update/remove existing nodes
-		for (const [path, liNode] of domNodesMap.entries()) {
-			if (!serverItemsMap.has(path)) {
-				// Item was deleted on server, remove from DOM
-				ul.removeChild(liNode);
+		const existingIcon = fileLi.querySelector('.bi-exclamation-triangle-fill');
+		if (!existingIcon) {
+			const fileSpan = fileLi.querySelector('.file');
+			if (fileSpan) {
+				fileSpan.insertAdjacentHTML('afterend', ` <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
 				hasChanges = true;
-			} else {
-				// Item exists, check for modifications (for files)
-				const serverItem = serverItemsMap.get(path);
-				if (serverItem.type === 'file') {
-					// MODIFIED: Selector updated for Bootstrap Icons.
-					const modifiedIcon = liNode.querySelector('.bi-exclamation-triangle-fill');
-					const shouldHaveIcon = serverItem.info.is_modified;
-					if (shouldHaveIcon && !modifiedIcon) {
-						const fileSpan = liNode.querySelector('.file');
-						// MODIFIED: Replaced Font Awesome icon with Bootstrap Icon.
-						fileSpan.insertAdjacentHTML('afterend', ` <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
-						hasChanges = true;
-					} else if (!shouldHaveIcon && modifiedIcon) {
-						modifiedIcon.remove();
-						hasChanges = true;
-					}
-				}
-				// Item processed, remove from server map
-				serverItemsMap.delete(path);
 			}
 		}
+	});
+	
+	// Remove 'modified' icon from files that are now back to their analyzed state
+	updates.unmodified.forEach(filePath => {
+		const fileLi = fileTree.querySelector(`input[type="checkbox"][data-path="${filePath}"]`)?.closest('li');
+		if (!fileLi) return;
 		
-		// Add new nodes if any remain in the server map
-		if (serverItemsMap.size > 0) {
+		const existingIcon = fileLi.querySelector('.bi-exclamation-triangle-fill');
+		if (existingIcon) {
+			existingIcon.remove();
 			hasChanges = true;
-			for (const [path, item] of serverItemsMap.entries()) {
-				const li = document.createElement('li');
-				let itemHtml = '';
-				if (item.type === 'folder') {
-					// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
-					itemHtml = `
-                        <span class="folder" data-path="${path}">
-                            ${item.name}
-                            <span class="folder-controls inline-block align-middle ml-2">
-                                <i class="bi bi-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
-                                <i class="bi bi-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
-                            </span>
-                        </span>`;
-				} else { // file
-					const fileInfo = item.info;
-					const filetypeClass = getFiletypeClass(fileInfo.name); // MODIFIED: Get filetype class for specific icons.
-					// MODIFIED: Replaced Font Awesome icons with Bootstrap Icons.
-					const analysisIcon = fileInfo.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
-					const modifiedIcon = fileInfo.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
-					itemHtml = `
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
-                        </div>
-                        ${analysisIcon}
-                        <span class="file ${filetypeClass} align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
-                        ${modifiedIcon}`;
-				}
-				li.innerHTML = itemHtml;
-				ul.appendChild(li);
-			}
-			
-			// Re-sort all children in the UL
-			const allLis = Array.from(ul.children);
-			allLis.sort((a, b) => {
-				const aIsFolder = !!a.querySelector('.folder');
-				const bIsFolder = !!b.querySelector('.folder');
-				const aName = (a.querySelector('.folder, .file')).textContent.trim();
-				const bName = (b.querySelector('.folder, .file')).textContent.trim();
-				
-				if (aIsFolder && !bIsFolder) return -1; // Folders first
-				if (!aIsFolder && bIsFolder) return 1;
-				return aName.localeCompare(bName); // Then sort alphabetically
-			});
-			// Re-append in sorted order
-			allLis.forEach(li => ul.appendChild(li));
 		}
-	}
+	});
+	
+	// Remove list items for files that have been deleted from the filesystem
+	updates.deleted.forEach(filePath => {
+		const fileLi = fileTree.querySelector(`input[type="checkbox"][data-path="${filePath}"]`)?.closest('li');
+		if (fileLi) {
+			// If the deleted file was selected, we need to update the content area
+			const checkbox = fileLi.querySelector('input[type="checkbox"]');
+			const wasChecked = checkbox && checkbox.checked;
+			
+			fileLi.remove();
+			hasChanges = true;
+			
+			if (wasChecked) {
+				// This will re-fetch content for remaining checked files
+				updateSelectedContent();
+			}
+		}
+	});
+	
 	if (hasChanges) {
-		console.log('File tree was updated due to filesystem changes.');
+		console.log('File tree icons updated due to filesystem changes.');
 	}
 }
 
@@ -395,11 +328,13 @@ export function stopFileTreePolling() {
 
 /**
  * Starts the periodic polling for file tree updates.
+ * MODIFIED: This now polls for the modification status of all analyzed files in the project,
+ * rather than syncing the contents of open folders.
  */
 export function startFileTreePolling() {
 	stopFileTreePolling(); // Ensure no multiple intervals are running
 	
-	const pollInterval = 10000; // Poll every 5 seconds.
+	const pollInterval = 10000; // Poll every 10 seconds.
 	
 	fileTreeUpdateInterval = setInterval(async () => {
 		const currentProject = getCurrentProject();
@@ -408,28 +343,26 @@ export function startFileTreePolling() {
 			return;
 		}
 		
-		const openFolderElements = document.querySelectorAll('#file-tree .folder.open');
-		if (openFolderElements.length === 0) {
-			return; // Nothing to check
-		}
-		const openFolderPaths = Array.from(openFolderElements).map(el => el.dataset.path);
+		// MODIFICATION: We no longer need to find open folders. The check is project-wide.
 		
 		try {
+			// MODIFICATION: The action and payload have changed to check all analyzed files.
 			const updates = await postData({
 				action: 'check_folder_updates',
 				rootIndex: currentProject.rootIndex,
-				projectPath: currentProject.path,
-				openFolderPaths: JSON.stringify(openFolderPaths)
+				projectPath: currentProject.path
 			});
 			
-			handleFileTreeUpdates(updates);
+			// MODIFICATION: Call the new handler function.
+			handleModificationStatusUpdates(updates);
 			
 		} catch (error) {
 			console.error('Error polling for file tree updates:', error);
 		}
 		
 	}, pollInterval);
-	console.log('File tree polling started.');
+	// MODIFIED: Updated log message to reflect new functionality.
+	console.log('File tree polling started for modification status.');
 }
 
 

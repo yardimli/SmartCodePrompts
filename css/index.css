@@ -177,3 +177,8 @@
     overflow-y: auto;
     max-width: calc(100% - 75px); /* Account for padding */
 }
+
+/* NEW: Styles for collapsible right sidebar */
+#app-container.right-sidebar-collapsed #right-sidebar {
+    display: none;
+}

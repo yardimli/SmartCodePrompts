@@ -23,10 +23,17 @@ import {initializeQAModal, setupQAListeners} from './qa.js'; // NEW: Import QA m
  * Initializes the entire application on page load.
  */
 async function initializeApp() {
+	function adjustPromptTextareaHeight() {
+		const textarea = document.getElementById('prompt-input');
+		if (!textarea) return;
+		textarea.style.height = 'auto';
+		textarea.style.height = `${textarea.scrollHeight}px`;
+	}
+	
 	try {
 		const data = await postData({action: 'get_main_page_data'});
 		
-		// 1. Apply Dark Mode
+		// 1. Apply UI States (Dark Mode, Sidebar) // MODIFIED: Comment updated to reflect new responsibility
 		if (data.darkMode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
 			document.querySelector('#toggle-mode i').classList = 'bi-moon';
@@ -35,10 +42,16 @@ async function initializeApp() {
 			document.querySelector('#toggle-mode i').classList = 'bi-sun';
 		}
 		
+		// NEW: Apply sidebar collapsed state from server
+		if (data.rightSidebarCollapsed) {
+			document.getElementById('app-container').classList.add('right-sidebar-collapsed');
+		}
+		
 		// 2. Set global prompts from state
 		setContentFooterPrompt(data.prompt_content_footer || '');
 		setLastSmartPrompt(data.last_smart_prompt || '');
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
+		adjustPromptTextareaHeight(); // Adjust height of prompt textarea
 		
 		// 3. Initialize UI Components from their respective modules
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);

@@ -177,12 +177,13 @@ async function handlePostRequest(req, res) {
 						projectPath: postData.get('projectPath')
 					});
 					break;
-				//Action to check for file system updates in open folders.
+				// MODIFIED: Action now checks modification status of all analyzed files in a project,
+				// instead of syncing filesystem changes for specific open folders. The payload from
+				// the client has changed accordingly.
 				case 'check_folder_updates':
 					result = fileManager.checkFolderUpdates(
 						parseInt(postData.get('rootIndex')),
-						postData.get('projectPath'),
-						JSON.parse(postData.get('openFolderPaths'))
+						postData.get('projectPath')
 					);
 					break;
 				default:

@@ -160,6 +160,13 @@
     background-color: hsl(var(--p)); /* Use DaisyUI primary color on hover */
 }
 
+/* NEW: Add a subtle border to resizers for visibility in dark mode */
+[data-theme="dark"] #vertical-resizer,
+[data-theme="dark"] #horizontal-resizer {
+    border: 1px solid hsl(var(--b3)); /* A slightly lighter border for contrast */
+}
+
+
 #vertical-resizer {
     cursor: col-resize;
     width: 6px; /* A bit wider for easier grabbing */

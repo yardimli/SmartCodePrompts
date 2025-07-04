@@ -236,10 +236,22 @@ Add comments to new lines and modified sections.
 `;
 		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}\n\nUSER REQUEST: \${userPrompt}\n\nAVAILABLE FILES AND THEIR ANALYSIS:\n---\n\${analysisDataString}\n---`;
 		
+		// NEW: Default prompt for the QA feature
+		const defaultQAPrompt = `You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
+
+CONTEXT:
+\${fileContext}
+
+---
+
+QUESTION:
+\${userQuestion}`;
+		
 		initSettingsStmt.run('prompt_file_overview', defaultOverviewPrompt);
 		initSettingsStmt.run('prompt_functions_logic', defaultFunctionsPrompt);
 		initSettingsStmt.run('prompt_content_footer', defaultContentFooter);
 		initSettingsStmt.run('prompt_smart_prompt', defaultSmartPrompt);
+		initSettingsStmt.run('prompt_qa', defaultQAPrompt); // NEW
 		
 		const allowedExtensions = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions')?.value;
 		if (allowedExtensions) {
@@ -340,7 +352,8 @@ function getSetupData() {
  */
 function saveSetupData(postData) {
 	const setupKeys = new Set(['root_directories', 'allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'compress_extensions']);
+	// MODIFIED: Added new prompt key
+	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
 	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
@@ -365,7 +378,8 @@ function saveSetupData(postData) {
  * @returns {object} A success object.
  */
 function resetPromptsToDefault() {
-	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt'];
+	// MODIFIED: Added new prompt key
+	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
 	const deleteStmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
 	const transaction = db.transaction(() => {
 		for (const key of promptKeys) {

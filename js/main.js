@@ -17,6 +17,7 @@ import {
 	initializeTemperatureSlider,
 	setupUIEventListeners
 } from './uiComponents.js';
+import {initializeQAModal, setupQAListeners} from './qa.js'; // NEW: Import QA module
 
 /**
  * Initializes the entire application on page load.
@@ -78,6 +79,7 @@ async function initializeApp() {
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize UI elements first
 	initializeModals();
+	initializeQAModal(); // NEW: Initialize QA modal
 	initializeResizers();
 	initializeAutoExpandTextarea();
 	initializeTemperatureSlider();
@@ -87,6 +89,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	// Setup all event listeners from the various modules
 	setupModalEventListeners();
+	setupQAListeners(); // NEW: Setup QA listeners
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	setupProjectListeners();

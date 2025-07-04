@@ -74,9 +74,10 @@ async function fetchOpenRouterModels() {
  * @param {string} modelId - The ID of the OpenRouter model to use.
  * @param {string} [callReason='Unknown'] - A short description of why the LLM is being called.
  * @param {number} [temperature] - The temperature for the LLM call.
+ * @param {string|null} [responseFormat='json_object'] - The expected response format ('json_object' or 'text'). Pass null for default.
  * @returns {Promise<string>} A promise that resolves to the content of the LLM's response.
  */
-async function callLlm(prompt, modelId, callReason = 'Unknown', temperature) {
+async function callLlm(prompt, modelId, callReason = 'Unknown', temperature, responseFormat = 'json_object') {
 	if (!config.openrouter_api_key || config.openrouter_api_key === 'YOUR_API_KEY_HERE') {
 		throw new Error('OpenRouter API key is not configured. Please add it on the Setup page.');
 	}
@@ -84,8 +85,12 @@ async function callLlm(prompt, modelId, callReason = 'Unknown', temperature) {
 		const requestBody = {
 			model: modelId,
 			messages: [{role: "user", content: prompt}],
-			response_format: {type: "json_object"} // Request JSON output
 		};
+		// MODIFIED: Conditionally add response_format
+		if (responseFormat) {
+			requestBody.response_format = {type: responseFormat};
+		}
+		
 		// Only add temperature to the request if it's a valid number
 		if (typeof temperature === 'number' && !isNaN(temperature)) {
 			requestBody.temperature = temperature;
@@ -355,6 +360,41 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 }
 
 /**
+ * NEW: Asks a question about the code, using provided files as context.
+ * @param {object} params - The parameters for the operation.
+ * @returns {Promise<object>} A promise resolving to an object with the `answer`.
+ */
+async function askQuestionAboutCode({rootIndex, projectPath, question, relevantFiles, llmId, temperature}) {
+	if (!llmId) {
+		throw new Error('No LLM selected for the question.');
+	}
+	if (!relevantFiles || relevantFiles.length === 0) {
+		throw new Error('No relevant files were provided to answer the question.');
+	}
+	
+	let fileContext = '';
+	for (const filePath of relevantFiles) {
+		try {
+			const content = getRawFileContent(filePath, rootIndex);
+			fileContext += `--- FILE: ${filePath} ---\n\n${content}\n\n`;
+		} catch (error) {
+			console.warn(`Could not read file ${filePath} for QA context:`, error.message);
+			fileContext += `--- FILE: ${filePath} ---\n\n[Could not read file content]\n\n`;
+		}
+	}
+	
+	const qaPromptTemplate = config.prompt_qa;
+	const finalPrompt = qaPromptTemplate
+		.replace(/\$\{fileContext\}/g, fileContext)
+		.replace(/\$\{userQuestion\}/g, question);
+	
+	// Call the LLM expecting a free-text response, not JSON
+	const answer = await callLlm(finalPrompt, llmId, `QA: ${question.substring(0, 30)}...`, temperature, 'text');
+	
+	return {answer: answer};
+}
+
+/**
  * Returns the current session statistics.
  * This function should be exposed via a new 'get_session_stats' action in the main server handler.
  * The main 'get_main_page_data' action should also be modified to include `tokens` from this function
@@ -381,6 +421,7 @@ module.exports = {
 	analyzeFile,
 	getRelevantFilesFromPrompt,
 	reanalyzeModifiedFiles,
-	getSessionStats, // Export the new stats function.
-	getLlmLog // Export the new log function.
+	getSessionStats,
+	getLlmLog,
+	askQuestionAboutCode // NEW: Export the QA function
 };

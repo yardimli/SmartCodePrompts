@@ -20,6 +20,8 @@
 		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center">
 			<!-- MODIFIED: Icon changed -->
 			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
+			<!-- NEW: QA Modal Trigger -->
+			<a href="#" id="qa-modal-button" title="Ask a Question"><i class="bi bi-question-circle"></i></a>
 			<!-- MODIFIED: Icon changed -->
 			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
 		</div>
@@ -181,7 +183,7 @@
 	</aside>
 </div>
 
-<!-- Modals (kept for search, etc.) -->
+<!-- Modals -->
 <dialog id="searchModal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>
@@ -216,7 +218,6 @@
 	</div>
 </dialog>
 
-<!-- NEW: Modal to prompt for re-analysis -->
 <dialog id="reanalysisPromptModal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
@@ -228,6 +229,23 @@
 			</form>
 			<button class="btn" id="run-without-reanalysis-button">Run Anyway</button>
 			<button class="btn btn-primary" id="run-with-reanalysis-button">Re-analyze and Run</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- NEW: QA Modal -->
+<dialog id="qaModal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg" id="qa-modal-title">Ask a Question</h3>
+		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-4 p-2 bg-base-200 rounded-lg">
+			<!-- Chat messages will be appended here -->
+		</div>
+		<div class="flex gap-2">
+			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..." rows="1"></textarea>
+			<button id="qa-send-button" class="btn btn-primary">Send</button>
 		</div>
 	</div>
 </dialog>

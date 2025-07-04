@@ -97,6 +97,17 @@ async function handlePostRequest(req, res) {
 						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
+				// NEW: Action for the QA feature
+				case 'ask_question_about_code':
+					result = await llmManager.askQuestionAboutCode({
+						rootIndex: parseInt(postData.get('rootIndex')),
+						projectPath: postData.get('projectPath'),
+						question: postData.get('question'),
+						relevantFiles: JSON.parse(postData.get('relevantFiles')),
+						llmId: postData.get('llmId'),
+						temperature: parseFloat(postData.get('temperature'))
+					});
+					break;
 				
 				// --- Project Actions (from node-projects.js) ---
 				case 'get_projects_page_data':
@@ -160,7 +171,6 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
-				// MODIFIED: Added new action to check for modified files.
 				case 'check_for_modified_files':
 					result = fileManager.checkForModifiedFiles({
 						rootIndex: parseInt(postData.get('rootIndex')),

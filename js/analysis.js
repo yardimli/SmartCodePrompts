@@ -108,8 +108,6 @@ async function performReanalysis(forceReanalysis) {
 			summaryMessage += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
 		}
 		alert(summaryMessage);
-		
-		window.location.reload();
 	} catch (error) {
 		console.error('Failed to re-analyze files:', error);
 		alert(`An error occurred during re-analysis: ${error.message}`);

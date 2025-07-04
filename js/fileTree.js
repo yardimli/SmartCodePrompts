@@ -1,14 +1,15 @@
-// llm-php-helper/js/fileTree.js
+// SmartCodePrompts/js/fileTree.js
 import {showLoading, hideLoading, getParentPath, postData} from './utils.js';
-// MODIFIED: Added imports needed for the new listener setup function.
 import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt, saveCurrentProjectState} from './state.js';
 import {handleAnalysisIconClick, handleSearchIconClick} from './modals.js';
 
-// NEW: A cache for the content of all selected files to avoid re-fetching on prompt changes.
+//A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cachedFileContentString = '';
+//A handle for the file tree update polling interval.
+let fileTreeUpdateInterval = null;
 
 /**
- * NEW: An internal helper to update the main textarea from the cache and current prompts.
+ * An internal helper to update the main textarea from the cache and current prompts.
  */
 function _updateTextareaWithCachedContent() {
 	const selectedContentEl = document.getElementById('selected-content');
@@ -63,7 +64,6 @@ export function loadFolders(path, element) {
 				return resolve();
 			}
 			const ul = document.createElement('ul');
-			// MODIFIED: Removed Bootstrap class, no replacement needed for ul.
 			ul.style.display = 'none';
 			ul.className = 'pl-4'; // Tailwind class for padding-left
 			let content = '';
@@ -71,7 +71,6 @@ export function loadFolders(path, element) {
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
 				const fullPath = `${path}/${folder}`;
-				// MODIFIED: HTML structure for folder items.
 				content += `
                     <li>
                         <span class="folder" data-path="${fullPath}">
@@ -84,7 +83,6 @@ export function loadFolders(path, element) {
                     </li>`;
 			});
 			response.files.forEach(fileInfo => {
-				// MODIFIED: HTML structure for file items, using Tailwind classes for icons.
 				const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
 				const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 				content += `
@@ -115,14 +113,14 @@ export function loadFolders(path, element) {
 
 /**
  * Gathers content from all selected files and displays it in the main textarea.
- * MODIFIED: This function now caches file content and uses a helper to render the textarea.
+ * This function now caches file content and uses a helper to render the textarea.
  */
 export async function updateSelectedContent() {
 	const checkedBoxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
 	const selectedContentEl = document.getElementById('selected-content');
 	
 	if (checkedBoxes.length === 0) {
-		cachedFileContentString = ''; // MODIFIED: Clear the cache.
+		cachedFileContentString = '';
 		selectedContentEl.value = '';
 		return;
 	}
@@ -138,19 +136,20 @@ export async function updateSelectedContent() {
 	
 	try {
 		const results = await Promise.all(requestPromises);
-		cachedFileContentString = results.join(''); // MODIFIED: Update the cache.
-		_updateTextareaWithCachedContent(); // MODIFIED: Update the view using the new cache.
+		cachedFileContentString = results.join(''); // Update the cache.
+		_updateTextareaWithCachedContent();
+		
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selectedContentEl.value = '/* --- An unexpected error occurred while loading file contents. --- */';
-		cachedFileContentString = ''; // MODIFIED: Clear cache on error.
+		cachedFileContentString = '';
 	} finally {
 		hideLoading();
 	}
 }
 
 /**
- * NEW: Updates only the prompt portion of the main textarea using cached file content.
+ * Updates only the prompt portion of the main textarea using cached file content.
  * This avoids re-fetching all file contents, making prompt updates fast.
  */
 export function refreshPromptDisplay() {
@@ -221,7 +220,182 @@ export async function ensureFileIsVisible(filePath) {
 }
 
 /**
- * NEW: Sets up delegated event listeners for the file tree container and its controls.
+ * Processes updates from the server and surgically refreshes the DOM for open folders.
+ * This prevents losing the state of sub-folders and checkbox selections.
+ * @param {object} updates - An object where keys are folder paths and values are their current contents.
+ */
+function handleFileTreeUpdates(updates) {
+	const fileTree = document.getElementById('file-tree');
+	if (!fileTree) return;
+	
+	let hasChanges = false;
+	
+	for (const folderPath in updates) {
+		const serverData = updates[folderPath];
+		const folderElement = fileTree.querySelector(`.folder[data-path="${folderPath}"]`);
+		if (!folderElement) continue;
+		
+		const ul = folderElement.nextElementSibling;
+		if (!ul || ul.tagName !== 'UL') continue;
+		
+		// Create a map of current DOM nodes by their path for quick lookup
+		const domNodesMap = new Map();
+		ul.childNodes.forEach(li => {
+			if (li.nodeType !== Node.ELEMENT_NODE) return;
+			const folderSpan = li.querySelector('span.folder');
+			const fileCheckbox = li.querySelector('input[type="checkbox"]');
+			let path = null;
+			if (folderSpan) {
+				path = folderSpan.dataset.path;
+			} else if (fileCheckbox) {
+				path = fileCheckbox.dataset.path;
+			}
+			if (path) {
+				domNodesMap.set(path, li);
+			}
+		});
+		
+		// Create a map of new data from server by path
+		const serverItemsMap = new Map();
+		serverData.folders.forEach(folderName => {
+			const fullPath = `${folderPath}/${folderName}`;
+			serverItemsMap.set(fullPath, {type: 'folder', name: folderName});
+		});
+		serverData.files.forEach(fileInfo => {
+			serverItemsMap.set(fileInfo.path, {type: 'file', info: fileInfo});
+		});
+		
+		// Compare and update/remove existing nodes
+		for (const [path, liNode] of domNodesMap.entries()) {
+			if (!serverItemsMap.has(path)) {
+				// Item was deleted on server, remove from DOM
+				ul.removeChild(liNode);
+				hasChanges = true;
+			} else {
+				// Item exists, check for modifications (for files)
+				const serverItem = serverItemsMap.get(path);
+				if (serverItem.type === 'file') {
+					const modifiedIcon = liNode.querySelector('.fa-triangle-exclamation');
+					const shouldHaveIcon = serverItem.info.is_modified;
+					if (shouldHaveIcon && !modifiedIcon) {
+						const fileSpan = liNode.querySelector('.file');
+						fileSpan.insertAdjacentHTML('afterend', ` <i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>`);
+						hasChanges = true;
+					} else if (!shouldHaveIcon && modifiedIcon) {
+						modifiedIcon.remove();
+						hasChanges = true;
+					}
+				}
+				// Item processed, remove from server map
+				serverItemsMap.delete(path);
+			}
+		}
+		
+		// Add new nodes if any remain in the server map
+		if (serverItemsMap.size > 0) {
+			hasChanges = true;
+			for (const [path, item] of serverItemsMap.entries()) {
+				const li = document.createElement('li');
+				let itemHtml = '';
+				if (item.type === 'folder') {
+					itemHtml = `
+                        <span class="folder" data-path="${path}">
+                            ${item.name}
+                            <span class="folder-controls inline-block align-middle ml-2">
+                                <i class="fas fa-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
+                                <i class="fas fa-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
+                            </span>
+                        </span>`;
+				} else { // file
+					const fileInfo = item.info;
+					const analysisIcon = fileInfo.has_analysis ? `<i class="fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${fileInfo.path}" title="View Analysis"></i>` : '';
+					const modifiedIcon = fileInfo.is_modified ? `<i class="fa-solid fa-triangle-exclamation text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+					itemHtml = `
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" data-path="${fileInfo.path}" class="checkbox checkbox-xs checkbox-primary align-middle">
+                        </div>
+                        ${analysisIcon}
+                        <span class="file align-middle" title="${fileInfo.path}">${fileInfo.name}</span>
+                        ${modifiedIcon}`;
+				}
+				li.innerHTML = itemHtml;
+				ul.appendChild(li);
+			}
+			
+			// Re-sort all children in the UL
+			const allLis = Array.from(ul.children);
+			allLis.sort((a, b) => {
+				const aIsFolder = !!a.querySelector('.folder');
+				const bIsFolder = !!b.querySelector('.folder');
+				const aName = (a.querySelector('.folder, .file')).textContent.trim();
+				const bName = (b.querySelector('.folder, .file')).textContent.trim();
+				
+				if (aIsFolder && !bIsFolder) return -1; // Folders first
+				if (!aIsFolder && bIsFolder) return 1;
+				return aName.localeCompare(bName); // Then sort alphabetically
+			});
+			// Re-append in sorted order
+			allLis.forEach(li => ul.appendChild(li));
+		}
+	}
+	if (hasChanges) {
+		console.log('File tree was updated due to filesystem changes.');
+	}
+}
+
+/**
+ * Stops the periodic polling for file tree updates.
+ */
+export function stopFileTreePolling() {
+	if (fileTreeUpdateInterval) {
+		clearInterval(fileTreeUpdateInterval);
+		fileTreeUpdateInterval = null;
+		console.log('File tree polling stopped.');
+	}
+}
+
+/**
+ * Starts the periodic polling for file tree updates.
+ */
+export function startFileTreePolling() {
+	stopFileTreePolling(); // Ensure no multiple intervals are running
+	
+	const pollInterval = 10000; // Poll every 5 seconds.
+	
+	fileTreeUpdateInterval = setInterval(async () => {
+		const currentProject = getCurrentProject();
+		if (!currentProject) {
+			stopFileTreePolling();
+			return;
+		}
+		
+		const openFolderElements = document.querySelectorAll('#file-tree .folder.open');
+		if (openFolderElements.length === 0) {
+			return; // Nothing to check
+		}
+		const openFolderPaths = Array.from(openFolderElements).map(el => el.dataset.path);
+		
+		try {
+			const updates = await postData({
+				action: 'check_folder_updates',
+				rootIndex: currentProject.rootIndex,
+				projectPath: currentProject.path,
+				openFolderPaths: JSON.stringify(openFolderPaths)
+			});
+			
+			handleFileTreeUpdates(updates);
+			
+		} catch (error) {
+			console.error('Error polling for file tree updates:', error);
+		}
+		
+	}, pollInterval);
+	console.log('File tree polling started.');
+}
+
+
+/**
+ * Sets up delegated event listeners for the file tree container and its controls.
  * This function was created by moving logic out of main.js.
  */
 export function setupFileTreeListeners() {

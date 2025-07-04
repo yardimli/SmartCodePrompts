@@ -1,18 +1,14 @@
-// llm-php-helper/js/modals.js
+// SmartCodePrompts/js/modals.js
 import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
 
-// MODIFIED: Store direct references to the modal <dialog> elements.
 let searchModal = null;
-// MODIFIED: promptModal is no longer used and has been removed.
 let logModal = null;
 let currentSearchFolderPath = null;
 
 /**
  * Initializes the modal element references.
- * MODIFIED: No longer instantiates Bootstrap modals. Just gets the DOM elements.
- * The analysisModal and promptModal are no longer needed here.
  */
 export function initializeModals() {
 	searchModal = document.getElementById('searchModal');
@@ -20,9 +16,8 @@ export function initializeModals() {
 }
 
 /**
- * NEW: Handles the click on the LLM Log button in the status bar.
+ * Handles the click on the LLM Log button in the status bar.
  * Fetches log data and displays the modal.
- * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export async function handleLogButtonClick() {
 	const modalBody = document.getElementById('logModalBody');
@@ -36,7 +31,6 @@ export async function handleLogButtonClick() {
 			return;
 		}
 		
-		// MODIFIED: Use DaisyUI table classes
 		let tableHtml = `
             <div class="overflow-x-auto">
                 <table class="table table-sm">
@@ -75,7 +69,6 @@ export async function handleLogButtonClick() {
 
 /**
  * Handles the click event on a folder's search icon.
- * MODIFIED: Uses .showModal() on the <dialog> element.
  */
 export function handleSearchIconClick(target) {
 	currentSearchFolderPath = target.closest('.folder').dataset.path;
@@ -85,14 +78,13 @@ export function handleSearchIconClick(target) {
 
 /**
  * Handles the click event on a file's analysis icon.
- * MODIFIED: Instead of showing a modal, this now injects the analysis
+ * this now injects the analysis
  * content directly into the #analysis-view div in the main workspace.
  */
 export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
 	const analysisView = document.getElementById('analysis-view');
 	const promptTextarea = document.getElementById('selected-content');
-	// MODIFIED: Null-check for the title element which has been removed.
 	const mainTitle = document.getElementById('main-content-title');
 	
 	// Show loading state and switch views
@@ -152,7 +144,7 @@ export async function handleAnalysisIconClick(target) {
 }
 
 /**
- * NEW: Performs the "smart prompt" action to select relevant files using an LLM.
+ * Performs the "smart prompt" action to select relevant files using an LLM.
  * This logic was extracted from the 'sendPromptButton' event listener and is now called
  * from both the modal and the main bottom prompt bar.
  * @param {string} userPrompt - The user's high-level request.
@@ -169,7 +161,7 @@ export async function performSmartPrompt(userPrompt) {
 		return;
 	}
 	
-	setLastSmartPrompt(userPrompt); // Save the prompt for persistence
+	setLastSmartPrompt(userPrompt);
 	
 	showLoading('Asking LLM to select relevant files...');
 	try {
@@ -219,7 +211,6 @@ export async function performSmartPrompt(userPrompt) {
 
 /**
  * Sets up event listeners for modal-related controls.
- * MODIFIED: This function now also sets up listeners for the log button and analysis view, moved from main.js.
  */
 export function setupModalEventListeners() {
 	// Search Modal Listeners

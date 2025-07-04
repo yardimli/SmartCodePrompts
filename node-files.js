@@ -217,4 +217,20 @@ function getFileAnalysis({rootIndex, projectPath, filePath}) {
 	return data || {file_overview: null, functions_overview: null};
 }
 
-module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum}; // Export calculateChecksum
+/**
+ * Checks for updates (new/deleted/modified files) in a list of open folders.
+ * @param {number} rootIndex - The index of the project's root directory.
+ * @param {string} projectPath - The path of the project.
+ * @param {string[]} openFolderPaths - An array of relative paths for the open folders.
+ * @returns {object} An object where keys are folder paths and values are the current contents of that folder.
+ */
+function checkFolderUpdates(rootIndex, projectPath, openFolderPaths) {
+	const updates = {};
+	for (const folderPath of openFolderPaths) {
+		// getFolders returns { folders: string[], files: { name, path, has_analysis, is_modified }[] }
+		updates[folderPath] = getFolders(folderPath, rootIndex, projectPath);
+	}
+	return updates;
+}
+
+module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum, checkFolderUpdates}; // Export calculateChecksum and new function

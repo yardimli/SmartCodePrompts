@@ -69,7 +69,7 @@ async function fetchOpenRouterModels() {
 }
 
 /**
- * MODIFIED: Calls a specified LLM, tracks token usage, and logs the call for the session.
+ * Calls a specified LLM, tracks token usage, and logs the call for the session.
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} modelId - The ID of the OpenRouter model to use.
  * @param {string} [callReason='Unknown'] - A short description of why the LLM is being called.
@@ -239,7 +239,7 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 }
 
 /**
- * MODIFIED: Scans all analyzed files in a project and re-analyzes any that have been modified.
+ * Scans all analyzed files in a project and re-analyzes any that have been modified.
  * Can also be forced to re-analyze all files regardless of modification status.
  * Now reports progress via the module-level `reanalysisProgress` state.
  * @param {object} params - The parameters for the operation.
@@ -355,7 +355,7 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
 }
 
 /**
- * NEW: Returns the current session statistics.
+ * Returns the current session statistics.
  * This function should be exposed via a new 'get_session_stats' action in the main server handler.
  * The main 'get_main_page_data' action should also be modified to include `tokens` from this function
  * in its initial response payload.
@@ -369,7 +369,7 @@ function getSessionStats() {
 }
 
 /**
- * NEW: Returns the in-memory log of LLM calls for the current session.
+ * Returns the in-memory log of LLM calls for the current session.
  * @returns {Array<object>} The array of log entries.
  */
 function getLlmLog() {

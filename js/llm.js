@@ -1,4 +1,4 @@
-// llm-php-helper/js/llm.js
+// SmartCodePrompts/js/llm.js
 
 // Import required functions from utils.js.
 import {showLoading, hideLoading, postData} from './utils.js';
@@ -42,7 +42,7 @@ function populateLlmDropdown(llms, selectedLlmId) {
 }
 
 /**
- * MODIFIED: Initializes the LLM selector component. This is now an exported function.
+ * Initializes the LLM selector component. This is now an exported function.
  * @param {Array} llms - The initial list of LLMs from the server.
  * @param {string} lastSelectedLlm - The ID of the last used LLM.
  */
@@ -51,7 +51,7 @@ export function initializeLlmSelector(llms, lastSelectedLlm) {
 };
 
 /**
- * NEW: Sets up event listeners for the LLM dropdown and refresh button.
+ * Sets up event listeners for the LLM dropdown and refresh button.
  * This function is called from main.js to keep all listener setups in one place.
  */
 export function setupLlmListeners() {

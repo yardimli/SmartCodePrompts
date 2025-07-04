@@ -1,13 +1,15 @@
-// llm-php-helper/js/project.js
+// SmartCodePrompts/js/project.js
 import {showLoading, hideLoading, parseProjectIdentifier, postData} from './utils.js';
 import {setCurrentProject} from './state.js';
-import {loadFolders, restoreState} from './fileTree.js';
+import {loadFolders, restoreState, startFileTreePolling, stopFileTreePolling} from './fileTree.js';
 
 /**
  * Loads a project, including its file tree and saved state.
  * @param {string} identifier - The unique project identifier.
  */
 export async function loadProject(identifier) {
+	stopFileTreePolling();
+	
 	const project = parseProjectIdentifier(identifier);
 	const fileTree = document.getElementById('file-tree');
 	if (!project) {
@@ -25,6 +27,9 @@ export async function loadProject(identifier) {
 		});
 		await loadFolders(project.path, null);
 		await restoreState(savedState || {openFolders: [], selectedFiles: []});
+		
+		//Start polling for file system changes now that the project is loaded.
+		startFileTreePolling();
 	} catch (error) {
 		console.error(`Error loading project ${project.path}:`, error);
 		alert(`Error loading project. Check console for details.`);

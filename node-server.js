@@ -160,6 +160,14 @@ async function handlePostRequest(req, res) {
 						filePath: postData.get('filePath')
 					});
 					break;
+				//Action to check for file system updates in open folders.
+				case 'check_folder_updates':
+					result = fileManager.checkFolderUpdates(
+						parseInt(postData.get('rootIndex')),
+						postData.get('projectPath'),
+						JSON.parse(postData.get('openFolderPaths'))
+					);
+					break;
 				default:
 					throw new Error(`Unknown action: ${action}`);
 			}

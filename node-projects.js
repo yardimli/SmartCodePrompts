@@ -1,4 +1,4 @@
-// llm-php-helper/node-projects.js
+// SmartCodePrompts/node-projects.js
 const fs = require('fs');
 const path = require('path');
 const {db, config} = require('./node-config');

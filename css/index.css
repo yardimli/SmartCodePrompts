@@ -1,13 +1,8 @@
-/* NEW: Added Tailwind directives to be processed by the build script. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* SmartCodePrompts/css/index.css */
-/* MODIFIED: Removed all Bootstrap-related and dark-mode styles. */
-/* These are now handled by Tailwind utilities and DaisyUI themes. */
-
-/* Kept styles for Font Awesome icons on file/folder tree items */
 .folder, .file {
     cursor: pointer;
 }
@@ -37,7 +32,7 @@
     vertical-align: middle;
 }
 
-/* NEW: Custom styles for the integrated analysis view */
+/* Custom styles for the integrated analysis view */
 #analysis-view {
     padding: 1rem;
 }
@@ -73,7 +68,7 @@
     font-size: 14px;
 }
 
-/* NEW: Custom styles for the LLM log modal table */
+/* Custom styles for the LLM log modal table */
 #logModalBody table {
     font-size: 14px;
 }
@@ -92,7 +87,7 @@
     color: hsl(var(--bc) / 0.5); /* DaisyUI base-content at 50% opacity */
 }
 
-/* NEW: Styles for the resizable pane handles */
+/* Styles for the resizable pane handles */
 #vertical-resizer,
 #horizontal-resizer {
     background-color: hsl(var(--b2)); /* Use DaisyUI base-200 color */
@@ -114,10 +109,10 @@
     height: 6px; /* A bit wider for easier grabbing */
 }
 
-/* MODIFIED: Styles for the auto-expanding prompt textarea */
+/* Styles for the auto-expanding prompt textarea */
 #prompt-input {
     resize: none;
-    /* NEW: Add max-height and overflow for auto-expansion */
+    /* Add max-height and overflow for auto-expansion */
     max-height: 150px;
     overflow-y: auto;
     max-width: calc(100% - 75px); /* Account for padding */

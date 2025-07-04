@@ -1,4 +1,4 @@
-// llm-php-helper/js/statusBar.js
+// SmartCodePrompts/js/statusBar.js
 import {postData} from './utils.js';
 
 /**
@@ -51,7 +51,7 @@ function pollSessionStats() {
 				statusMessageEl.textContent = 'Error updating status.';
 			}
 		}
-	}, 2000);
+	}, 5000);
 }
 
 /**

@@ -1,4 +1,4 @@
-// llm-php-helper/js/utils.js
+// SmartCodePrompts/js/utils.js
 
 /**
  * Shows the main loading indicator with a custom message.

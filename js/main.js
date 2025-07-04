@@ -1,10 +1,9 @@
-// llm-php-helper/js/main.js
+// SmartCodePrompts/js/main.js
 // --- CORE & STATE IMPORTS ---
 import {getProjectIdentifier, postData} from './utils.js';
 import {setContentFooterPrompt, setLastSmartPrompt} from './state.js';
 
 // --- MODULE IMPORTS ---
-// MODIFIED: Imports are now organized by the new, more focused modules.
 import {setupFileTreeListeners} from './fileTree.js';
 import {initializeModals, setupModalEventListeners} from './modals.js';
 import {setupAnalysisActionsListener} from './analysis.js';
@@ -21,7 +20,6 @@ import {
 
 /**
  * Initializes the entire application on page load.
- * MODIFIED: This function is now more streamlined, delegating initialization tasks to specific modules.
  */
 async function initializeApp() {
 	try {
@@ -77,7 +75,6 @@ async function initializeApp() {
 }
 
 // --- Document Ready ---
-// MODIFIED: The DOMContentLoaded listener is now a clean entry point that calls initializers and listener setup functions from various modules.
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize UI elements first
 	initializeModals();

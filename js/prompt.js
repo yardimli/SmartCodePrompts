@@ -1,4 +1,4 @@
-// llm-php-helper/js/prompt.js
+// SmartCodePrompts/js/prompt.js
 import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject, setLastSmartPrompt} from './state.js';
 import {performSmartPrompt} from './modals.js';

@@ -1,4 +1,4 @@
-// llm-php-helper/js/state.js
+// SmartCodePrompts/js/state.js
 import {postData} from './utils.js';
 
 // Application state variables
@@ -23,7 +23,7 @@ export function setContentFooterPrompt(prompt) {
 }
 
 /**
- * NEW: Gets the last submitted smart prompt.
+ * Gets the last submitted smart prompt.
  * @returns {string} The last prompt.
  */
 export function getLastSmartPrompt() {
@@ -31,7 +31,7 @@ export function getLastSmartPrompt() {
 }
 
 /**
- * NEW: Sets the last submitted smart prompt and persists it for future sessions.
+ * Sets the last submitted smart prompt and persists it for future sessions.
  * @param {string} prompt The prompt to save.
  */
 export function setLastSmartPrompt(prompt) {

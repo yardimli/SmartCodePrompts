@@ -1,4 +1,4 @@
-// llm-php-helper/js/uiComponents.js
+// SmartCodePrompts/js/uiComponents.js
 import {postData} from './utils.js';
 import {updateSelectedContent} from './fileTree.js';
 

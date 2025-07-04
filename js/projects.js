@@ -1,10 +1,7 @@
-// llm-php-helper/js/projects.js
+// SmartCodePrompts/js/projects.js
 import {postData, getProjectIdentifier} from './utils.js';
 
-/**
- * Applies dark mode styling based on the body's class list.
- * MODIFIED: Toggles DaisyUI theme attribute and icon class.
- */
+
 function applyDarkMode() {
 	const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
 	const toggleIcon = document.querySelector('#toggle-mode i');
@@ -39,12 +36,10 @@ function renderProjectList(projects) {
 	// Build the HTML for each group and append it to the container.
 	let html = '';
 	for (const rootPath in groupedProjects) {
-		// MODIFIED: Use Tailwind/DaisyUI classes for headings and layout.
 		html += `<h5 class="mt-4 text-base-content/70 w-full col-span-full">${rootPath}</h5>`;
 		groupedProjects[rootPath].forEach(function (project) {
 			const isChecked = project.isChecked;
 			const identifier = getProjectIdentifier(project);
-			// MODIFIED: Use DaisyUI card and form-control structure.
 			html += `
                 <div class="card bg-base-200 shadow-md hover:bg-base-300 transition-colors">
                     <div class="card-body p-4">
@@ -57,7 +52,6 @@ function renderProjectList(projects) {
             `;
 		});
 	}
-	// MODIFIED: Use Tailwind grid for the project list layout.
 	projectsListContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4';
 	projectsListContainer.insertAdjacentHTML('beforeend', html);
 }
@@ -73,7 +67,6 @@ async function loadPageData() {
 		
 		// Fetch main app settings, primarily for dark mode consistency.
 		const mainData = await postData({action: 'get_main_page_data'});
-		// MODIFIED: Set DaisyUI theme attribute instead of a body class.
 		if (mainData.darkMode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
 		} else {
@@ -88,8 +81,6 @@ async function loadPageData() {
 
 // --- Event Listeners ---
 
-// Event listener for the dark mode toggle button.
-// MODIFIED: Toggles the `data-theme` attribute for DaisyUI.
 document.getElementById('toggle-mode').addEventListener('click', () => {
 	const html = document.documentElement;
 	const isDarkMode = html.getAttribute('data-theme') === 'dark';

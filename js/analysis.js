@@ -1,9 +1,9 @@
-// llm-php-helper/js/analysis.js
+// SmartCodePrompts/js/analysis.js
 import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject} from './state.js';
 
 /**
- * MODIFIED: This function now contains the logic for analyzing selected files.
+ * This function now contains the logic for analyzing selected files.
  * It is called from the new analysis options modal.
  */
 async function performSelectionAnalysis() {
@@ -48,11 +48,9 @@ async function performSelectionAnalysis() {
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
-					// MODIFIED: Updated icon classes for Tailwind/DaisyUI
 					icon.className = 'fas fa-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
 					icon.dataset.path = filePath;
 					icon.title = 'View Analysis';
-					// Insert icon before the file name span for consistent placement
 					const fileSpan = li.querySelector('.file');
 					if (fileSpan) {
 						fileSpan.before(icon);
@@ -91,7 +89,6 @@ async function performReanalysis(forceReanalysis) {
 		return;
 	}
 	
-	// The status bar will provide detailed progress, so a generic loading indicator is no longer needed here.
 	try {
 		const response = await postData({
 			action: 'reanalyze_modified_files',
@@ -102,7 +99,6 @@ async function performReanalysis(forceReanalysis) {
 			temperature: parseFloat(temperature)
 		});
 		
-		// The status bar will clear itself on the next poll since the backend state is reset.
 		let summaryMessage = `Re-analysis complete.\n` +
 			`- Files re-analyzed: ${response.analyzed}\n` +
 			`- Files skipped (up-to-date): ${response.skipped}`;
@@ -114,25 +110,21 @@ async function performReanalysis(forceReanalysis) {
 		
 		window.location.reload();
 	} catch (error) {
-		// The backend resets its progress state in a `finally` block, so the UI will clear on the next poll.
 		console.error('Failed to re-analyze files:', error);
 		alert(`An error occurred during re-analysis: ${error.message}`);
 	}
 }
 
 /**
- * MODIFIED: Sets up event listeners for the analysis buttons in the right sidebar.
- * The modal has been removed.
+ * Sets up event listeners for the analysis buttons in the right sidebar.
  */
 export function setupAnalysisActionsListener() {
-	// MODIFIED: Listeners are now attached directly to the sidebar buttons.
 	const analyzeSelectedBtn = document.getElementById('analyzeSelectedButton');
 	const reanalyzeModifiedBtn = document.getElementById('reanalyzeModifiedOnlyButton');
 	const reanalyzeForceAllBtn = document.getElementById('reanalyzeForceAllButton');
 	
 	if (analyzeSelectedBtn) {
 		analyzeSelectedBtn.addEventListener('click', async () => {
-			// No modal to close, just perform the action.
 			await performSelectionAnalysis();
 		});
 	}

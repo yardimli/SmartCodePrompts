@@ -44,10 +44,17 @@
 			
 			<!-- MODIFIED: Wrapped workspace in a pane div for structure -->
 			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
-				<div id="workspace" class="flex flex-col h-full">
+				<!-- MODIFIED: Added relative positioning to contain the copy button -->
+				<div id="workspace" class="relative flex flex-col h-full">
 					<!-- The main prompt building textarea -->
 					<textarea id="selected-content"
 					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
+					
+					<!-- MODIFIED: Moved button to the bottom-left corner -->
+					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10" title="Copy to Clipboard">
+						<i class="fa-solid fa-clipboard"></i> Copy
+					</button>
+					
 					<!-- The new container for the analysis view, replacing the old modal -->
 					<div id="analysis-view" class="hidden h-full overflow-y-auto">
 						<!-- Analysis content will be injected here -->

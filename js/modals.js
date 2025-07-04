@@ -203,9 +203,6 @@ export async function performSmartPrompt(userPrompt) {
 			
 			// Now update the main content area with the new selection
 			await updateSelectedContent();
-			// Append the user's prompt to the end of the textarea
-			const selectedContentEl = document.getElementById('selected-content');
-			selectedContentEl.value += `\n\n${trimmedPrompt}`;
 			
 			saveCurrentProjectState();
 			alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);

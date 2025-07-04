@@ -401,6 +401,50 @@ document.addEventListener('DOMContentLoaded', function () {
 		saveCurrentProjectState();
 	});
 	
+	// NEW: Event listener for the copy prompt button.
+	document.getElementById('copy-prompt-button').addEventListener('click', function () {
+		const contentTextarea = document.getElementById('selected-content');
+		const textToCopy = contentTextarea.value;
+		
+		if (!textToCopy) {
+			return; // Do nothing if there's no text
+		}
+		
+		// Use the modern Clipboard API if available (requires secure context)
+		if (navigator.clipboard && window.isSecureContext) {
+			navigator.clipboard.writeText(textToCopy).then(() => {
+				const button = this;
+				const originalHtml = button.innerHTML;
+				button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+				button.disabled = true;
+				setTimeout(() => {
+					button.innerHTML = originalHtml;
+					button.disabled = false;
+				}, 2000);
+			}).catch(err => {
+				console.error('Failed to copy text: ', err);
+				alert('Failed to copy text to clipboard.');
+			});
+		} else {
+			// Fallback for older browsers or insecure contexts
+			try {
+				contentTextarea.select();
+				document.execCommand('copy');
+				const button = this;
+				const originalHtml = button.innerHTML;
+				button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+				button.disabled = true;
+				setTimeout(() => {
+					button.innerHTML = originalHtml;
+					button.disabled = false;
+				}, 2000);
+			} catch (err) {
+				console.error('Fallback copy failed: ', err);
+				alert('Failed to copy text to clipboard.');
+			}
+		}
+	});
+	
 	// MODIFIED: Dark mode toggle now sets the `data-theme` attribute on the <html> element.
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		const html = document.documentElement;

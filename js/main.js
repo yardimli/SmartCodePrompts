@@ -14,7 +14,8 @@ import {
 	handleAnalysisIconClick,
 	setupModalEventListeners,
 	handlePromptButtonClick,
-	handleLogButtonClick
+	handleLogButtonClick,
+	performSmartPrompt // MODIFIED: Import the new smart prompt function
 } from './modals.js';
 import {setupAnalysisActionsListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
@@ -164,6 +165,8 @@ async function initializeApp() {
 		// 2. Set global prompts from state
 		setContentFooterPrompt(data.prompt_content_footer || '');
 		setLastSmartPrompt(data.last_smart_prompt || '');
+		// NEW: Populate the bottom prompt input with the last saved prompt.
+		document.getElementById('bottom-prompt-input').value = data.last_smart_prompt || '';
 		
 		// 3. Initialize LLM selector
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
@@ -206,11 +209,84 @@ async function initializeApp() {
 	}
 }
 
+/**
+ * NEW: Initializes the vertical and horizontal resizers for the layout.
+ */
+function initializeResizers() {
+	const verticalResizer = document.getElementById('vertical-resizer');
+	const horizontalResizer = document.getElementById('horizontal-resizer');
+	const mainSplitPane = document.getElementById('main-split-pane');
+	const fileTreePane = document.getElementById('file-tree-pane');
+	const bottomPanel = document.getElementById('bottom-panel');
+	
+	// Vertical Resizer (File Tree width)
+	if (verticalResizer && mainSplitPane && fileTreePane) {
+		verticalResizer.addEventListener('mousedown', (e) => {
+			e.preventDefault();
+			document.body.style.cursor = 'col-resize';
+			document.body.style.userSelect = 'none';
+			
+			const startX = e.clientX;
+			const startWidth = fileTreePane.offsetWidth;
+			
+			const doDrag = (e) => {
+				const newWidth = startWidth + e.clientX - startX;
+				// Add constraints for min/max width
+				if (newWidth >= 200 && newWidth <= 600) {
+					mainSplitPane.style.gridTemplateColumns = `${newWidth}px auto 1fr`;
+				}
+			};
+			
+			const stopDrag = () => {
+				document.body.style.cursor = 'default';
+				document.body.style.userSelect = 'auto';
+				document.removeEventListener('mousemove', doDrag);
+				document.removeEventListener('mouseup', stopDrag);
+			};
+			
+			document.addEventListener('mousemove', doDrag);
+			document.addEventListener('mouseup', stopDrag);
+		});
+	}
+	
+	// Horizontal Resizer (Bottom Panel height)
+	if (horizontalResizer && bottomPanel) {
+		horizontalResizer.addEventListener('mousedown', (e) => {
+			e.preventDefault();
+			document.body.style.cursor = 'row-resize';
+			document.body.style.userSelect = 'none';
+			
+			const startY = e.clientY;
+			const startHeight = bottomPanel.offsetHeight;
+			
+			const doDrag = (e) => {
+				// Dragging up increases height, so we subtract the delta
+				const newHeight = startHeight - (e.clientY - startY);
+				// Add constraints for min/max height. Max 300px allows for a large prompt area.
+				if (newHeight >= 80 && newHeight <= 300) {
+					bottomPanel.style.height = `${newHeight}px`;
+				}
+			};
+			
+			const stopDrag = () => {
+				document.body.style.cursor = 'default';
+				document.body.style.userSelect = 'auto';
+				document.removeEventListener('mousemove', doDrag);
+				document.removeEventListener('mouseup', stopDrag);
+			};
+			
+			document.addEventListener('mousemove', doDrag);
+			document.addEventListener('mouseup', stopDrag);
+		});
+	}
+}
+
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize components
 	initializeModals();
 	initializeApp();
+	initializeResizers(); // NEW: Setup layout resizers.
 	
 	// Setup event listeners
 	setupModalEventListeners();
@@ -238,13 +314,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Start polling for status updates for tokens and progress.
 	pollSessionStats();
 	
-	// MODIFIED: Replaced old #prompt-button listener with one for the new bottom bar.
+	// MODIFIED: The bottom run button now directly invokes the smart prompt action.
 	document.getElementById('bottom-run-button').addEventListener('click', () => {
 		const promptInput = document.getElementById('bottom-prompt-input');
 		const promptText = promptInput.value;
-		// Use the existing smart prompt modal functionality
-		handlePromptButtonClick(promptText);
-		promptInput.value = ''; // Clear the input after use
+		// MODIFIED: Directly call the smart prompt action instead of opening a modal.
+		// The input is not cleared, and the prompt is saved by performSmartPrompt.
+		performSmartPrompt(promptText);
 	});
 	
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);

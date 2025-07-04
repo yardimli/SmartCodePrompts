@@ -168,6 +168,75 @@ export async function handleAnalysisIconClick(target) {
 }
 
 /**
+ * NEW: Performs the "smart prompt" action to select relevant files using an LLM.
+ * This logic was extracted from the 'sendPromptButton' event listener and is now called
+ * from both the modal and the main bottom prompt bar.
+ * @param {string} userPrompt - The user's high-level request.
+ */
+export async function performSmartPrompt(userPrompt) {
+	const trimmedPrompt = userPrompt.trim();
+	if (!trimmedPrompt) {
+		alert('Please enter a prompt.');
+		return;
+	}
+	const llmId = document.getElementById('llm-dropdown').value;
+	if (!llmId) {
+		alert('Please select an LLM from the dropdown.');
+		return;
+	}
+	
+	setLastSmartPrompt(userPrompt); // Save the prompt for persistence
+	
+	showLoading('Asking LLM to select relevant files...');
+	try {
+		const currentProject = getCurrentProject();
+		const response = await postData({
+			action: 'get_relevant_files_from_prompt',
+			rootIndex: currentProject.rootIndex,
+			projectPath: currentProject.path,
+			userPrompt: trimmedPrompt,
+			llmId: llmId,
+		});
+		
+		if (response.relevant_files && response.relevant_files.length > 0) {
+			// Uncheck all files
+			document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
+				cb.checked = false;
+			});
+			
+			// Check only the relevant files, ensuring they are visible
+			let checkedCount = 0;
+			for (const filePath of response.relevant_files) {
+				const isVisible = await ensureFileIsVisible(filePath);
+				if (isVisible) {
+					const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${filePath}"]`);
+					if (checkbox) {
+						checkbox.checked = true;
+						checkedCount++;
+					}
+				}
+			}
+			
+			// Now update the main content area with the new selection
+			await updateSelectedContent();
+			// Append the user's prompt to the end of the textarea
+			const selectedContentEl = document.getElementById('selected-content');
+			selectedContentEl.value += `\n\n${trimmedPrompt}`;
+			
+			saveCurrentProjectState();
+			alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
+		} else {
+			alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
+		}
+	} catch (error) {
+		console.error('Failed to get relevant files from prompt:', error);
+		alert(`An error occurred: ${error.message}`);
+	} finally {
+		hideLoading();
+	}
+}
+
+/**
  * Sets up event listeners for modal-related controls.
  */
 export function setupModalEventListeners() {
@@ -222,80 +291,15 @@ export function setupModalEventListeners() {
 		}
 	});
 	
-	// Listener for the new Smart Prompt modal button
+	// MODIFIED: Listener for the Smart Prompt modal button now calls the refactored function.
 	document.getElementById('sendPromptButton').addEventListener('click', async function () {
-		const promptTextarea = document.getElementById('promptModalTextarea'); // Get textarea element once.
-		const userPrompt = promptTextarea.value.trim();
-		const llmId = document.getElementById('llm-dropdown').value;
-		
-		setLastSmartPrompt(promptTextarea.value);
-		
-		if (!userPrompt) {
-			alert('Please enter a prompt.');
-			return;
-		}
-		if (!llmId) {
-			alert('Please select an LLM from the dropdown.');
-			return;
-		}
+		const promptTextarea = document.getElementById('promptModalTextarea');
+		const userPrompt = promptTextarea.value;
 		
 		// MODIFIED: Use .close() on the <dialog> element.
 		promptModal.close();
-		showLoading('Asking LLM to select relevant files...');
-		try {
-			const currentProject = getCurrentProject();
-			const response = await postData({
-				action: 'get_relevant_files_from_prompt',
-				rootIndex: currentProject.rootIndex,
-				projectPath: currentProject.path,
-				userPrompt: userPrompt,
-				llmId: llmId,
-			});
-			
-			if (response.relevant_files && response.relevant_files.length > 0) {
-				// Uncheck all files
-				document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
-					cb.checked = false;
-				});
-				
-				// Check only the relevant files, ensuring they are visible
-				let checkedCount = 0;
-				for (const filePath of response.relevant_files) {
-					const isVisible = await ensureFileIsVisible(filePath);
-					if (isVisible) {
-						const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${filePath}"]`);
-						if (checkbox) {
-							checkbox.checked = true;
-							checkedCount++;
-						}
-					}
-				}
-				
-				// Now update the main content area with the new selection
-				await updateSelectedContent();
-				// Append the user's prompt to the end of the textarea
-				const selectedContentEl = document.getElementById('selected-content');
-				
-				const searchStr = '${userPrompt}';
-				const lastIndex = selectedContentEl.value.lastIndexOf(searchStr);
-				
-				if (lastIndex !== -1) {
-					selectedContentEl.value =
-						selectedContentEl.value.substring(0, lastIndex) +
-						userPrompt +
-						selectedContentEl.value.substring(lastIndex + searchStr.length);
-				}
-				
-				saveCurrentProjectState();
-				alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
-			} else {
-				alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
-			}
-		} catch (error) {
-			console.error('Failed to get relevant files from prompt:', error);
-			alert(`An error occurred: ${error.message}`);
-		} finally {
-			hideLoading();
-		}
+		
+		// MODIFIED: Call the new refactored function
+		await performSmartPrompt(userPrompt);
 	});
 }

@@ -46,58 +46,74 @@
 		</header>
 		
 		<!-- File Tree and Workspace -->
-		<div class="grid grid-cols-[320px_1fr] flex-grow overflow-hidden">
-			<div class="flex flex-col h-full border-r border-base-300">
-				<div class="p-2 border-b border-base-300">
+		<!-- MODIFIED: Added id, changed grid-cols for resizer, and added overflow-hidden -->
+		<div id="main-split-pane" class="grid grid-cols-[320px_auto_1fr] flex-grow overflow-hidden">
+			<!-- MODIFIED: Wrapped file tree in a pane div for resizing -->
+			<div id="file-tree-pane" class="flex flex-col h-full border-r border-base-300 overflow-hidden">
+				<div class="p-2 border-b border-base-300 flex-shrink-0">
 					<select id="projects-dropdown" class="select select-bordered select-sm w-full"></select>
 				</div>
 				<div id="file-tree" class="flex-grow p-2 overflow-auto font-mono text-sm"></div>
 			</div>
 			
-			<div id="workspace" class="flex flex-col h-full bg-base-200/30">
-				<!-- The main prompt building textarea -->
-				<textarea id="selected-content"
-				          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
-				<!-- The new container for the analysis view, replacing the old modal -->
-				<div id="analysis-view" class="hidden h-full overflow-y-auto">
-					<!-- Analysis content will be injected here -->
+			<!-- NEW: Vertical resizer element -->
+			<div id="vertical-resizer"></div>
+			
+			<!-- MODIFIED: Wrapped workspace in a pane div for structure -->
+			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
+				<div id="workspace" class="flex flex-col h-full">
+					<!-- The main prompt building textarea -->
+					<textarea id="selected-content"
+					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
+					<!-- The new container for the analysis view, replacing the old modal -->
+					<div id="analysis-view" class="hidden h-full overflow-y-auto">
+						<!-- Analysis content will be injected here -->
+					</div>
 				</div>
 			</div>
 		</div>
 		
-		<!-- Status Bar -->
-		<div id="status-bar-container" class="border-t border-base-300 bg-base-100 py-1 px-3">
-			<div class="flex justify-between items-center w-full">
-				<div id="status-bar-progress-container" class="items-center gap-2" style="display: none; width: 50%;">
-					<span id="status-bar-progress-text" class="text-sm"></span>
-					<progress id="status-bar-progress-bar" class="progress progress-info w-full" value="0"
-					          max="100"></progress>
+		<!-- NEW: Horizontal resizer element -->
+		<div id="horizontal-resizer"></div>
+		
+		<!-- NEW: Wrapper for the bottom panel, which is now a flex container -->
+		<div id="bottom-panel" class="flex flex-col flex-shrink-0" style="height: 120px;">
+			<!-- Status Bar -->
+			<div id="status-bar-container" class="border-t border-base-300 bg-base-100 py-1 px-3 flex-shrink-0">
+				<div class="flex justify-between items-center w-full">
+					<div id="status-bar-progress-container" class="items-center gap-2" style="display: none; width: 50%;">
+						<span id="status-bar-progress-text" class="text-sm"></span>
+						<progress id="status-bar-progress-bar" class="progress progress-info w-full" value="0"
+						          max="100"></progress>
+					</div>
+					<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
+					<div id="status-bar-tokens" class="flex items-center gap-4">
+						<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
+							<i class="fa-solid fa-list-ul"></i>
+						</button>
+						<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
+							<i class="fa-solid fa-circle-up text-success"></i>
+							<span id="prompt-tokens">0</span>
+						</div>
+						<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
+							<i class="fa-solid fa-circle-down text-info"></i>
+							<span id="completion-tokens">0</span>
+						</div>
+					</div>
 				</div>
-				<div id="status-bar-message" class="flex-grow text-center text-sm truncate" title=""></div>
-				<div id="status-bar-tokens" class="flex items-center gap-4">
-					<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
-						<i class="fa-solid fa-list-ul"></i>
+			</div>
+			
+			<!-- Bottom Prompt Input -->
+			<!-- MODIFIED: Wrapper is now a flex-grow container to fill the resizable panel -->
+			<div class="p-3 border-t border-base-300 bg-base-100 flex-grow">
+				<div class="relative h-full">
+					<!-- MODIFIED: Changed input to textarea and styled it to fill its container -->
+					<textarea id="bottom-prompt-input" placeholder="Start typing a prompt..."
+					          class="textarea textarea-bordered w-full pr-20 h-full" rows="1"></textarea>
+					<button id="bottom-run-button" class="btn btn-primary absolute top-0 right-0 rounded-l-none">
+						Run <i class="fa-solid fa-arrow-turn-right"></i>
 					</button>
-					<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
-						<i class="fa-solid fa-circle-up text-success"></i>
-						<span id="prompt-tokens">0</span>
-					</div>
-					<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
-						<i class="fa-solid fa-circle-down text-info"></i>
-						<span id="completion-tokens">0</span>
-					</div>
 				</div>
-			</div>
-		</div>
-		
-		<!-- Bottom Prompt Input -->
-		<div class="p-3 border-t border-base-300 bg-base-100">
-			<div class="relative">
-				<input type="text" id="bottom-prompt-input" placeholder="Start typing a prompt..."
-				       class="input input-bordered w-full pr-20">
-				<button id="bottom-run-button" class="btn btn-primary absolute top-0 right-0 rounded-l-none">
-					Run <i class="fa-solid fa-arrow-turn-right"></i>
-				</button>
 			</div>
 		</div>
 	</div>
@@ -125,13 +141,20 @@
 			<div class="divider"></div>
 			
 			<h3 class="font-bold">Tools</h3>
-			<div class="form-control">
-				<label class="label cursor-pointer">
-					<span class="label-text">Analysis Actions</span>
-					<button id="analysis-actions-button" class="btn btn-xs btn-info" title="Analysis Actions">
-						<i class="fa-solid fa-microscope"></i> Open
-					</button>
-				</label>
+			<!-- MODIFIED: Replaced the "Analysis Actions" modal button with direct action buttons. -->
+			<div class="grid gap-2">
+				<button class="btn btn-primary btn-sm" id="analyzeSelectedButton"
+				        title="Performs a one-time analysis on the files currently checked in the file tree.">
+					<i class="fa-solid fa-check-square me-2"></i>Analyze Selected
+				</button>
+				<button class="btn btn-info btn-sm" id="reanalyzeModifiedOnlyButton"
+				        title="Scans for files changed since their last analysis and re-analyzes only those.">
+					<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified
+				</button>
+				<button class="btn btn-error btn-sm" id="reanalyzeForceAllButton"
+				        title="Re-analyzes every file that has a previous analysis, regardless of changes.">
+					<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
+				</button>
 			</div>
 			<div class="form-control">
 				<label class="label cursor-pointer">
@@ -219,37 +242,7 @@
 	</div>
 </dialog>
 
-<dialog id="analysisOptionsModal" class="modal">
-	<div class="modal-box">
-		<h3 class="font-bold text-lg" id="analysisOptionsModalLabel">Choose Analysis Action</h3>
-		<p class="py-4">How would you like to analyze the files in this project?</p>
-		<div class="grid gap-2">
-			<button class="btn btn-primary" id="analyzeSelectedButton">
-				<i class="fa-solid fa-check-square me-2"></i>Analyze Selected Files
-			</button>
-			<div class="divider"></div>
-			<button class="btn btn-info" id="reanalyzeModifiedOnlyButton">
-				<i class="fa-solid fa-file-pen me-2"></i>Re-analyze Modified Only
-			</button>
-			<button class="btn btn-error" id="reanalyzeForceAllButton">
-				<i class="fa-solid fa-arrows-rotate me-2"></i>Force Re-analyze All
-			</button>
-		</div>
-		<div class="mt-4 text-sm text-base-content/70 space-y-2">
-			<p><strong>Analyze Selected:</strong><br>Performs a one-time analysis on the files currently checked in the
-				file tree.</p>
-			<p><strong>Re-analyze Modified (Faster):</strong><br>Scans for files changed since their last analysis and
-				re-analyzes only those.</p>
-			<p><strong>Force Re-analyze All (Slower):</strong><br>Re-analyzes every file that has a previous analysis,
-				regardless of changes.</p>
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Cancel</button>
-			</form>
-		</div>
-	</div>
-</dialog>
+<!-- MODIFIED: Removed the analysisOptionsModal dialog -->
 
 <dialog id="logModal" class="modal">
 	<div class="modal-box w-11/12 max-w-7xl">
@@ -264,8 +257,6 @@
 		</div>
 	</div>
 </dialog>
-
-<!-- The old footer is removed and its contents are now in #status-bar-container -->
 
 </body>
 </html>

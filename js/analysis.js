@@ -117,49 +117,31 @@ async function performReanalysis(forceReanalysis) {
 }
 
 /**
- * MODIFIED: Sets up the event listener for the main "Analysis Actions" button.
- * This now uses the native <dialog> element's API (.showModal() and .close()).
+ * MODIFIED: Sets up event listeners for the analysis buttons in the right sidebar.
+ * The modal has been removed.
  */
 export function setupAnalysisActionsListener() {
-	const analysisButton = document.getElementById('analysis-actions-button');
-	// MODIFIED: Get the dialog element directly. No more Bootstrap instantiation.
-	const analysisModal = document.getElementById('analysisOptionsModal');
+	// MODIFIED: Listeners are now attached directly to the sidebar buttons.
+	const analyzeSelectedBtn = document.getElementById('analyzeSelectedButton');
+	const reanalyzeModifiedBtn = document.getElementById('reanalyzeModifiedOnlyButton');
+	const reanalyzeForceAllBtn = document.getElementById('reanalyzeForceAllButton');
 	
-	if (!analysisButton || !analysisModal) {
-		return;
+	if (analyzeSelectedBtn) {
+		analyzeSelectedBtn.addEventListener('click', async () => {
+			// No modal to close, just perform the action.
+			await performSelectionAnalysis();
+		});
 	}
 	
-	analysisButton.addEventListener('click', function () {
-		const llmId = document.getElementById('llm-dropdown').value;
-		if (!llmId) {
-			alert('Please select an LLM from the dropdown to perform the analysis.');
-			return;
-		}
-		const currentProject = getCurrentProject();
-		if (!currentProject) {
-			alert('No project selected.');
-			return;
-		}
-		// MODIFIED: Use the standard .showModal() method to display the dialog.
-		analysisModal.showModal();
-	});
+	if (reanalyzeModifiedBtn) {
+		reanalyzeModifiedBtn.addEventListener('click', async () => {
+			await performReanalysis(false);
+		});
+	}
 	
-	// Listener for the "Analyze Selected" button in the modal.
-	document.getElementById('analyzeSelectedButton').addEventListener('click', async () => {
-		// MODIFIED: Use the standard .close() method to hide the dialog.
-		analysisModal.close();
-		await performSelectionAnalysis();
-	});
-	
-	document.getElementById('reanalyzeModifiedOnlyButton').addEventListener('click', async () => {
-		// MODIFIED: Use the standard .close() method to hide the dialog.
-		analysisModal.close();
-		await performReanalysis(false);
-	});
-	
-	document.getElementById('reanalyzeForceAllButton').addEventListener('click', async () => {
-		// MODIFIED: Use the standard .close() method to hide the dialog.
-		analysisModal.close();
-		await performReanalysis(true);
-	});
+	if (reanalyzeForceAllBtn) {
+		reanalyzeForceAllBtn.addEventListener('click', async () => {
+			await performReanalysis(true);
+		});
+	}
 }

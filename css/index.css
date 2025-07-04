@@ -86,3 +86,30 @@
     white-space: nowrap;
     color: hsl(var(--bc) / 0.5); /* DaisyUI base-content at 50% opacity */
 }
+
+/* NEW: Styles for the resizable pane handles */
+#vertical-resizer,
+#horizontal-resizer {
+    background-color: hsl(var(--b2)); /* Use DaisyUI base-200 color */
+    transition: background-color 0.2s ease;
+}
+
+#vertical-resizer:hover,
+#horizontal-resizer:hover {
+    background-color: hsl(var(--p)); /* Use DaisyUI primary color on hover */
+}
+
+#vertical-resizer {
+    cursor: col-resize;
+    width: 6px; /* A bit wider for easier grabbing */
+}
+
+#horizontal-resizer {
+    cursor: row-resize;
+    height: 6px; /* A bit wider for easier grabbing */
+}
+
+/* NEW: Ensure the prompt textarea doesn't have a native resize handle */
+#bottom-prompt-input {
+    resize: none;
+}

@@ -7,7 +7,8 @@ import {
 	getCurrentProject,
 	setLastSmartPrompt
 } from './state.js';
-import {loadFolders, updateSelectedContent, restoreState} from './fileTree.js';
+// MODIFIED: Import the new refreshPromptDisplay function.
+import {loadFolders, updateSelectedContent, restoreState, refreshPromptDisplay} from './fileTree.js';
 import {
 	initializeModals,
 	handleSearchIconClick,
@@ -329,6 +330,19 @@ document.addEventListener('DOMContentLoaded', function () {
 	initializeApp();
 	initializeResizers();
 	initializeAutoExpandTextarea(); // NEW: Setup auto-expanding textarea.
+	
+	// NEW: Debounced listener for the prompt input to update content and save state.
+	let promptInputDebounceTimer;
+	document.getElementById('prompt-input').addEventListener('input', (e) => {
+		clearTimeout(promptInputDebounceTimer);
+		promptInputDebounceTimer = setTimeout(() => {
+			const promptText = e.target.value;
+			// Save the prompt for future sessions and update the global state.
+			setLastSmartPrompt(promptText);
+			// Refresh the main content area efficiently without re-fetching files.
+			refreshPromptDisplay();
+		}, 1000); // 1-second delay after user stops typing.
+	});
 	
 	// Setup event listeners
 	setupModalEventListeners();

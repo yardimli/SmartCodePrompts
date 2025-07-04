@@ -2,6 +2,34 @@
 import {showLoading, hideLoading, getParentPath, postData} from './utils.js';
 import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt} from './state.js';
 
+// NEW: A cache for the content of all selected files to avoid re-fetching on prompt changes.
+let cachedFileContentString = '';
+
+/**
+ * NEW: An internal helper to update the main textarea from the cache and current prompts.
+ */
+function _updateTextareaWithCachedContent() {
+	const selectedContentEl = document.getElementById('selected-content');
+	if (!selectedContentEl) return;
+	
+	const contentFooterPrompt = getContentFooterPrompt();
+	const userPrompt = getLastSmartPrompt();
+	
+	// Combine cached file content with the footer.
+	selectedContentEl.value = cachedFileContentString + contentFooterPrompt;
+	
+	// The placeholder replacement logic.
+	const searchStr = '${userPrompt}';
+	const lastIndex = selectedContentEl.value.lastIndexOf(searchStr);
+	
+	if (lastIndex !== -1) {
+		selectedContentEl.value =
+			selectedContentEl.value.substring(0, lastIndex) +
+			userPrompt +
+			selectedContentEl.value.substring(lastIndex + searchStr.length);
+	}
+}
+
 /**
  * Fetches and displays the contents of a folder in the file tree.
  * @param {string} path - The path of the folder to load.
@@ -85,43 +113,46 @@ export function loadFolders(path, element) {
 
 /**
  * Gathers content from all selected files and displays it in the main textarea.
+ * MODIFIED: This function now caches file content and uses a helper to render the textarea.
  */
 export async function updateSelectedContent() {
 	const checkedBoxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
 	const selectedContentEl = document.getElementById('selected-content');
+	
 	if (checkedBoxes.length === 0) {
+		cachedFileContentString = ''; // MODIFIED: Clear the cache.
 		selectedContentEl.value = '';
 		return;
 	}
+	
 	showLoading(`Loading ${checkedBoxes.length} file(s)...`);
-	const contentFooterPrompt = getContentFooterPrompt();
-	const userPrompt = getLastSmartPrompt();
+	
 	const requestPromises = Array.from(checkedBoxes).map(box => {
 		const path = box.dataset.path;
 		return postData({ action: 'get_file_content', rootIndex: getCurrentProject().rootIndex, path: path })
 			.then(response => `${path}:\n\n${response.content}\n\n`)
 			.catch(error => `/* --- ERROR loading ${path}: ${error.message || 'Unknown error'} --- */\n\n`);
 	});
+	
 	try {
 		const results = await Promise.all(requestPromises);
-		selectedContentEl.value = results.join('') + contentFooterPrompt;
-		
-		const searchStr = '${userPrompt}';
-		const lastIndex = selectedContentEl.value.lastIndexOf(searchStr);
-		
-		if (lastIndex !== -1) {
-			selectedContentEl.value =
-				selectedContentEl.value.substring(0, lastIndex) +
-				userPrompt +
-				selectedContentEl.value.substring(lastIndex + searchStr.length);
-		}
-		
+		cachedFileContentString = results.join(''); // MODIFIED: Update the cache.
+		_updateTextareaWithCachedContent(); // MODIFIED: Update the view using the new cache.
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selectedContentEl.value = '/* --- An unexpected error occurred while loading file contents. --- */';
+		cachedFileContentString = ''; // MODIFIED: Clear cache on error.
 	} finally {
 		hideLoading();
 	}
+}
+
+/**
+ * NEW: Updates only the prompt portion of the main textarea using cached file content.
+ * This avoids re-fetching all file contents, making prompt updates fast.
+ */
+export function refreshPromptDisplay() {
+	_updateTextareaWithCachedContent();
 }
 
 function restoreCheckedStates(selectedFiles) {

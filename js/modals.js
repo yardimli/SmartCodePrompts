@@ -219,8 +219,10 @@ export async function performSmartPrompt(userPrompt) {
 
 /**
  * Sets up event listeners for modal-related controls.
+ * MODIFIED: This function now also sets up listeners for the log button and analysis view, moved from main.js.
  */
 export function setupModalEventListeners() {
+	// Search Modal Listeners
 	document.getElementById('searchTermInput').addEventListener('keypress', e => {
 		if (e.key === 'Enter') {
 			document.getElementById('performSearchButton').click();
@@ -229,7 +231,6 @@ export function setupModalEventListeners() {
 	
 	document.getElementById('performSearchButton').addEventListener('click', async function () {
 		const searchTerm = document.getElementById('searchTermInput').value.trim();
-		// MODIFIED: Use .close() on the <dialog> element.
 		searchModal.close();
 		if (!searchTerm || !currentSearchFolderPath) return;
 		
@@ -272,5 +273,18 @@ export function setupModalEventListeners() {
 		}
 	});
 	
-	// MODIFIED: The 'sendPromptButton' and its associated modal have been removed.
+	// LLM Log Modal Button Listener
+	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
+	
+	// Analysis View Close Button Listener (delegated)
+	document.getElementById('workspace').addEventListener('click', (e) => {
+		if (e.target.id === 'close-analysis-view') {
+			document.getElementById('analysis-view').classList.add('hidden');
+			document.getElementById('selected-content').classList.remove('hidden');
+			const mainTitle = document.getElementById('main-content-title');
+			if (mainTitle) {
+				mainTitle.textContent = 'Prompt Builder';
+			}
+		}
+	});
 }

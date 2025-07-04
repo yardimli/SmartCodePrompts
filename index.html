@@ -164,7 +164,7 @@
 				<div id="compress-extensions-dropdown" class="dropdown dropdown-bottom w-full">
 					<label id="compress-extensions-button" class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200" title="Select extensions to compress">Select extensions...</label>
 					<ul id="compress-extensions-dropdown-menu" class="dropdown-content z-[1] p-2 shadow bg-base-300 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
-					<!-- Checkboxes will be populated by JS -->
+						<!-- Checkboxes will be populated by JS -->
 						<li><a>Loading...</a></li>
 					</ul>
 				</div>
@@ -182,7 +182,11 @@
 			
 			<!-- Placeholder settings to match screenshot -->
 			<div class="form-control">
-				<label class="label"><span class="label-text">Temperature</span></label>
+				<!-- MODIFIED: Added a span to display the current temperature value. -->
+				<label class="label">
+					<span class="label-text">Temperature</span>
+					<span class="label-text-alt" id="temperature-value">0.25</span>
+				</label>
 				<input id="temperature-slider" type="range" min="0" max="1" value="0.25" step="0.01"
 				       class="range range-sm"/>
 			</div>

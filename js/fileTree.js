@@ -1,6 +1,8 @@
 // llm-php-helper/js/fileTree.js
 import {showLoading, hideLoading, getParentPath, postData} from './utils.js';
-import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt} from './state.js';
+// MODIFIED: Added imports needed for the new listener setup function.
+import {getCurrentProject, getContentFooterPrompt, getLastSmartPrompt, saveCurrentProjectState} from './state.js';
+import {handleAnalysisIconClick, handleSearchIconClick} from './modals.js';
 
 // NEW: A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cachedFileContentString = '';
@@ -216,4 +218,94 @@ export async function ensureFileIsVisible(filePath) {
 		}
 	}
 	return true;
+}
+
+/**
+ * NEW: Sets up delegated event listeners for the file tree container and its controls.
+ * This function was created by moving logic out of main.js.
+ */
+export function setupFileTreeListeners() {
+	const fileTree = document.getElementById('file-tree');
+	
+	// Delegated event listener for clicks within the file tree
+	fileTree.addEventListener('click', async (e) => {
+		const folder = e.target.closest('.folder');
+		const searchIcon = e.target.closest('.folder-search-icon');
+		const clearIcon = e.target.closest('.folder-clear-icon');
+		const analysisIcon = e.target.closest('.analysis-icon');
+		
+		if (analysisIcon) {
+			e.stopPropagation();
+			handleAnalysisIconClick(analysisIcon);
+			return;
+		}
+		
+		if (searchIcon) {
+			e.stopPropagation();
+			handleSearchIconClick(searchIcon);
+			return;
+		}
+		
+		if (clearIcon) {
+			e.stopPropagation();
+			const folderPath = clearIcon.closest('.folder').dataset.path;
+			if (!folderPath) return;
+			const selector = `input[type="checkbox"][data-path^="${folderPath}/"]`;
+			let uncheckCount = 0;
+			document.querySelectorAll(selector).forEach(cb => {
+				if (cb.checked) {
+					cb.checked = false;
+					uncheckCount++;
+				}
+			});
+			if (uncheckCount > 0) {
+				updateSelectedContent();
+				saveCurrentProjectState();
+			}
+			return;
+		}
+		
+		if (folder) {
+			e.stopPropagation();
+			const ul = folder.nextElementSibling;
+			if (folder.classList.contains('open')) {
+				folder.classList.remove('open');
+				if (ul) ul.style.display = 'none';
+				saveCurrentProjectState();
+			} else {
+				if (ul) {
+					folder.classList.add('open');
+					ul.style.display = 'block';
+					saveCurrentProjectState();
+				} else {
+					showLoading('Loading folder...');
+					folder.classList.add('open');
+					try {
+						await loadFolders(folder.dataset.path, folder);
+						saveCurrentProjectState();
+					} catch (err) {
+						folder.classList.remove('open');
+					} finally {
+						hideLoading();
+					}
+				}
+			}
+		}
+	});
+	
+	// Delegated listener for checkbox changes
+	fileTree.addEventListener('change', (e) => {
+		if (e.target.matches('input[type="checkbox"]')) {
+			e.stopPropagation();
+			updateSelectedContent();
+			saveCurrentProjectState();
+		}
+	});
+	
+	// Event listener for the "Unselect All" button
+	document.getElementById('unselect-all').addEventListener('click', function () {
+		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
+		updateSelectedContent();
+		saveCurrentProjectState();
+	});
 }

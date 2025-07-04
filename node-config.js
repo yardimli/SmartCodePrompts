@@ -286,7 +286,6 @@ function loadConfigFromDb() {
 		}
 	});
 	
-	// Ensure server_port is a number for the listener.
 	newConfigData.server_port = parseInt(newConfigData.server_port, 10);
 	
 	// Resolve root directories to absolute paths.
@@ -399,7 +398,6 @@ function saveSelectedLlm(llmId) {
 }
 
 /**
- * NEW: Saves the last used smart prompt text.
  * @param {string} prompt - The prompt text to save.
  */
 function saveLastSmartPrompt(prompt) {
@@ -407,7 +405,6 @@ function saveLastSmartPrompt(prompt) {
 }
 
 /**
- * NEW: Saves the list of extensions to compress.
  * @param {string} extensionsJson - A JSON string array of extensions.
  */
 function saveCompressExtensions(extensionsJson) {
@@ -454,7 +451,6 @@ module.exports = {
 	setDarkMode,
 	saveSelectedLlm,
 	saveLastSmartPrompt,
-	// Export the new function.
 	saveCompressExtensions,
 	getMainPageData,
 	resetPromptsToDefault

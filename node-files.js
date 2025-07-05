@@ -90,7 +90,8 @@ function get_folders(input_path, project_path) {
 						name: item,
 						path: relative_file_path,
 						has_analysis: has_analysis,
-						is_modified: is_modified
+						is_modified: is_modified,
+						size: stats.size // MODIFIED: Add file size in bytes.
 					});
 				}
 			}

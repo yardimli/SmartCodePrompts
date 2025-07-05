@@ -85,7 +85,8 @@ async function handle_post_request(req, res) {
 						project_path: post_data.get('project_path'),
 						file_path: post_data.get('file_path'),
 						llm_id: post_data.get('llm_id'),
-						temperature: parseFloat(post_data.get('temperature'))
+						temperature: parseFloat(post_data.get('temperature')),
+						force: post_data.get('force') === 'true' // MODIFIED: Pass the 'force' parameter.
 					});
 					break;
 				case 'reanalyze_modified_files':

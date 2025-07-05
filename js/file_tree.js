@@ -116,9 +116,16 @@ export function load_folders (path, element) {
 			});
 			response.files.forEach(file_info => {
 				const filetype_class = get_filetype_class(file_info.name);
-				// MODIFIED: Added data-path to file-entry for easier click handling.
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
 				const modified_icon = file_info.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+				
+				// MODIFIED: Add file size to the title attribute if available.
+				let title_attr = file_info.path;
+				if (typeof file_info.size === 'number') {
+					const size_kb = (file_info.size / 1024).toFixed(1);
+					title_attr = `${file_info.path} (${size_kb} KB)`;
+				}
+				
 				content += `
                     <li>
                         <div class="checkbox-wrapper">
@@ -127,7 +134,7 @@ export function load_folders (path, element) {
                         ${analysis_icon}
                         <div class="file-entry align-middle" data-path="${file_info.path}">
                             <span class="file ${filetype_class}"></span>
-                            <span class="file-name" title="${file_info.path}">${file_info.name}</span>
+                            <span class="file-name" title="${title_attr}">${file_info.name}</span>
                         </div>
                         ${modified_icon}
                     </li>`;

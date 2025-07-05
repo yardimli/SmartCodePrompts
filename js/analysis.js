@@ -39,7 +39,8 @@ async function perform_selection_analysis() {
 				project_path: current_project.path,
 				file_path: file_path,
 				llm_id: llm_id,
-				temperature: parseFloat(temperature)
+				temperature: parseFloat(temperature),
+				force: true // MODIFIED: Force re-analysis for selected files.
 			});
 			
 			if (response.status === 'analyzed') {
@@ -74,7 +75,6 @@ async function perform_selection_analysis() {
 	}
 	alert(summary_message);
 }
-
 
 /**
  * Performs the re-analysis call to the backend and handles the response.
@@ -121,7 +121,7 @@ async function perform_reanalysis(force_reanalysis) {
 export function setup_analysis_actions_listener() {
 	const analyze_selected_btn = document.getElementById('analyze_selected_button');
 	const reanalyze_modified_btn = document.getElementById('reanalyze_modified_only_button');
-	const reanalyze_force_all_btn = document.getElementById('reanalyze_force_all_button');
+	// DELETED: Removed reference to the force re-analyze all button.
 	
 	if (analyze_selected_btn) {
 		analyze_selected_btn.addEventListener('click', async () => {
@@ -135,9 +135,5 @@ export function setup_analysis_actions_listener() {
 		});
 	}
 	
-	if (reanalyze_force_all_btn) {
-		reanalyze_force_all_btn.addEventListener('click', async () => {
-			await perform_reanalysis(true);
-		});
-	}
+	// DELETED: Removed event listener for the force re-analyze all button.
 }

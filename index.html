@@ -132,7 +132,7 @@
 			
 			<div class="grid gap-2">
 				<button class="btn btn-primary btn-sm" id="analyze_selected_button"
-				        title="Performs a one-time analysis on the files currently checked in the file tree.">
+				        title="Analyzes (or forces re-analysis of) the files currently checked in the file tree.">
 					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-check-square me-2"></i>Analyze Selected
 				</button>
@@ -141,11 +141,7 @@
 					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-file-earmark-diff me-2"></i>Re-analyze Modified
 				</button>
-				<button class="btn btn-error btn-sm" id="reanalyze_force_all_button"
-				        title="Re-analyzes every file that has a previous analysis, regardless of changes.">
-					<!-- MODIFIED: Icon changed -->
-					<i class="bi bi-arrow-repeat me-2"></i>Force Re-analyze All
-				</button>
+				<!-- DELETED: The force re-analyze all button is removed. -->
 			</div>
 			
 			<div class="divider"></div>
@@ -202,8 +198,6 @@
 	</aside>
 </div>
 
-<!-- MODIFIED: All modals are removed from here and will be loaded dynamically -->
-<!-- NEW: Container for dynamically loaded modals -->
 <div id="modal-container"></div>
 
 </body>

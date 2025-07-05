@@ -8,7 +8,9 @@ let search_modal = null;
 let log_modal = null;
 let reanalysis_prompt_modal = null;
 let project_modal = null;
-let setup_modal = null; // NEW: Reference for the setup modal
+let setup_modal = null;
+let analysis_modal = null; // NEW: Reference for the analysis modal.
+let file_view_modal = null; // NEW: Reference for the file view modal.
 let current_search_folder_path = null;
 let current_browser_path = null;
 
@@ -20,7 +22,9 @@ export function initialize_modals() {
 	log_modal = document.getElementById('log_modal');
 	reanalysis_prompt_modal = document.getElementById('reanalysis_prompt_modal');
 	project_modal = document.getElementById('project_modal');
-	setup_modal = document.getElementById('setup_modal'); // NEW: Initialize the setup modal
+	setup_modal = document.getElementById('setup_modal');
+	analysis_modal = document.getElementById('analysis_modal'); // NEW: Initialize the analysis modal.
+	file_view_modal = document.getElementById('file_view_modal'); // NEW: Initialize the file view modal.
 }
 
 /**
@@ -172,17 +176,18 @@ export function handle_search_icon_click(target) {
 }
 
 /**
- * Handles the click event on a file's analysis icon.
- * This now injects the analysis content directly into the #analysis-view div.
+ * MODIFIED: Handles the click event on a file's analysis icon.
+ * This now opens a modal and displays the analysis content in a textarea.
+ * @param {HTMLElement} target - The analysis icon element that was clicked.
  */
 export async function handle_analysis_icon_click(target) {
 	const file_path = target.dataset.path;
-	const analysis_view = document.getElementById('analysis-view');
-	const prompt_textarea = document.getElementById('selected-content');
+	const title_el = document.getElementById('analysis-modal-title');
+	const content_el = document.getElementById('analysis-modal-content');
 	
-	prompt_textarea.classList.add('hidden');
-	analysis_view.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
-	analysis_view.classList.remove('hidden');
+	title_el.textContent = `Analysis for ${file_path}`;
+	content_el.value = 'Loading analysis data...';
+	analysis_modal.showModal();
 	
 	try {
 		const current_project = get_current_project();
@@ -192,43 +197,63 @@ export async function handle_analysis_icon_click(target) {
 			file_path: file_path
 		});
 		
-		let body_content = '<p>No analysis data found for this file.</p>';
+		let body_content = 'No analysis data found for this file.';
 		if (data.file_overview || data.functions_overview) {
-			body_content = '';
-			const render_json = (title, json_string) => {
-				let content;
-				try {
-					const parsed = JSON.parse(json_string);
-					content = JSON.stringify(parsed, null, 2);
-				} catch (err) {
-					content = json_string;
-				}
-				return `<h6 class="font-bold mt-2">${title}</h6><pre class="bg-base-300 p-2 rounded-md text-xs overflow-auto">${content}</pre>`;
-			};
+			const content_parts = [];
+			
 			if (data.file_overview) {
-				body_content += render_json('File Overview', data.file_overview);
+				try {
+					const parsed = JSON.parse(data.file_overview);
+					content_parts.push('--- FILE OVERVIEW ---\n' + JSON.stringify(parsed, null, 2));
+				} catch (e) {
+					content_parts.push('--- FILE OVERVIEW ---\n' + data.file_overview);
+				}
 			}
+			
 			if (data.functions_overview) {
-				body_content += render_json('Functions & Logic', data.functions_overview);
+				try {
+					const parsed = JSON.parse(data.functions_overview);
+					content_parts.push('\n\n--- FUNCTIONS & LOGIC ---\n' + JSON.stringify(parsed, null, 2));
+				} catch (e) {
+					content_parts.push('\n\n--- FUNCTIONS & LOGIC ---\n' + data.functions_overview);
+				}
 			}
+			body_content = content_parts.join('');
 		}
 		
-		analysis_view.innerHTML = `
-            <div class="p-4 h-full flex flex-col">
-                <div id="analysis-view-header" class="flex justify-between items-center mb-2 flex-shrink-0">
-                    <h2 id="analysis-view-title" class="text-lg font-bold truncate" title="Analysis for ${file_path}">Analysis for ${file_path}</h2>
-                    <button id="close-analysis-view" class="btn btn-sm btn-ghost">
-                        <i class="bi bi-x-lg"></i> Close
-                    </button>
-                </div>
-                <div id="analysis-view-body" class="flex-grow overflow-y-auto">
-                    ${body_content}
-                </div>
-            </div>
-        `;
+		content_el.value = body_content;
 		
 	} catch (error) {
-		analysis_view.innerHTML = `<p class="text-error p-4">Error fetching analysis: ${error.message}</p>`;
+		content_el.value = `Error fetching analysis: ${error.message}`;
+	}
+}
+
+/**
+ * NEW: Handles the click event on a file's name in the tree.
+ * Opens a modal to display the file's content in a textarea.
+ * @param {HTMLElement} target - The file-entry element that was clicked.
+ */
+export async function handle_file_name_click(target) {
+	const file_path = target.dataset.path;
+	const title_el = document.getElementById('file-view-modal-title');
+	const content_el = document.getElementById('file-view-modal-content');
+	
+	title_el.textContent = `Content of ${file_path}`;
+	content_el.value = 'Loading file content...';
+	file_view_modal.showModal();
+	
+	try {
+		const current_project = get_current_project();
+		const data = await post_data({
+			action: 'get_file_content',
+			project_path: current_project.path,
+			path: file_path
+		});
+		
+		content_el.value = data.content || 'File is empty or could not be loaded.';
+		
+	} catch (error) {
+		content_el.value = `Error fetching file content: ${error.message}`;
 	}
 }
 
@@ -365,13 +390,7 @@ export function setup_modal_event_listeners() {
 		}
 	});
 	
-	// Analysis View Close Button Listener (delegated)
-	document.getElementById('workspace').addEventListener('click', (e) => {
-		if (e.target.closest('#close-analysis-view')) {
-			document.getElementById('analysis-view').classList.add('hidden');
-			document.getElementById('selected-content').classList.remove('hidden');
-		}
-	});
+	// DELETED: The listener for the integrated analysis view is no longer needed.
 	
 	// Project Modal Listeners
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);

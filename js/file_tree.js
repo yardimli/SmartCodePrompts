@@ -1,7 +1,8 @@
 // SmartCodePrompts/js/file_tree.js
 import {show_loading, hide_loading, get_parent_path, post_data} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
-import {handle_analysis_icon_click, handle_search_icon_click} from './modals.js';
+// MODIFIED: Import handle_file_name_click to open the file view modal.
+import {handle_analysis_icon_click, handle_search_icon_click, handle_file_name_click} from './modals.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -115,17 +116,16 @@ export function load_folders (path, element) {
 			});
 			response.files.forEach(file_info => {
 				const filetype_class = get_filetype_class(file_info.name);
-				// MODIFIED: Restructured file item HTML for proper text-overflow ellipsis.
+				// MODIFIED: Added data-path to file-entry for easier click handling.
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
 				const modified_icon = file_info.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
-				// NEW: Added data-has_analysis attribute to the checkbox for easy selection.
 				content += `
                     <li>
                         <div class="checkbox-wrapper">
                             <input type="checkbox" data-path="${file_info.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has_analysis="${file_info.has_analysis ? 'true' : 'false'}">
                         </div>
                         ${analysis_icon}
-                        <div class="file-entry align-middle">
+                        <div class="file-entry align-middle" data-path="${file_info.path}">
                             <span class="file ${filetype_class}"></span>
                             <span class="file-name" title="${file_info.path}">${file_info.name}</span>
                         </div>
@@ -375,10 +375,18 @@ export function setup_file_tree_listeners () {
 		const search_icon = e.target.closest('.folder-search-icon');
 		const clear_icon = e.target.closest('.folder-clear-icon');
 		const analysis_icon = e.target.closest('.analysis-icon');
+		const file_entry = e.target.closest('.file-entry'); // NEW: Get the file entry element.
 		
 		if (analysis_icon) {
 			e.stopPropagation();
 			handle_analysis_icon_click(analysis_icon);
+			return;
+		}
+		
+		// NEW: Handle click on a file entry to view its content in a modal.
+		if (file_entry) {
+			e.stopPropagation();
+			handle_file_name_click(file_entry);
 			return;
 		}
 		

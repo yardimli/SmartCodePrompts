@@ -93,41 +93,7 @@
     vertical-align: middle;
 }
 
-/* Custom styles for the integrated analysis view */
-#analysis-view {
-    padding: 1rem;
-}
-
-#analysis-view-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid hsl(var(--b3));
-}
-
-#analysis-view-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    word-break: break-all;
-}
-
-#analysis-view-body h6 {
-    margin-top: 1rem;
-    border-bottom: 1px solid hsl(var(--b2)); /* DaisyUI border color */
-    padding-bottom: 5px;
-    font-weight: bold;
-}
-
-#analysis-view-body pre {
-    background-color: hsl(var(--b2)); /* DaisyUI base-200 color */
-    padding: 10px;
-    border-radius: 5px;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 14px;
-}
+/* DELETED: Custom styles for the integrated analysis view are no longer needed */
 
 /* Custom styles for the LLM log modal table */
 #log_modal_body table {
@@ -151,7 +117,7 @@
 /* Styles for the resizable pane handles */
 #vertical-resizer,
 #horizontal-resizer {
-   background-color: #EEE; /* Default color for resizers */
+    background-color: #EEE; /* Default color for resizers */
     border: 1px solid #CCC; /* Default border color */
     transition: background-color 0.2s ease;
 }
@@ -227,6 +193,10 @@
     text-overflow: ellipsis;
     flex-grow: 1; /* Allow name to take up available space */
     min-width: 0; /* Allow name to shrink and truncate */
+}
+
+#file-tree .file-name:hover {
+    text-decoration: underline; /* Underline on hover for better UX */
 }
 
 /* NEW: Ensure icons and controls do not shrink */

@@ -1,13 +1,13 @@
 // SmartCodePrompts/js/projects.js
-import {postData, getProjectIdentifier} from './utils.js';
+import {post_data, get_project_identifier} from './utils.js';
 
 
-function applyDarkMode() {
-	const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-	const toggleIcon = document.querySelector('#toggle-mode i');
-	if (toggleIcon) {
-		toggleIcon.classList.toggle('bi-sun', !isDarkMode);
-		toggleIcon.classList.toggle('bi-moon', isDarkMode);
+function apply_dark_mode() {
+	const is_dark_mode = document.documentElement.getAttribute('data-theme') === 'dark';
+	const toggle_icon = document.querySelector('#toggle-mode i');
+	if (toggle_icon) {
+		toggle_icon.classList.toggle('bi-sun', !is_dark_mode);
+		toggle_icon.classList.toggle('bi-moon', is_dark_mode);
 	}
 }
 
@@ -15,36 +15,36 @@ function applyDarkMode() {
  * Renders the list of projects fetched from the server.
  * @param {Array<object>} projects - The list of project objects.
  */
-function renderProjectList(projects) {
-	const projectsListContainer = document.getElementById('projects-list');
-	projectsListContainer.innerHTML = '';
+function render_project_list(projects) {
+	const projects_list_container = document.getElementById('projects-list');
+	projects_list_container.innerHTML = '';
 	
 	if (!projects || projects.length === 0) {
-		projectsListContainer.innerHTML = '<p class="text-center text-error">No top-level folders found in your configured root directories.</p>';
+		projects_list_container.innerHTML = '<p class="text-center text-error">No top-level folders found in your configured root directories.</p>';
 		return;
 	}
 	
 	// Group projects by their root directory path for better organization.
-	const groupedProjects = projects.reduce((acc, project) => {
-		if (!acc[project.rootPath]) {
-			acc[project.rootPath] = [];
+	const grouped_projects = projects.reduce((acc, project) => {
+		if (!acc[project.root_path]) {
+			acc[project.root_path] = [];
 		}
-		acc[project.rootPath].push(project);
+		acc[project.root_path].push(project);
 		return acc;
 	}, {});
 	
 	// Build the HTML for each group and append it to the container.
 	let html = '';
-	for (const rootPath in groupedProjects) {
-		html += `<h5 class="mt-4 text-base-content/70 w-full col-span-full">${rootPath}</h5>`;
-		groupedProjects[rootPath].forEach(function (project) {
-			const isChecked = project.isChecked;
-			const identifier = getProjectIdentifier(project);
+	for (const root_path in grouped_projects) {
+		html += `<h5 class="mt-4 text-base-content/70 w-full col-span-full">${root_path}</h5>`;
+		grouped_projects[root_path].forEach(function (project) {
+			const is_checked = project.is_checked;
+			const identifier = get_project_identifier(project);
 			html += `
                 <div class="card bg-base-200 shadow-md hover:bg-base-300 transition-colors">
                     <div class="card-body p-4">
                         <label for="proj-${identifier}" class="label cursor-pointer justify-start gap-4">
-                             <input class="checkbox checkbox-primary" type="checkbox" value="${identifier}" id="proj-${identifier}" data-path="${project.path}" ${isChecked ? 'checked' : ''}>
+                             <input class="checkbox checkbox-primary" type="checkbox" value="${identifier}" id="proj-${identifier}" data-path="${project.path}" ${is_checked ? 'checked' : ''}>
                              <span class="label-text text-lg">${project.path}</span>
                         </label>
                     </div>
@@ -52,27 +52,27 @@ function renderProjectList(projects) {
             `;
 		});
 	}
-	projectsListContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4';
-	projectsListContainer.insertAdjacentHTML('beforeend', html);
+	projects_list_container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4';
+	projects_list_container.insertAdjacentHTML ('beforeend', html);
 }
 
 /**
  * Loads all necessary data from the server to initialize the page.
  */
-async function loadPageData() {
+async function load_page_data() {
 	try {
 		// Fetch the list of all possible projects and their selection status.
-		const projectsData = await postData({action: 'get_projects_page_data'});
-		renderProjectList(projectsData.projects);
+		const projects_data = await post_data({action: 'get_projects_page_data'});
+		render_project_list(projects_data.projects);
 		
 		// Fetch main app settings, primarily for dark mode consistency.
-		const mainData = await postData({action: 'get_main_page_data'});
-		if (mainData.darkMode) {
+		const main_data = await post_data({action: 'get_main_page_data'});
+		if (main_data.dark_mode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
 		} else {
 			document.documentElement.setAttribute('data-theme', 'light');
 		}
-		applyDarkMode();
+		apply_dark_mode();
 	} catch (error) {
 		document.getElementById('projects-list').innerHTML = '<p class="text-center text-error">Error loading project list. Check server logs.</p>';
 		console.error("Error fetching page data:", error);
@@ -83,12 +83,12 @@ async function loadPageData() {
 
 document.getElementById('toggle-mode').addEventListener('click', () => {
 	const html = document.documentElement;
-	const isDarkMode = html.getAttribute('data-theme') === 'dark';
-	const newTheme = isDarkMode ? 'light' : 'dark';
-	html.setAttribute('data-theme', newTheme);
-	applyDarkMode();
+	const is_dark_mode = html.getAttribute('data-theme') === 'dark';
+	const new_theme = is_dark_mode ? 'light' : 'dark';
+	html.setAttribute('data-theme', new_theme);
+	apply_dark_mode();
 	// Save the dark mode state to the server.
-	postData({action: 'set_dark_mode', isDarkMode: !isDarkMode})
+	post_data({action: 'set_dark_mode', is_dark_mode: !is_dark_mode})
 		.catch(err => console.error("Failed to save dark mode setting.", err));
 });
 
@@ -97,12 +97,12 @@ document.getElementById('projects-list').addEventListener('change', async (e) =>
 	// Ensure the event was triggered by a project checkbox.
 	if (e.target.matches('input[type="checkbox"]')) {
 		const checkbox = e.target;
-		const projectData = checkbox.dataset; // Access data-* attributes.
+		const project_data = checkbox.dataset; // Access data-* attributes.
 		try {
-			await postData({
+			await post_data({
 				action: 'toggle_project',
-				path: projectData.path,
-				isSelected: checkbox.checked
+				path: project_data.path,
+				is_selected: checkbox.checked
 			});
 		} catch (error) {
 			alert('Failed to save project selection. Please try again.');
@@ -113,4 +113,4 @@ document.getElementById('projects-list').addEventListener('change', async (e) =>
 });
 
 // --- Initial Load ---
-loadPageData();
+load_page_data();

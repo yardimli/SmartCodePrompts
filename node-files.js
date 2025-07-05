@@ -6,19 +6,19 @@ const {db, config} = require('./node-config');
 /**
  * Resolves a relative path from the client against a project's absolute path,
  * ensuring it does not traverse outside the project folder.
- * @param {string} relativePath - The relative path from the client (e.g., 'src/components/Button.js').
- * @param {string} projectFullPath - The absolute path of the project on the server.
+ * @param {string} relative_path - The relative path from the client (e.g., 'src/components/Button.js').
+ * @param {string} project_full_path - The absolute path of the project on the server.
  * @returns {string} The absolute, validated file system path.
  * @throws {Error} If the path is invalid or attempts traversal.
  */
-function resolvePath(relativePath, projectFullPath) {
-	console.log(`Resolving path: ${relativePath} against project: ${projectFullPath}`);
-	const fullPath = path.resolve(projectFullPath, relativePath);
+function resolve_path(relative_path, project_full_path) {
+	console.log(`Resolving path: ${relative_path} against project: ${project_full_path}`);
+	const full_path = path.resolve(project_full_path, relative_path);
 	// Security check: ensure the resolved path is still within the intended project directory.
-	if (!fullPath.startsWith(projectFullPath)) {
+	if (!full_path.startsWith(project_full_path)) {
 		throw new Error("Invalid path traversal attempt.");
 	}
-	return fullPath;
+	return full_path;
 }
 
 /**
@@ -26,35 +26,35 @@ function resolvePath(relativePath, projectFullPath) {
  * @param {string|Buffer} data - The data to hash.
  * @returns {string} The MD5 checksum in hex format.
  */
-function calculateChecksum(data) {
+function calculate_checksum(data) {
 	return crypto.createHash('sha256').update(data).digest('hex');
 }
 
 /**
  * Reads the contents of a directory and returns separate lists of folders and files,
  * filtering by allowed extensions and excluded folder names.
- * @param {string} inputPath - The path of the directory to read, relative to the project root.
- * @param {string} projectPath - The absolute path of the project.
+ * @param {string} input_path - The path of the directory to read, relative to the project root.
+ * @param {string} project_path - The absolute path of the project.
  * @returns {object} An object containing `folders` and `files` arrays.
  */
-function getFolders(inputPath, projectPath) {
-	const fullPath = resolvePath(inputPath, projectPath);
+function get_folders(input_path, project_path) {
+	const full_path = resolve_path(input_path, project_path);
 	const folders = [];
 	const files = [];
 	// Get analysis metadata for all files in this project to avoid N+1 queries in the loop.
-	const metadataStmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const analyzedFilesMap = new Map(metadataStmt.all(projectPath).map(r => [r.file_path, r.last_checksum]));
+	const metadata_stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const analyzed_files_map = new Map(metadata_stmt.all(project_path).map(r => [r.file_path, r.last_checksum]));
 	
 	try {
-		const items = fs.readdirSync(fullPath);
+		const items = fs.readdirSync(full_path);
 		for (const item of items) {
 			if (item === '.' || item === '..') continue;
-			const itemFullPath = path.join(fullPath, item);
+			const item_full_path = path.join(full_path, item);
 			let stats;
 			try {
-				stats = fs.statSync(itemFullPath);
+				stats = fs.statSync(item_full_path);
 			} catch (e) {
-				console.warn(`Skipping ${itemFullPath}: ${e.message}`);
+				console.warn(`Skipping ${item_full_path}: ${e.message}`);
 				continue;
 			}
 			if (stats.isDirectory()) {
@@ -62,42 +62,42 @@ function getFolders(inputPath, projectPath) {
 					folders.push(item);
 				}
 			} else if (stats.isFile()) {
-				const ext = path.extname(itemFullPath).slice(1);
-				let base = path.basename(itemFullPath);
+				const ext = path.extname(item_full_path).slice(1);
+				let base = path.basename(item_full_path);
 				if (base.startsWith('.')) {
 					base = base.slice(1);
 				}
 				if (config.allowed_extensions.includes(ext) || (ext === '' && config.allowed_extensions.includes(base))) {
-					const relativeFilePath = path.join(inputPath, item).replace(/\\/g, '/');
-					const hasAnalysis = analyzedFilesMap.has(relativeFilePath);
-					let isModified = false;
+					const relative_file_path = path.join(input_path, item).replace(/\\/g, '/');
+					const has_analysis = analyzed_files_map.has(relative_file_path);
+					let is_modified = false;
 					
-					if (hasAnalysis) {
-						const storedChecksum = analyzedFilesMap.get(relativeFilePath);
-						if (storedChecksum) {
+					if (has_analysis) {
+						const stored_checksum = analyzed_files_map.get(relative_file_path);
+						if (stored_checksum) {
 							try {
-								const fileContent = fs.readFileSync(itemFullPath);
-								const currentChecksum = calculateChecksum(fileContent);
-								if (currentChecksum !== storedChecksum) {
-									isModified = true;
+								const file_content = fs.readFileSync(item_full_path);
+								const current_checksum = calculate_checksum(file_content);
+								if (current_checksum !== stored_checksum) {
+									is_modified = true;
 								}
-							} catch (readError) {
-								console.warn(`Could not read file for checksum: ${itemFullPath}`, readError);
+							} catch (read_error) {
+								console.warn(`Could not read file for checksum: ${item_full_path}`, read_error);
 							}
 						}
 					}
 					
 					files.push({
 						name: item,
-						path: relativeFilePath,
-						has_analysis: hasAnalysis,
-						is_modified: isModified
+						path: relative_file_path,
+						has_analysis: has_analysis,
+						is_modified: is_modified
 					});
 				}
 			}
 		}
 	} catch (error) {
-		console.error(`Error reading directory ${fullPath}:`, error);
+		console.error(`Error reading directory ${full_path}:`, error);
 		return {folders: [], files: []};
 	}
 	return {folders, files};
@@ -105,115 +105,115 @@ function getFolders(inputPath, projectPath) {
 
 /**
  * Reads the content of a single file.
- * @param {string} inputPath - The path of the file to read, relative to the project root.
- * @param {string} projectPath - The absolute path of the project.
+ * @param {string} input_path - The path of the file to read, relative to the project root.
+ * @param {string} project_path - The absolute path of the project.
  * @returns {object} An object containing the `content` of the file.
  */
-function getFileContent(inputPath, projectPath) {
-	const fullPath = resolvePath(inputPath, projectPath);
+function get_file_content(input_path, project_path) {
+	const full_path = resolve_path(input_path, project_path);
 	try {
-		const fileContents = fs.readFileSync(fullPath, 'utf8');
-		return {content: fileContents};
+		const file_contents = fs.readFileSync(full_path, 'utf8');
+		return {content: file_contents};
 	} catch (error) {
-		console.error(`Error reading file ${fullPath}:`, error);
-		throw new Error(`Could not read file: ${inputPath}`);
+		console.error(`Error reading file ${full_path}:`, error);
+		throw new Error(`Could not read file: ${input_path}`);
 	}
 }
 
 /**
  * Reads the raw, unmodified content of a single file.
- * @param {string} inputPath - The path of the file to read, relative to the project root.
- * @param {string} projectPath - The absolute path of the project.
+ * @param {string} input_path - The path of the file to read, relative to the project root.
+ * @param {string} project_path - The absolute path of the project.
  * @returns {string} The raw content of the file.
  * @throws {Error} If the file cannot be read.
  */
-function getRawFileContent(inputPath, projectPath) {
-	const fullPath = resolvePath(inputPath, projectPath);
+function get_raw_file_content(input_path, project_path) {
+	const full_path = resolve_path(input_path, project_path);
 	try {
-		return fs.readFileSync(fullPath, 'utf8');
+		return fs.readFileSync(full_path, 'utf8');
 	} catch (error) {
-		console.error(`Error reading raw file ${fullPath}:`, error);
-		throw new Error(`Could not read raw file content for: ${inputPath}`);
+		console.error(`Error reading raw file ${full_path}:`, error);
+		throw new Error(`Could not read raw file content for: ${input_path}`);
 	}
 }
 
 /**
  * Recursively searches for a term within files in a given directory.
- * @param {string} startPath - The directory path to start the search from, relative to the project root.
- * @param {string} searchTerm - The case-insensitive term to search for.
- * @param {string} projectPath - The absolute path of the project.
- * @returns {object} An object containing an array of `matchingFiles`.
+ * @param {string} start_path - The directory path to start the search from, relative to the project root.
+ * @param {string} search_term - The case-insensitive term to search for.
+ * @param {string} project_path - The absolute path of the project.
+ * @returns {object} An object containing an array of `matching_files`.
  */
-function searchFiles(startPath, searchTerm, projectPath) {
-	const absoluteStartPath = resolvePath(startPath, projectPath);
-	const matchingFiles = [];
-	const searchLower = searchTerm.toLowerCase();
+function search_files(start_path, search_term, project_path) {
+	const absolute_start_path = resolve_path(start_path, project_path);
+	const matching_files = [];
+	const search_lower = search_term.toLowerCase();
 	
-	function searchInDirectory(currentDir) {
+	function search_in_directory(current_dir) {
 		let items;
 		try {
-			items = fs.readdirSync(currentDir);
+			items = fs.readdirSync(current_dir);
 		} catch (err) {
-			console.warn(`Cannot read directory ${currentDir}: ${err.message}`);
+			console.warn(`Cannot read directory ${current_dir}: ${err.message}`);
 			return;
 		}
 		for (const item of items) {
 			if (item === '.' || item === '..') continue;
-			const itemFullPath = path.join(currentDir, item);
+			const item_full_path = path.join(current_dir, item);
 			let stats;
 			try {
-				stats = fs.statSync(itemFullPath);
+				stats = fs.statSync(item_full_path);
 			} catch (e) {
-				console.warn(`Skipping ${itemFullPath}: ${e.message}`);
+				console.warn(`Skipping ${item_full_path}: ${e.message}`);
 				continue;
 			}
 			if (stats.isDirectory()) {
 				if (!config.excluded_folders.includes(item)) {
-					searchInDirectory(itemFullPath);
+					search_in_directory(item_full_path);
 				}
 			} else if (stats.isFile()) {
-				const ext = path.extname(itemFullPath).slice(1);
+				const ext = path.extname(item_full_path).slice(1);
 				if (config.allowed_extensions.includes(ext)) {
 					try {
-						const content = fs.readFileSync(itemFullPath, 'utf8');
-						if (content.toLowerCase().includes(searchLower)) {
-							const relativePath = path.relative(projectPath, itemFullPath).replace(/\\/g, '/');
-							matchingFiles.push(relativePath);
+						const content = fs.readFileSync(item_full_path, 'utf8');
+						if (content.toLowerCase().includes(search_lower)) {
+							const relative_path = path.relative(project_path, item_full_path).replace(/\\/g, '/');
+							matching_files.push(relative_path);
 						}
 					} catch (err) {
-						console.warn(`Cannot read file ${itemFullPath}: ${err.message}`);
+						console.warn(`Cannot read file ${item_full_path}: ${err.message}`);
 					}
 				}
 			}
 		}
 	}
 	
-	searchInDirectory(absoluteStartPath);
-	return {matchingFiles};
+	search_in_directory(absolute_start_path);
+	return {matching_files};
 }
 
 /**
  * Retrieves the stored analysis metadata for a specific file from the database.
  * @param {object} params - The parameters for the lookup.
- * @param {string} params.projectPath - The absolute path of the project.
- * @param {string} params.filePath - The path of the file, relative to the project root.
+ * @param {string} params.project_path - The absolute path of the project.
+ * @param {string} params.file_path - The path of the file, relative to the project root.
  * @returns {object} The stored analysis data or nulls if not found.
  */
-function getFileAnalysis({projectPath, filePath}) {
+function get_file_analysis({project_path, file_path}) {
 	const data = db.prepare('SELECT file_overview, functions_overview FROM file_metadata WHERE project_path = ? AND file_path = ?')
-		.get(projectPath, filePath);
+		.get(project_path, file_path);
 	return data || {file_overview: null, functions_overview: null};
 }
 
 /**
  * Checks the modification status of all *analyzed* files within a project
  * by comparing their current checksums against those stored in the database.
- * @param {string} projectPath - The absolute path of the project.
+ * @param {string} project_path - The absolute path of the project.
  * @returns {object} An object containing arrays of file paths for `modified`, `unmodified`, and `deleted` files.
  */
-function checkFolderUpdates(projectPath) {
+function check_folder_updates(project_path) {
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const analyzedFiles = stmt.all(projectPath);
+	const analyzed_files = stmt.all(project_path);
 	
 	const results = {
 		modified: [],
@@ -221,23 +221,23 @@ function checkFolderUpdates(projectPath) {
 		deleted: []
 	};
 	
-	if (analyzedFiles.length === 0) {
+	if (analyzed_files.length === 0) {
 		return results;
 	}
 	
-	for (const file of analyzedFiles) {
+	for (const file of analyzed_files) {
 		try {
-			const fullPath = resolvePath(file.file_path, projectPath);
+			const full_path = resolve_path(file.file_path, project_path);
 			
-			if (!fs.existsSync(fullPath)) {
+			if (!fs.existsSync(full_path)) {
 				results.deleted.push(file.file_path);
 				continue;
 			}
 			
-			const fileContent = fs.readFileSync(fullPath);
-			const currentChecksum = calculateChecksum(fileContent);
+			const file_content = fs.readFileSync(full_path);
+			const current_checksum = calculate_checksum(file_content);
 			
-			if (currentChecksum !== file.last_checksum) {
+			if (current_checksum !== file.last_checksum) {
 				results.modified.push(file.file_path);
 			} else {
 				results.unmodified.push(file.file_path);
@@ -254,44 +254,44 @@ function checkFolderUpdates(projectPath) {
 /**
  * Checks all analyzed files in a project to see if any have been modified since their last analysis.
  * @param {object} params - The parameters for the check.
- * @param {string} params.projectPath - The absolute path of the project.
- * @returns {{needsReanalysis: boolean, count: number}} An object indicating if re-analysis is needed and the count of modified files.
+ * @param {string} params.project_path - The absolute path of the project.
+ * @returns {{needs_reanalysis: boolean, count: number}} An object indicating if re-analysis is needed and the count of modified files.
  */
-function checkForModifiedFiles({projectPath}) {
+function check_for_modified_files({project_path}) {
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const analyzedFiles = stmt.all(projectPath);
+	const analyzed_files = stmt.all(project_path);
 	
-	if (analyzedFiles.length === 0) {
-		return {needsReanalysis: false, count: 0};
+	if (analyzed_files.length === 0) {
+		return {needs_reanalysis: false, count: 0};
 	}
 	
-	let modifiedCount = 0;
+	let modified_count = 0;
 	
-	for (const file of analyzedFiles) {
+	for (const file of analyzed_files) {
 		try {
-			const fullPath = resolvePath(file.file_path, projectPath);
+			const full_path = resolve_path(file.file_path, project_path);
 			
-			if (!fs.existsSync(fullPath)) {
-				console.warn(`Analyzed file not found (likely deleted): ${fullPath}`);
+			if (!fs.existsSync(full_path)) {
+				console.warn(`Analyzed file not found (likely deleted): ${full_path}`);
 				continue;
 			}
 			
-			const fileContent = fs.readFileSync(fullPath);
-			const currentChecksum = calculateChecksum(fileContent);
+			const file_content = fs.readFileSync(full_path);
+			const current_checksum = calculate_checksum(file_content);
 			
-			if (currentChecksum !== file.last_checksum) {
-				modifiedCount++;
+			if (current_checksum !== file.last_checksum) {
+				modified_count++;
 			}
 		} catch (error) {
 			console.error(`Error checking file for modification: ${file.file_path}`, error);
-			modifiedCount++;
+			modified_count++;
 		}
 	}
 	
 	return {
-		needsReanalysis: modifiedCount > 0,
-		count: modifiedCount
+		needs_reanalysis: modified_count > 0,
+		count: modified_count
 	};
 }
 
-module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum, checkFolderUpdates, checkForModifiedFiles};
+module.exports = {get_folders, get_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files};

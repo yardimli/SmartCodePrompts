@@ -1,52 +1,52 @@
 // SmartCodePrompts/js/project.js
-import {showLoading, hideLoading, postData} from './utils.js';
-import {setCurrentProject} from './state.js';
-import {loadFolders, restoreState, startFileTreePolling, stopFileTreePolling} from './fileTree.js';
-import {openProjectModal} from './modals.js';
+import {show_loading, hide_loading, post_data} from './utils.js';
+import {set_current_project} from './state.js';
+import {load_folders, restore_state, start_file_tree_polling, stop_file_tree_polling} from './file_tree.js';
+import {open_project_modal} from './modals.js';
 
 /**
  * Loads a project, including its file tree and saved state.
- * @param {string} projectPath - The full, absolute path of the project.
+ * @param {string} project_path - The full, absolute path of the project.
  */
-export async function loadProject(projectPath) {
-	stopFileTreePolling();
+export async function load_project(project_path) {
+	stop_file_tree_polling();
 	
-	const fileTree = document.getElementById('file-tree');
-	if (!projectPath) {
-		fileTree.innerHTML = '<p class="p-3 text-base-content/70">Please select a project.</p>';
+	const file_tree = document.getElementById('file-tree');
+	if (!project_path) {
+		file_tree.innerHTML = '<p class="p-3 text-base-content/70">Please select a project.</p>';
 		return;
 	}
-	showLoading(`Loading project "${projectPath}"...`);
-	setCurrentProject({path: projectPath});
-	document.getElementById('projects-dropdown').value = projectPath;
+	show_loading(`Loading project "${project_path}"...`);
+	set_current_project({path: project_path});
+	document.getElementById('projects-dropdown').value = project_path;
 	try {
-		const savedState = await postData({
+		const saved_state = await post_data({
 			action: 'get_project_state',
-			projectPath: projectPath
+			project_path: project_path
 		});
 		// Load the root of the project. The path '.' is relative to the project root.
-		await loadFolders('.', null);
-		await restoreState(savedState || {openFolders: [], selectedFiles: []});
+		await load_folders('.', null);
+		await restore_state(saved_state || {open_folders: [], selected_files: []});
 		
 		//Start polling for file system changes now that the project is loaded.
-		startFileTreePolling();
+		start_file_tree_polling();
 	} catch (error) {
-		console.error(`Error loading project ${projectPath}:`, error);
+		console.error(`Error loading project ${project_path}:`, error);
 		alert(`Error loading project. Check console for details.`);
 	} finally {
-		hideLoading();
+		hide_loading();
 	}
 }
 
 /**
  * Sets up the event listener for the projects dropdown.
  */
-export function setupProjectListeners() {
+export function setup_project_listeners() {
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
 		if (this.value === 'add_new_project') {
-			openProjectModal();
+			open_project_modal();
 		} else {
-			loadProject(this.value);
+			load_project(this.value);
 		}
 	});
 }

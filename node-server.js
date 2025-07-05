@@ -5,12 +5,12 @@ const path = require('path');
 const url = require('url');
 const os = require('os');
 
-const configManager = require('./node-config');
-const llmManager = require('./node-llm');
-const projectManager = require('./node-projects');
-const fileManager = require('./node-files');
+const config_manager = require('./node-config');
+const llm_manager = require('./node-llm');
+const project_manager = require('./node-projects');
+const file_manager = require('./node-files');
 
-configManager.initializeDatabaseAndConfig();
+config_manager.initialize_database_and_config();
 
 /**
  * Handles all incoming POST requests by routing them to the correct handler function
@@ -18,172 +18,172 @@ configManager.initializeDatabaseAndConfig();
  * @param {http.IncomingMessage} req - The request object.
  * @param {http.ServerResponse} res - The response object.
  */
-async function handlePostRequest(req, res) {
+async function handle_post_request(req, res) {
 	let body = '';
 	req.on('data', chunk => {
 		body += chunk.toString();
 	});
 	req.on('end', async () => {
-		const postData = new URLSearchParams(body);
-		const action = postData.get('action');
+		const post_data = new URLSearchParams(body);
+		const action = post_data.get('action');
 		console.log('POST Request Action:', action);
 		let result;
 		try {
 			switch (action) {
 				// --- Config/Setup Actions (from node-config.js) ---
 				case 'get_session_stats':
-					result = llmManager.getSessionStats();
+					result = llm_manager.get_session_stats();
 					break;
 				case 'get_setup':
-					result = configManager.getSetupData();
+					result = config_manager.get_setup_data();
 					break;
 				case 'save_setup':
-					configManager.saveSetupData(postData);
+					config_manager.save_setup_data(post_data);
 					result = {success: true};
 					break;
 				case 'reset_prompts':
-					result = configManager.resetPromptsToDefault();
+					result = config_manager.reset_prompts_to_default();
 					break;
 				case 'reset_llm_log':
-					result = configManager.resetLlmLog();
+					result = config_manager.reset_llm_log();
 					break;
 				case 'set_dark_mode':
-					configManager.setDarkMode(postData.get('isDarkMode') === 'true');
+					config_manager.set_dark_mode(post_data.get('is_dark_mode') === 'true');
 					result = {success: true};
 					break;
 				case 'set_right_sidebar_collapsed':
-					configManager.setRightSidebarCollapsed(postData.get('isCollapsed') === 'true');
+					config_manager.setright_sidebar_collapsed(post_data.get('is_collapsed') === 'true');
 					result = {success: true};
 					break;
 				case 'save_selected_llm':
-					configManager.saveSelectedLlm(postData.get('llmId'));
+					config_manager.save_selected_llm(post_data.get('llm_id'));
 					result = {success: true};
 					break;
 				case 'save_last_smart_prompt':
-					configManager.saveLastSmartPrompt(postData.get('prompt'));
+					config_manager.save_last_smart_prompt(post_data.get('prompt'));
 					result = {success: true};
 					break;
 				case 'save_compress_extensions':
-					configManager.saveCompressExtensions(postData.get('extensions'));
+					config_manager.save_compress_extensions(post_data.get('extensions'));
 					result = {success: true};
 					break;
 				case 'get_main_page_data':
-					result = configManager.getMainPageData();
+					result = config_manager.get_main_page_data();
 					break;
 				
 				// --- LLM Actions (from node-llm.js) ---
 				case 'refresh_llms':
-					result = await llmManager.refreshLlms();
+					result = await llm_manager.refresh_llms();
 					break;
 				case 'get_llm_log':
-					result = llmManager.getLlmLog();
+					result = llm_manager.get_llm_log();
 					break;
 				case 'analyze_file':
-					result = await llmManager.analyzeFile({
-						projectPath: postData.get('projectPath'),
-						filePath: postData.get('filePath'),
-						llmId: postData.get('llmId'),
-						temperature: parseFloat(postData.get('temperature'))
+					result = await llm_manager.analyze_file({
+						project_path: post_data.get('project_path'),
+						file_path: post_data.get('file_path'),
+						llm_id: post_data.get('llm_id'),
+						temperature: parseFloat(post_data.get('temperature'))
 					});
 					break;
 				case 'reanalyze_modified_files':
-					result = await llmManager.reanalyzeModifiedFiles({
-						projectPath: postData.get('projectPath'),
-						llmId: postData.get('llmId'),
-						force: postData.get('force') === 'true',
-						temperature: parseFloat(postData.get('temperature'))
+					result = await llm_manager.reanalyze_modified_files({
+						project_path: post_data.get('project_path'),
+						llm_id: post_data.get('llm_id'),
+						force: post_data.get('force') === 'true',
+						temperature: parseFloat(post_data.get('temperature'))
 					});
 					break;
 				case 'get_relevant_files_from_prompt':
-					result = await llmManager.getRelevantFilesFromPrompt({
-						projectPath: postData.get('projectPath'),
-						userPrompt: postData.get('userPrompt'),
-						llmId: postData.get('llmId'),
-						temperature: parseFloat(postData.get('temperature'))
+					result = await llm_manager.get_relevant_files_from_prompt({
+						project_path: post_data.get('project_path'),
+						user_prompt: post_data.get('user_prompt'),
+						llm_id: post_data.get('llm_id'),
+						temperature: parseFloat(post_data.get('temperature'))
 					});
 					break;
 				case 'ask_question_about_code':
-					result = await llmManager.askQuestionAboutCode({
-						projectPath: postData.get('projectPath'),
-						question: postData.get('question'),
-						relevantFiles: JSON.parse(postData.get('relevantFiles')),
-						llmId: postData.get('llmId'),
-						temperature: parseFloat(postData.get('temperature'))
+					result = await llm_manager.ask_question_about_code({
+						project_path: post_data.get('project_path'),
+						question: post_data.get('question'),
+						relevant_files: JSON.parse(post_data.get('relevant_files')),
+						llm_id: post_data.get('llm_id'),
+						temperature: parseFloat(post_data.get('temperature'))
 					});
 					break;
 				case 'direct_prompt':
-					result = await llmManager.handleDirectPrompt({
-						prompt: postData.get('prompt'),
-						llmId: postData.get('llmId'),
-						temperature: parseFloat(postData.get('temperature'))
+					result = await llm_manager.handle_direct_prompt({
+						prompt: post_data.get('prompt'),
+						llm_id: post_data.get('llm_id'),
+						temperature: parseFloat(post_data.get('temperature'))
 					});
 					break;
 				
 				// --- Project Actions (from node-projects.js) ---
 				// NEW: Action to add a project by its full path
 				case 'add_project':
-					result = projectManager.addProject({
-						path: postData.get('path')
+					result = project_manager.add_project({
+						path: post_data.get('path')
 					});
 					break;
 				// NEW: Action to browse the filesystem
 				case 'browse_directory':
-					result = projectManager.browseDirectory(postData.get('path') || null);
+					result = project_manager.browse_directory(post_data.get('path') || null);
 					break;
 				case 'get_project_state':
-					result = projectManager.getProjectState({
-						projectPath: postData.get('projectPath')
+					result = project_manager.get_project_state({
+						project_path: post_data.get('project_path')
 					});
 					break;
 				case 'save_project_state':
-					result = projectManager.saveProjectState({
-						projectPath: postData.get('projectPath'),
-						openFolders: postData.get('openFolders'),
-						selectedFiles: postData.get('selectedFiles')
+					result = project_manager.save_project_state({
+						project_path: post_data.get('project_path'),
+						open_folders: post_data.get('open_folders'),
+						selected_files: post_data.get('selected_files')
 					});
 					break;
 				
 				// --- File Actions (from node-files.js) ---
 				case 'get_folders':
-					result = fileManager.getFolders(
-						postData.get('path'),
-						postData.get('projectPath')
+					result = file_manager.get_folders(
+						post_data.get('path'),
+						post_data.get('project_path')
 					);
 					break;
 				case 'get_file_content':
-					const filePath = postData.get('path');
-					result = fileManager.getFileContent(
-						filePath,
-						postData.get('projectPath')
+					const file_path = post_data.get('path');
+					result = file_manager.get_file_content(
+						file_path,
+						post_data.get('project_path')
 					);
-					const fileExt = path.extname(filePath).slice(1);
-					const compressExtensions = Array.isArray(configManager.config.compress_extensions) ? configManager.config.compress_extensions : [];
-					if (result && result.content && compressExtensions.includes(fileExt)) {
+					const file_ext = path.extname(file_path).slice(1);
+					const compress_extensions = Array.isArray(config_manager.config.compress_extensions) ? config_manager.config.compress_extensions : [];
+					if (result && result.content && compress_extensions.includes(file_ext)) {
 						result.content = result.content.replace(/\s+/g, ' ');
 						result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
 					}
 					break;
 				case 'search_files':
-					result = fileManager.searchFiles(
-						postData.get('folderPath'),
-						postData.get('searchTerm'),
-						postData.get('projectPath')
+					result = file_manager.search_files(
+						post_data.get('folder_path'),
+						post_data.get('search_term'),
+						post_data.get('project_path')
 					);
 					break;
 				case 'get_file_analysis':
-					result = fileManager.getFileAnalysis({
-						projectPath: postData.get('projectPath'),
-						filePath: postData.get('filePath')
+					result = file_manager.get_file_analysis({
+						project_path: post_data.get('project_path'),
+						file_path: post_data.get('file_path')
 					});
 					break;
 				case 'check_for_modified_files':
-					result = fileManager.checkForModifiedFiles({
-						projectPath: postData.get('projectPath')
+					result = file_manager.check_for_modified_files({
+						project_path: post_data.get('project_path')
 					});
 					break;
 				case 'check_folder_updates':
-					result = fileManager.checkFolderUpdates(
-						postData.get('projectPath')
+					result = file_manager.check_folder_updates(
+						post_data.get('project_path')
 					);
 					break;
 				default:
@@ -201,22 +201,22 @@ async function handlePostRequest(req, res) {
 
 /**
  * Serves a static file from the file system.
- * @param {string} filePath - The path to the file to serve.
+ * @param {string} file_path - The path to the file to serve.
  * @param {http.ServerResponse} res - The response object.
  */
-function serveStaticFile(filePath, res) {
-	const fullPath = path.join(__dirname, filePath);
-	const ext = path.extname(filePath).slice(1);
-	const mimeTypes = {
+function serve_static_file(file_path, res) {
+	const full_path = path.join(__dirname, file_path);
+	const ext = path.extname(file_path).slice(1);
+	const mime_types = {
 		html: 'text/html',
 		js: 'application/javascript',
 		css: 'text/css',
 		json: 'application/json',
 		txt: 'text/plain',
 	};
-	const contentType = mimeTypes[ext] || 'application/octet-stream';
+	const content_type = mime_types[ext] || 'application/octet-stream';
 	
-	fs.readFile(fullPath, (err, content) => {
+	fs.readFile(full_path, (err, content) => {
 		if (err) {
 			if (err.code === 'ENOENT') {
 				res.writeHead(404);
@@ -227,28 +227,28 @@ function serveStaticFile(filePath, res) {
 			}
 			return;
 		}
-		res.writeHead(200, {'Content-Type': contentType});
+		res.writeHead(200, {'Content-Type': content_type});
 		res.end(content);
 	});
 }
 
 // Create the main HTTP server
 const server = http.createServer((req, res) => {
-	const parsedUrl = url.parse(req.url, true);
+	const parsed_url = url.parse(req.url, true);
 	if (req.method === 'POST') {
-		handlePostRequest(req, res);
+		handle_post_request(req, res);
 	} else if (req.method === 'GET') {
-		switch (parsedUrl.pathname) {
+		switch (parsed_url.pathname) {
 			case '/':
-				serveStaticFile('index.html', res);
+				serve_static_file('index.html', res);
 				break;
 			// MODIFIED: Removed /projects route
 			case '/setup':
-				serveStaticFile('setup.html', res);
+				serve_static_file('setup.html', res);
 				break;
 			default:
 				// Serve other static files like JS, CSS
-				serveStaticFile(parsedUrl.pathname, res);
+				serve_static_file(parsed_url.pathname, res);
 				break;
 		}
 	} else {
@@ -258,7 +258,7 @@ const server = http.createServer((req, res) => {
 });
 
 // Start the server using the port from the loaded configuration
-const port = configManager.config.server_port || 3000;
+const port = config_manager.config.server_port || 3000;
 server.listen(port, () => {
 	console.log(`Server running at http://localhost:${port}/`);
 });

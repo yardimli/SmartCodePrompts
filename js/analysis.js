@@ -1,111 +1,111 @@
 // SmartCodePrompts/js/analysis.js
-import {showLoading, hideLoading, postData} from './utils.js';
-import {getCurrentProject} from './state.js';
+import {show_loading, hide_loading, post_data} from './utils.js';
+import {get_current_project} from './state.js';
 
 /**
  * This function now contains the logic for analyzing selected files.
  * It is called from the new analysis options modal.
  */
-async function performSelectionAnalysis() {
-	const checkedBoxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
-	const llmId = document.getElementById('llm-dropdown').value;
+async function perform_selection_analysis() {
+	const checked_boxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
+	const llm_id = document.getElementById('llm-dropdown').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
-	if (checkedBoxes.length === 0) {
+	if (checked_boxes.length === 0) {
 		alert('Please select at least one file to analyze.');
 		return;
 	}
 	// Note: LLM check is already performed before opening the modal, so it's not strictly needed here, but good for safety.
-	if (!llmId) {
+	if (!llm_id) {
 		alert('Please select an LLM from the dropdown to perform the analysis.');
 		return;
 	}
 	
-	const totalFiles = checkedBoxes.length;
-	let filesAnalyzed = 0;
-	let filesSkipped = 0;
+	const total_files = checked_boxes.length;
+	let files_analyzed = 0;
+	let files_skipped = 0;
 	let errors = [];
-	const currentProject = getCurrentProject();
+	const current_project = get_current_project();
 	
-	for (let i = 0; i < totalFiles; i++) {
-		const checkbox = checkedBoxes[i];
-		const filePath = checkbox.dataset.path;
-		const fileName = filePath.split('/').pop();
-		showLoading(`Analyzing ${i + 1}/${totalFiles}: ${fileName}`);
+	for (let i = 0; i < total_files; i++) {
+		const checkbox = checked_boxes[i];
+		const file_path = checkbox.dataset.path;
+		const file_name = file_path.split('/').pop();
+		show_loading(`Analyzing ${i + 1}/${total_files}: ${file_name}`);
 		try {
-			const response = await postData({
+			const response = await post_data({
 				action: 'analyze_file',
-				projectPath: currentProject.path,
-				filePath: filePath,
-				llmId: llmId,
+				project_path: current_project.path,
+				file_path: file_path,
+				llm_id: llm_id,
 				temperature: parseFloat(temperature)
 			});
 			
 			if (response.status === 'analyzed') {
-				filesAnalyzed++;
+				files_analyzed++;
 				const li = checkbox.closest('li');
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
 					// MODIFIED: Replaced Font Awesome icon with Bootstrap Icon.
 					icon.className = 'bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
-					icon.dataset.path = filePath;
+					icon.dataset.path = file_path;
 					icon.title = 'View Analysis';
-					const fileSpan = li.querySelector('.file');
-					if (fileSpan) {
-						fileSpan.before(icon);
+					const file_span = li.querySelector('.file');
+					if (file_span) {
+						file_span.before(icon);
 					}
 				}
 			} else if (response.status === 'skipped') {
-				filesSkipped++;
+				files_skipped++;
 			}
 		} catch (error) {
-			console.error(`Failed to analyze ${filePath}:`, error);
-			errors.push(`${filePath}: ${error.message}`);
+			console.error(`Failed to analyze ${file_path}:`, error);
+			errors.push(`${file_path}: ${error.message}`);
 		}
 	}
 	
-	hideLoading();
+	hide_loading();
 	
-	let summaryMessage = `Analysis complete.\n- Total files selected: ${totalFiles}\n- Successfully analyzed: ${filesAnalyzed}\n- Skipped (up-to-date): ${filesSkipped}`;
+	let summary_message = `Analysis complete.\n- Total files selected: ${total_files}\n- Successfully analyzed: ${files_analyzed}\n- Skipped (up-to-date): ${files_skipped}`;
 	if (errors.length > 0) {
-		summaryMessage += `\n\nErrors occurred for ${errors.length} file(s):\n- ${errors.join('\n- ')}\n\nCheck the console for more details.`;
+		summary_message += `\n\nErrors occurred for ${errors.length} file(s):\n- ${errors.join('\n- ')}\n\nCheck the console for more details.`;
 	}
-	alert(summaryMessage);
+	alert(summary_message);
 }
 
 
 /**
  * Performs the re-analysis call to the backend and handles the response.
  * The show/hide loading calls have been removed as the new status bar provides progress feedback.
- * @param {boolean} forceReanalysis - Whether to force re-analysis of all files.
+ * @param {boolean} force_reanalysis - Whether to force re-analysis of all files.
  */
-async function performReanalysis(forceReanalysis) {
-	const llmId = document.getElementById('llm-dropdown').value;
-	const currentProject = getCurrentProject();
+async function perform_reanalysis(force_reanalysis) {
+	const llm_id = document.getElementById('llm-dropdown').value;
+	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
 	
-	if (!llmId || !currentProject) {
+	if (!llm_id || !current_project) {
 		return;
 	}
 	
 	try {
-		const response = await postData({
+		const response = await post_data({
 			action: 'reanalyze_modified_files',
-			projectPath: currentProject.path,
-			llmId: llmId,
-			force: forceReanalysis,
+			project_path: current_project.path,
+			llm_id: llm_id,
+			force: force_reanalysis,
 			temperature: parseFloat(temperature)
 		});
 		
-		let summaryMessage = `Re-analysis complete.\n` +
+		let summary_message = `Re-analysis complete.\n` +
 			`- Files re-analyzed: ${response.analyzed}\n` +
 			`- Files skipped (up-to-date): ${response.skipped}`;
 		
 		if (response.errors && response.errors.length > 0) {
-			summaryMessage += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
+			summary_message += `\n\nErrors occurred for ${response.errors.length} file(s):\n- ${response.errors.join('\n- ')}\n\nCheck the console for more details.`;
 		}
-		alert(summaryMessage);
+		alert(summary_message);
 	} catch (error) {
 		console.error('Failed to re-analyze files:', error);
 		alert(`An error occurred during re-analysis: ${error.message}`);
@@ -115,26 +115,26 @@ async function performReanalysis(forceReanalysis) {
 /**
  * Sets up event listeners for the analysis buttons in the right sidebar.
  */
-export function setupAnalysisActionsListener() {
-	const analyzeSelectedBtn = document.getElementById('analyzeSelectedButton');
-	const reanalyzeModifiedBtn = document.getElementById('reanalyzeModifiedOnlyButton');
-	const reanalyzeForceAllBtn = document.getElementById('reanalyzeForceAllButton');
+export function setup_analysis_actions_listener() {
+	const analyze_selected_btn = document.getElementById('analyze_selected_button');
+	const reanalyze_modified_btn = document.getElementById('reanalyze_modified_only_button');
+	const reanalyze_force_all_btn = document.getElementById('reanalyze_force_all_button');
 	
-	if (analyzeSelectedBtn) {
-		analyzeSelectedBtn.addEventListener('click', async () => {
-			await performSelectionAnalysis();
+	if (analyze_selected_btn) {
+		analyze_selected_btn.addEventListener('click', async () => {
+			await perform_selection_analysis();
 		});
 	}
 	
-	if (reanalyzeModifiedBtn) {
-		reanalyzeModifiedBtn.addEventListener('click', async () => {
-			await performReanalysis(false);
+	if (reanalyze_modified_btn) {
+		reanalyze_modified_btn.addEventListener('click', async () => {
+			await perform_reanalysis(false);
 		});
 	}
 	
-	if (reanalyzeForceAllBtn) {
-		reanalyzeForceAllBtn.addEventListener('click', async () => {
-			await performReanalysis(true);
+	if (reanalyze_force_all_btn) {
+		reanalyze_force_all_btn.addEventListener('click', async () => {
+			await perform_reanalysis(true);
 		});
 	}
 }

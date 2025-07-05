@@ -1,13 +1,13 @@
 // SmartCodePrompts/js/prompt.js
-import {showLoading, hideLoading, postData} from './utils.js';
-import {getCurrentProject, setLastSmartPrompt} from './state.js';
-import {performSmartPrompt} from './modals.js';
-import {refreshPromptDisplay} from './fileTree.js';
+import {show_loading, hide_loading, post_data} from './utils.js';
+import {get_current_project, set_last_smart_prompt} from './state.js';
+import {perform_smart_prompt} from './modals.js';
+import {refresh_prompt_display} from './file_tree.js';
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
  */
-function adjustPromptTextareaHeight() {
+function adjust_prompt_textarea_height() {
 	const textarea = document.getElementById('prompt-input');
 	if (!textarea) return;
 	textarea.style.height = 'auto';
@@ -17,101 +17,101 @@ function adjustPromptTextareaHeight() {
 /**
  * Initializes the auto-expanding textarea feature.
  */
-export function initializeAutoExpandTextarea() {
-	const promptInput = document.getElementById('prompt-input');
-	if (promptInput) {
+export function initialize_auto_expand_textarea() {
+	const prompt_input = document.getElementById('prompt-input');
+	if (prompt_input) {
 		// Set initial height
-		adjustPromptTextareaHeight();
+		adjust_prompt_textarea_height();
 		// Add listener for input changes
-		promptInput.addEventListener('input', adjustPromptTextareaHeight);
+		prompt_input.addEventListener('input', adjust_prompt_textarea_height);
 	}
 }
 
 /**
  * NEW: The core logic for submitting a smart prompt. Checks for modified files
  * and asks the user if they want to re-analyze before proceeding.
- * @param {string} promptText The user's prompt.
+ * @param {string} prompt_text The user's prompt.
  */
-async function handleSmartPromptSubmission(promptText) {
-	if (!promptText) {
+async function handle_smart_prompt_submission(prompt_text) {
+	if (!prompt_text) {
 		alert('Please enter a prompt first.');
 		return;
 	}
 	
-	const llmId = document.getElementById('llm-dropdown').value;
-	const currentProject = getCurrentProject();
+	const llm_id = document.getElementById('llm-dropdown').value;
+	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
 	
-	if (!llmId || !currentProject) {
+	if (!llm_id || !current_project) {
 		alert('Please select a project and an LLM.');
 		return;
 	}
 	
-	showLoading('Checking for modified files...');
+	show_loading('Checking for modified files...');
 	try {
 		// This is a new backend action we assume exists.
-		// It should return { needsReanalysis: boolean, count: number }
-		const checkResponse = await postData({
+		// It should return { needs_reanalysis: boolean, count: number }
+		const check_response = await post_data({
 			action: 'check_for_modified_files',
-			projectPath: currentProject.path
+			project_path: current_project.path
 		});
 		
-		hideLoading();
+		hide_loading();
 		
-		if (checkResponse.needsReanalysis) {
-			const modal = document.getElementById('reanalysisPromptModal');
-			const countElement = document.getElementById('reanalysis-file-count');
-			const runAnywayBtn = document.getElementById('run-without-reanalysis-button');
-			const reanalyzeAndRunBtn = document.getElementById('run-with-reanalysis-button');
+		if (check_response.needs_reanalysis) {
+			const modal = document.getElementById('reanalysis_prompt_modal');
+			const count_element = document.getElementById('reanalysis-file-count');
+			const run_anyway_btn = document.getElementById('run-without-reanalysis-button');
+			const reanalyze_and_run_btn = document.getElementById('run-with-reanalysis-button');
 			
-			countElement.textContent = `${checkResponse.count} file(s) have been modified.`;
+			count_element.textContent = `${check_response.count} file(s) have been modified.`;
 			
 			// Use .cloneNode and .replaceWith to clear any previous listeners, preventing multiple triggers
-			const newRunAnywayBtn = runAnywayBtn.cloneNode(true);
-			runAnywayBtn.parentNode.replaceChild(newRunAnywayBtn, runAnywayBtn);
+			const new_run_anyway_btn = run_anyway_btn.cloneNode(true);
+			run_anyway_btn.parentNode.replaceChild(new_run_anyway_btn, run_anyway_btn);
 			
-			const newReanalyzeAndRunBtn = reanalyzeAndRunBtn.cloneNode(true);
-			reanalyzeAndRunBtn.parentNode.replaceChild(newReanalyzeAndRunBtn, reanalyzeAndRunBtn);
+			const new_reanalyze_and_run_btn = reanalyze_and_run_btn.cloneNode(true);
+			reanalyze_and_run_btn.parentNode.replaceChild(new_reanalyze_and_run_btn, reanalyze_and_run_btn);
 			
 			// Add a one-time listener to run without re-analyzing
-			newRunAnywayBtn.addEventListener('click', async () => {
+			new_run_anyway_btn.addEventListener('click', async () => {
 				modal.close();
-				await performSmartPrompt(promptText);
+				await perform_smart_prompt(prompt_text);
 			}, {once: true});
 			
 			// Add a one-time listener to re-analyze then run
-			newReanalyzeAndRunBtn.addEventListener('click', async () => {
+			new_reanalyze_and_run_btn.addEventListener('click', async () => {
 				modal.close();
-				showLoading('Re-analyzing modified files...');
+				show_loading('Re-analyzing modified files...');
 				try {
-					await postData({
+					await post_data({
 						action: 'reanalyze_modified_files',
-						projectPath: currentProject.path,
-						llmId: llmId,
+						project_path: current_project.path,
+						llm_id: llm_id,
 						force: false, // Only re-analyze modified files
 						temperature: parseFloat(temperature)
 					});
 					// After re-analysis is complete, perform the smart prompt
-					await performSmartPrompt(promptText);
+					await perform_smart_prompt(prompt_text);
 				} catch (error) {
 					console.error('Failed to re-analyze and run:', error);
 					alert(`An error occurred during the process: ${error.message}`);
 				} finally {
-					hideLoading();
+					hide_loading();
 				}
 			}, {once: true});
 			
 			modal.showModal();
 		} else {
 			// No re-analysis needed, just run the prompt directly
-			await performSmartPrompt(promptText);
+			await perform_smart_prompt(prompt_text);
 		}
 	} catch (error) {
-		hideLoading();
+		hide_loading();
 		console.error('Failed to check for modified files:', error);
 		// Inform the user, but suggest they can still run the prompt
 		if (confirm(`Could not check for modified files: ${error.message}\n\nDo you want to run the prompt anyway?`)) {
-			await performSmartPrompt(promptText);
+			await perform_smart_prompt(prompt_text);
 		}
 	}
 }
@@ -120,38 +120,38 @@ async function handleSmartPromptSubmission(promptText) {
  * Sets up event listeners for the main prompt bar actions.
  * MODIFIED: This function is completely refactored for the new single-button workflow.
  */
-export function setupPromptBarListeners() {
-	const promptInput = document.getElementById('prompt-input');
-	const runButton = document.getElementById('smart-prompt-run-button');
+export function setup_prompt_bar_listeners() {
+	const prompt_input = document.getElementById('prompt-input');
+	const run_button = document.getElementById('smart-prompt-run-button');
 	
 	// Debounced listener for the prompt input to update content and save state.
-	let promptInputDebounceTimer;
-	promptInput.addEventListener('input', (e) => {
-		clearTimeout(promptInputDebounceTimer);
-		promptInputDebounceTimer = setTimeout(() => {
-			const promptText = e.target.value;
-			setLastSmartPrompt(promptText);
-			refreshPromptDisplay();
+	let prompt_input_debounce_timer;
+	prompt_input.addEventListener('input', (e) => {
+		clearTimeout(prompt_input_debounce_timer);
+		prompt_input_debounce_timer = setTimeout(() => {
+			const prompt_text = e.target.value;
+			set_last_smart_prompt(prompt_text);
+			refresh_prompt_display();
 		}, 1000);
 	});
 	
 	// A single action handler for both button click and Ctrl+Enter.
-	const runAction = () => {
-		const promptText = promptInput.value.trim();
-		handleSmartPromptSubmission(promptText);
+	const run_action = () => {
+		const prompt_text = prompt_input.value.trim();
+		handle_smart_prompt_submission(prompt_text);
 	};
 	
 	// Listener for the main "Run" button.
-	if (runButton) {
-		runButton.addEventListener('click', runAction);
+	if (run_button) {
+		run_button.addEventListener('click', run_action);
 	}
 	
 	// Listener for Ctrl+Enter keyboard shortcut in the textarea.
-	if (promptInput) {
-		promptInput.addEventListener('keydown', (e) => {
+	if (prompt_input) {
+		prompt_input.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter' && e.ctrlKey) {
 				e.preventDefault(); // Prevent adding a new line
-				runAction();
+				run_action();
 			}
 		});
 	}

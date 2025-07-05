@@ -4,7 +4,7 @@
  * Shows the main loading indicator with a custom message.
  * @param {string} [message='Loading...'] - The message to display.
  */
-export function showLoading(message = 'Loading...') {
+export function show_loading(message = 'Loading...') {
 	const indicator = document.getElementById('loading-indicator');
 	if (indicator) {
 		indicator.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}`;
@@ -15,7 +15,7 @@ export function showLoading(message = 'Loading...') {
 /**
  * Hides the main loading indicator.
  */
-export function hideLoading() {
+export function hide_loading() {
 	const indicator = document.getElementById('loading-indicator');
 	if (indicator) {
 		indicator.style.display = 'none';
@@ -24,15 +24,15 @@ export function hideLoading() {
 
 /**
  * Gets the parent directory path from a full file path.
- * @param {string} filePath - The full path of the file.
+ * @param {string} file_path - The full path of the file.
  * @returns {string|null} The parent path or null.
  */
-export function getParentPath(filePath) {
-	if (!filePath || !filePath.includes('/')) return null;
-	return filePath.substring(0, filePath.lastIndexOf('/'));
+export function get_parent_path(file_path) {
+	if (!file_path || !file_path.includes('/')) return null;
+	return file_path.substring(0, file_path.lastIndexOf('/'));
 }
 
-// MODIFIED: Removed getProjectIdentifier and parseProjectIdentifier as they are no longer needed.
+// MODIFIED: Removed get_project_identifier and parseProjectIdentifier as they are no longer needed.
 // The full project path is now used as the identifier.
 
 /**
@@ -41,10 +41,10 @@ export function getParentPath(filePath) {
  * @returns {Promise<object>} A promise that resolves with the JSON response.
  * @throws {Error} If the request fails or the response is not ok.
  */
-export async function postData(data) {
-	const formData = new URLSearchParams();
+export async function post_data(data) {
+	const form_data = new URLSearchParams();
 	for (const key in data) {
-		formData.append(key, data[key]);
+		form_data.append(key, data[key]);
 	}
 	
 	const response = await fetch('/', {
@@ -52,17 +52,17 @@ export async function postData(data) {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded'
 		},
-		body: formData
+		body: form_data
 	});
 	
 	if (!response.ok) {
-		let errorPayload = {error: `Request failed: ${response.statusText}`};
+		let error_payload = {error: `Request failed: ${response.status_text}`};
 		try {
-			errorPayload = await response.json();
+			error_payload = await response.json();
 		} catch (e) {
 			// Ignore if response is not JSON
 		}
-		throw new Error(errorPayload.error);
+		throw new Error(error_payload.error);
 	}
 	return response.json();
 }
@@ -75,58 +75,58 @@ export async function postData(data) {
  * @param {string} text The raw text from the LLM, which may contain markdown.
  * @returns {string} Sanitized and formatted HTML string.
  */
-export function simpleMarkdownToHtml(text) {
+export function simple_markdown_to_html(text) {
 	// Split the text by code blocks (```) to treat them separately.
 	const parts = text.split('```');
 	
-	const finalHtml = parts.map((part, index) => {
+	const final_html = parts.map((part, index) => {
 		// An odd index (1, 3, 5...) indicates a code block.
 		if (index % 2 === 1) {
-			let codeContent = part;
-			const firstNewline = part.indexOf('\n');
+			let code_content = part;
+			const first_newline = part.indexOf('\n');
 			
 			// Simple check to strip a language hint from the first line (e.g., ```javascript)
-			if (firstNewline !== -1) {
-				const langHint = part.substring(0, firstNewline).trim();
+			if (first_newline !== -1) {
+				const lang_hint = part.substring(0, first_newline).trim();
 				// A simple regex to see if it looks like a language name.
-				if (langHint.match(/^[a-z0-9_-]+$/i) && langHint.length < 20) {
-					codeContent = part.substring(firstNewline + 1);
+				if (lang_hint.match(/^[a-z0-9_-]+$/i) && lang_hint.length < 20) {
+					code_content = part.substring(first_newline + 1);
 				}
 			}
 			
 			// Escape HTML entities inside the code block to display them as text.
-			const escapedCode = codeContent
+			const escaped_code = code_content
 				.replace(/&/g, '&')
 				.replace(/</g, '<')
 				.replace(/>/g, '>');
 			
 			// MODIFIED: Wrap in a div with a copy button.
 			// The button is initially hidden and appears on hover of the container (`group`).
-			// It uses event delegation, so the click handler is attached in the respective modules (qa.js, directPrompt.js).
+			// It uses event delegation, so the click handler is attached in the respective modules (qa.js, direct_prompt.js).
 			return `<div class="relative group my-2">
                         <button class="copy-code-button btn btn-xs btn-ghost absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Copy code">
                             <i class="bi bi-clipboard"></i> Copy
                         </button>
-                        <pre class="bg-base-300 p-2 rounded-md text-sm overflow-x-auto pt-8"><code>${escapedCode.trim()}</code></pre>
+                        <pre class="bg-base-300 p-2 rounded-md text-sm overflow-x-auto pt-8"><code>${escaped_code.trim()}</code></pre>
                     </div>`;
 			
 		} else {
 			// An even index (0, 2, 4...) indicates regular text.
 			// Escape it first to prevent rendering of any raw HTML.
-			let regularText = part
+			let regular_text = part
 				.replace(/&/g, '&')
 				.replace(/</g, '<')
 				.replace(/>/g, '>');
 			
 			// Order of replacement matters for markdown parsing. Use non-greedy matchers.
-			regularText = regularText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
-			regularText = regularText.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italic
-			regularText = regularText.replace(/`(.+?)`/g, '<code class="bg-base-300 px-1 rounded-sm">$1</code>'); // Inline code
+			regular_text = regular_text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
+			regular_text = regular_text.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italic
+			regular_text = regular_text.replace(/`(.+?)`/g, '<code class="bg-base-300 px-1 rounded-sm">$1</code>'); // Inline code
 			
 			// Convert newlines to <br> tags for this part only.
-			return regularText.replace(/\n/g, '<br>');
+			return regular_text.replace(/\n/g, '<br>');
 		}
 	}).join('');
 	
-	return finalHtml;
+	return final_html;
 }

@@ -149,17 +149,17 @@
 			
 			<h3 class="font-bold">Tools</h3>
 			<div class="grid gap-2">
-				<button class="btn btn-primary btn-sm" id="analyzeSelectedButton"
+				<button class="btn btn-primary btn-sm" id="analyze_selected_button"
 				        title="Performs a one-time analysis on the files currently checked in the file tree.">
 					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-check-square me-2"></i>Analyze Selected
 				</button>
-				<button class="btn btn-info btn-sm" id="reanalyzeModifiedOnlyButton"
+				<button class="btn btn-info btn-sm" id="reanalyze_modified_only_button"
 				        title="Scans for files changed since their last analysis and re-analyzes only those.">
 					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-file-earmark-diff me-2"></i>Re-analyze Modified
 				</button>
-				<button class="btn btn-error btn-sm" id="reanalyzeForceAllButton"
+				<button class="btn btn-error btn-sm" id="reanalyze_force_all_button"
 				        title="Re-analyzes every file that has a previous analysis, regardless of changes.">
 					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-arrow-repeat me-2"></i>Force Re-analyze All
@@ -197,7 +197,7 @@
 
 <!-- Modals -->
 <!-- NEW: Project Browser Modal -->
-<dialog id="projectModal" class="modal">
+<dialog id="project_modal" class="modal">
 	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
 		<h3 class="font-bold text-lg">Select a Project Folder</h3>
 		<div class="py-2">
@@ -215,32 +215,32 @@
 	</div>
 </dialog>
 
-<dialog id="searchModal" class="modal">
+<dialog id="search_modal" class="modal">
 	<div class="modal-box">
-		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>
-		<p class="py-4">Searching within: <strong id="searchModalFolderPath"></strong></p>
+		<h3 class="font-bold text-lg" id="search_modal_label">Search in Folder</h3>
+		<p class="py-4">Searching within: <strong id="search_modal_folder_path"></strong></p>
 		<div class="form-control">
-			<label class="label" for="searchTermInput">
+			<label class="label" for="search_term_input">
 				<span class="label-text">Search Term (case-insensitive):</span>
 			</label>
-			<input type="text" class="input input-bordered" id="searchTermInput"
+			<input type="text" class="input input-bordered" id="search_term_input"
 			       placeholder="Enter text to search for...">
 		</div>
 		<div class="modal-action">
 			<form method="dialog">
 				<button class="btn">Close</button>
 			</form>
-			<button class="btn btn-primary" id="performSearchButton">Search Files</button>
+			<button class="btn btn-primary" id="perform_search_button">Search Files</button>
 		</div>
 	</div>
 </dialog>
 
-<dialog id="logModal" class="modal">
+<dialog id="log_modal" class="modal">
 	<!-- MODIFIED: Added flex classes for fixed footer -->
 	<div class="modal-box w-11/12 max-w-7xl h-5/6 flex flex-col">
-		<h3 class="font-bold text-lg flex-shrink-0" id="logModalLabel">LLM Call Log (Persistent)</h3>
+		<h3 class="font-bold text-lg flex-shrink-0" id="log_modal_label">LLM Call Log (Persistent)</h3>
 		<!-- MODIFIED: Added flex-grow and overflow for scrolling content -->
-		<div class="py-4 flex-grow overflow-y-auto" id="logModalBody">
+		<div class="py-4 flex-grow overflow-y-auto" id="log_modal_body">
 			<p class="text-base-content/70">No LLM calls have been made yet.</p>
 		</div>
 		<!-- MODIFIED: This is now the fixed footer -->
@@ -254,7 +254,7 @@
 	</div>
 </dialog>
 
-<dialog id="reanalysisPromptModal" class="modal">
+<dialog id="reanalysis_prompt_modal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
 		<p class="py-4">For the best results, it's recommended to re-analyze modified files before running the prompt.</p>
@@ -270,7 +270,7 @@
 </dialog>
 
 <!-- NEW: QA Modal -->
-<dialog id="qaModal" class="modal">
+<dialog id="qa_modal" class="modal">
 	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
@@ -288,7 +288,7 @@
 </dialog>
 
 <!-- NEW: Direct Prompt Modal -->
-<dialog id="directPromptModal" class="modal">
+<dialog id="direct_prompt_modal" class="modal">
 	<!-- MODIFIED: Added flex-col to modal-box for proper layout and adjusted width/height for larger size -->
 	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
 		<form method="dialog">

@@ -130,20 +130,20 @@
 }
 
 /* Custom styles for the LLM log modal table */
-#logModalBody table {
+#log_modal_body table {
     font-size: 14px;
 }
 
-#logModalBody .log-reason {
+#log_modal_body .log-reason {
     word-break: break-word;
 }
 
-#logModalBody .log-tokens {
+#log_modal_body .log-tokens {
     white-space: nowrap;
     text-align: right;
 }
 
-#logModalBody .log-timestamp {
+#log_modal_body .log-timestamp {
     white-space: nowrap;
     color: hsl(var(--bc) / 0.5); /* DaisyUI base-content at 50% opacity */
 }
@@ -264,12 +264,12 @@
 }
 
 /* MODIFIED: Adjust margin for direct prompt modal action to reduce space */
-#directPromptModal .modal-action {
+#direct_prompt_modal .modal-action {
     margin-top: 0.5rem; /* Reduced margin-top */
 }
 
-/* NEW: Make directPromptModal larger */
-#directPromptModal .modal-box {
+/* NEW: Make direct_prompt_modal larger */
+#direct_prompt_modal .modal-box {
     width: 95vw; /* Occupy 95% of viewport width */
     max-width: 95vw; /* Ensure it doesn't exceed 95vw */
     height: 95vh; /* Occupy 95% of viewport height */

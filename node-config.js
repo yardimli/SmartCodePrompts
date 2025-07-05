@@ -11,7 +11,7 @@ let config = {};
 /**
  * Creates all necessary tables if they don't exist. This function defines the database schema.
  */
-function createTables() {
+function create_tables() {
 	db.exec(`
         CREATE TABLE IF NOT EXISTS projects (
             path TEXT PRIMARY KEY
@@ -68,18 +68,18 @@ function createTables() {
  * Sets default configuration values in the database.
  * Uses INSERT OR IGNORE to prevent overwriting user-modified settings.
  */
-function setDefaultConfig() {
-	const defaultConfig = {
+function set_default_config() {
+	const default_config = {
 		// MODIFIED: Removed root_directories
 		allowed_extensions: JSON.stringify(["js", "jsx", "json", "ts", "tsx", "php", "py", "html", "css", "swift", "xcodeproj", "xcworkspace", "storyboard", "xib", "plist", "xcassets", "playground", "cs", "csproj", "htaccess"]),
 		excluded_folders: JSON.stringify([".git", ".idea", "vendor", "storage", "node_modules"]),
 		server_port: "3000",
 		openrouter_api_key: "YOUR_API_KEY_HERE"
 	};
-	const insertStmt = db.prepare('INSERT OR IGNORE INTO app_setup (key, value) VALUES (?, ?)');
+	const insert_stmt = db.prepare('INSERT OR IGNORE INTO app_setup (key, value) VALUES (?, ?)');
 	const transaction = db.transaction(() => {
-		for (const key in defaultConfig) {
-			insertStmt.run(key, defaultConfig[key]);
+		for (const key in default_config) {
+			insert_stmt.run(key, default_config[key]);
 		}
 	});
 	transaction();
@@ -89,20 +89,20 @@ function setDefaultConfig() {
  * Sets default application settings (like dark mode state and LLM prompts).
  * Uses INSERT OR IGNORE to prevent overwriting existing values.
  */
-function setDefaultAppSettings() {
-	const initSettingsStmt = db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)");
+function set_default_app_settings() {
+	const initSettings_stmt = db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)");
 	const transaction = db.transaction(() => {
-		initSettingsStmt.run('darkMode', 'false');
-		initSettingsStmt.run('lastSelectedProject', '');
-		initSettingsStmt.run('lastSelectedLlm', '');
-		initSettingsStmt.run('lastSmartPrompt', '');
+		initSettings_stmt.run('dark_mode', 'false');
+		initSettings_stmt.run('last_selected_project', '');
+		initSettings_stmt.run('last_selected_llm', '');
+		initSettings_stmt.run('last_smart_prompt', '');
 		// NEW: Persistent token counters
-		initSettingsStmt.run('total_prompt_tokens', '0');
-		initSettingsStmt.run('total_completion_tokens', '0');
+		initSettings_stmt.run('total_prompt_tokens', '0');
+		initSettings_stmt.run('total_completion_tokens', '0');
 		// NEW: Default for right sidebar collapsed state
-		initSettingsStmt.run('rightSidebarCollapsed', 'false');
+		initSettings_stmt.run('right_sidebar_collapsed', 'false');
 		
-		const defaultOverviewPrompt = `Analyze the following file content and provide a response in a single, JSON object format.
+		const default_overview_prompt = `Analyze the following file content and provide a response in a single, JSON object format.
 		Do not include any text outside of the JSON object.
 		The JSON object should have the following structure, if a structure is empty, it should not be included in the output.:
 
@@ -126,11 +126,11 @@ function setDefaultAppSettings() {
 }
 }
 
-File Path: \${filePath}
+File Path: \${file_path}
 File Content:
-\${fileContent}`;
+\${file_content}`;
 		
-		const defaultFunctionsPrompt = `PROMPT: Create a concise function analysis summary
+		const default_functions_prompt = `PROMPT: Create a concise function analysis summary
 
 INSTRUCTIONS:
 Analyze all functions and provide a minimal but comprehensive overview:
@@ -181,12 +181,12 @@ Output Format (exclude empty fields):
 
 Keep descriptions under 10 words. Omit obvious information.
 
-File Path: \${filePath}
+File Path: \${file_path}
 File Content:
-\${fileContent}`;
+\${file_content}`;
 		
-		const defaultContentFooter = `
-		\${userPrompt}
+		const default_content_footer = `
+		\${user_prompt}
 
 Format the output.
 For PHP use psr-12 standards.
@@ -198,33 +198,33 @@ Comment as needed.
 Add comments to new lines and modified sections.
 `;
 		
-		const defaultSmartPrompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}
+		const default_smart_prompt = `Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation. Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}
 
-		USER REQUEST: \${userPrompt}
+		USER REQUEST: \${user_prompt}
 
 		AVAILABLE FILES AND THEIR ANALYSIS:
-		\${analysisDataString}`;
+		\${analysis_data_string}`;
 		
 		// NEW: Default prompt for the QA feature
-		const defaultQAPrompt = `You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
+		const default_qa_prompt = `You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
 
 CONTEXT:
-\${fileContext}
+\${file_context}
 
 QUESTION:
-\${userQuestion}`;
+\${user_question}`;
 		
-		initSettingsStmt.run('prompt_file_overview', defaultOverviewPrompt);
-		initSettingsStmt.run('prompt_functions_logic', defaultFunctionsPrompt);
-		initSettingsStmt.run('prompt_content_footer', defaultContentFooter);
-		initSettingsStmt.run('prompt_smart_prompt', defaultSmartPrompt);
-		initSettingsStmt.run('prompt_qa', defaultQAPrompt); // NEW
+		initSettings_stmt.run('prompt_file_overview', default_overview_prompt);
+		initSettings_stmt.run('prompt_functions_logic', default_functions_prompt);
+		initSettings_stmt.run('prompt_content_footer', default_content_footer);
+		initSettings_stmt.run('prompt_smart_prompt', default_smart_prompt);
+		initSettings_stmt.run('prompt_qa', default_qa_prompt); // NEW
 		
-		const allowedExtensions = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions')?.value;
-		if (allowedExtensions) {
-			initSettingsStmt.run('compress_extensions', allowedExtensions);
+		const allowed_extensions = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions')?.value;
+		if (allowed_extensions) {
+			initSettings_stmt.run('compress_extensions', allowed_extensions);
 		} else {
-			initSettingsStmt.run('compress_extensions', '[]');
+			initSettings_stmt.run('compress_extensions', '[]');
 		}
 	});
 	transaction();
@@ -234,43 +234,43 @@ QUESTION:
  * Loads the configuration from `app_setup` and `app_settings` tables into the global 'config' object.
  * It resolves relative paths and ensures correct data types.
  */
-function loadConfigFromDb() {
+function load_config_from_db() {
 	// Clear existing properties from the config object without creating a new reference.
 	Object.keys(config).forEach(key => delete config[key]);
 	
-	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
-	const settingsRows = db.prepare('SELECT key, value FROM app_settings').all();
-	const newConfigData = {};
+	const setup_rows = db.prepare('SELECT key, value FROM app_setup').all();
+	const settings_rows = db.prepare('SELECT key, value FROM app_settings').all();
+	const new_config_data = {};
 	
 	// Process setup data (JSON parsing for arrays)
-	setupRows.forEach(row => {
+	setup_rows.forEach(row => {
 		try {
-			newConfigData[row.key] = JSON.parse(row.value);
+			new_config_data[row.key] = JSON.parse(row.value);
 		} catch (e) {
-			newConfigData[row.key] = row.value;
+			new_config_data[row.key] = row.value;
 		}
 	});
 	
 	// Process settings data (all are strings)
-	settingsRows.forEach(row => {
+	settings_rows.forEach(row => {
 		// Also parse compress_extensions if it exists.
 		if (row.key === 'compress_extensions') {
 			try {
-				newConfigData[row.key] = JSON.parse(row.value);
+				new_config_data[row.key] = JSON.parse(row.value);
 			} catch (e) {
-				newConfigData[row.key] = [];
+				new_config_data[row.key] = [];
 			}
 		} else {
-			newConfigData[row.key] = row.value;
+			new_config_data[row.key] = row.value;
 		}
 	});
 	
-	newConfigData.server_port = parseInt(newConfigData.server_port, 10);
+	new_config_data.server_port = parseInt(new_config_data.server_port, 10);
 	
 	// MODIFIED: Removed root_directories logic
 	
 	// Mutate the original config object by copying the new properties into it.
-	Object.assign(config, newConfigData);
+	Object.assign(config, new_config_data);
 	console.log('Configuration loaded from database.');
 }
 
@@ -278,79 +278,79 @@ function loadConfigFromDb() {
  * Initializes the entire database and configuration setup.
  * This should be called once on server startup.
  */
-function initializeDatabaseAndConfig() {
-	createTables();
-	setDefaultConfig();
-	setDefaultAppSettings();
-	loadConfigFromDb();
+function initialize_database_and_config() {
+	create_tables();
+	set_default_config();
+	set_default_app_settings();
+	load_config_from_db();
 }
 
 /**
  * Retrieves all setup data for the /setup page.
  * @returns {object} An object containing the current config and dark mode status.
  */
-function getSetupData() {
-	const setupRows = db.prepare('SELECT key, value FROM app_setup').all();
-	const settingsRows = db.prepare("SELECT key, value FROM app_settings").all();
-	const currentConfig = {};
-	setupRows.forEach(row => {
+function get_setup_data() {
+	const setup_rows = db.prepare('SELECT key, value FROM app_setup').all();
+	const settings_rows = db.prepare("SELECT key, value FROM app_settings").all();
+	const current_config = {};
+	setup_rows.forEach(row => {
 		try {
-			currentConfig[row.key] = JSON.parse(row.value);
+			current_config[row.key] = JSON.parse(row.value);
 		} catch (e) {
-			currentConfig[row.key] = row.value;
+			current_config[row.key] = row.value;
 		}
 	});
-	settingsRows.forEach(row => {
-		currentConfig[row.key] = row.value;
+	settings_rows.forEach(row => {
+		current_config[row.key] = row.value;
 	});
-	return {config: currentConfig, darkMode: currentConfig.darkMode === 'true'};
+	return {config: current_config, dark_mode: current_config.dark_mode === 'true'};
 }
 
 /**
  * Saves the setup configuration from the /setup page to the appropriate tables.
- * @param {URLSearchParams} postData - The form data from the request.
+ * @param {URLSearchParams} post_data - The form data from the request.
  */
-function saveSetupData(postData) {
+function save_setup_data(post_data) {
 	// MODIFIED: Removed root_directories
-	const setupKeys = new Set(['allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
-	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
-	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
+	const setup_keys = new Set(['allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
+	const settings_keys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
+	const upsertSetup_stmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
+	const upsertSettings_stmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
 	const transaction = db.transaction(() => {
-		for (const [key, value] of postData.entries()) {
+		for (const [key, value] of post_data.entries()) {
 			if (key === 'action') continue;
-			if (setupKeys.has(key)) {
-				upsertSetupStmt.run(key, value);
-			} else if (settingsKeys.has(key)) {
-				upsertSettingsStmt.run(key, value);
+			if (setup_keys.has(key)) {
+				upsertSetup_stmt.run(key, value);
+			} else if (settings_keys.has(key)) {
+				upsertSettings_stmt.run(key, value);
 			}
 		}
 	});
 	transaction();
 	
 	// Reload config into memory after saving.
-	loadConfigFromDb();
+	load_config_from_db();
 }
 
 /**
  * Resets LLM prompts to their default values.
  * @returns {object} A success object.
  */
-function resetPromptsToDefault() {
-	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
-	const deleteStmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
+function reset_prompts_to_default() {
+	const prompt_keys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
+	const delete_stmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
 	const transaction = db.transaction(() => {
-		for (const key of promptKeys) {
-			deleteStmt.run(key);
+		for (const key of prompt_keys) {
+			delete_stmt.run(key);
 		}
 	});
 	transaction();
 	
 	// Re-add the defaults
-	setDefaultAppSettings();
+	set_default_app_settings();
 	// Reload config into memory
-	loadConfigFromDb();
+	load_config_from_db();
 	return {success: true};
 }
 
@@ -358,7 +358,7 @@ function resetPromptsToDefault() {
  * NEW: Resets the LLM log and token counters in the database.
  * @returns {{success: boolean}}
  */
-function resetLlmLog() {
+function reset_llm_log() {
 	db.exec('DELETE FROM llm_log');
 	const stmt = db.prepare('UPDATE app_settings SET value = ? WHERE key = ?');
 	const transaction = db.transaction(() => {
@@ -371,92 +371,92 @@ function resetLlmLog() {
 
 /**
  * Sets the dark mode preference in the database.
- * @param {boolean} isDarkMode - The new dark mode state.
+ * @param {boolean} is_dark_mode - The new dark mode state.
  */
-function setDarkMode(isDarkMode) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(isDarkMode ? 'true' : 'false', 'darkMode');
+function set_dark_mode(is_dark_mode) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(is_dark_mode ? 'true' : 'false', 'dark_mode');
 }
 
 /**
  * NEW: Sets the right sidebar collapsed preference in the database.
- * @param {boolean} isCollapsed - The new collapsed state.
+ * @param {boolean} is_collapsed - The new collapsed state.
  */
-function setRightSidebarCollapsed(isCollapsed) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(isCollapsed ? 'true' : 'false', 'rightSidebarCollapsed');
+function setright_sidebar_collapsed(is_collapsed) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(is_collapsed ? 'true' : 'false', 'right_sidebar_collapsed');
 }
 
 /**
  * Saves the ID of the last selected LLM.
- * @param {string} llmId - The ID of the selected LLM.
+ * @param {string} llm_id - The ID of the selected LLM.
  */
-function saveSelectedLlm(llmId) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(llmId, 'lastSelectedLlm');
+function save_selected_llm(llm_id) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(llm_id, 'last_selected_llm');
 }
 
 /**
  * @param {string} prompt - The prompt text to save.
  */
-function saveLastSmartPrompt(prompt) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(prompt, 'lastSmartPrompt');
+function save_last_smart_prompt(prompt) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(prompt, 'last_smart_prompt');
 }
 
 /**
- * @param {string} extensionsJson - A JSON string array of extensions.
+ * @param {string} extensions_json - A JSON string array of extensions.
  */
-function saveCompressExtensions(extensionsJson) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(extensionsJson, 'compress_extensions');
+function save_compress_extensions(extensions_json) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(extensions_json, 'compress_extensions');
 	// Reload config into memory to make the change effective immediately for get_file_content.
-	loadConfigFromDb();
+	load_config_from_db();
 }
 
 /**
  * Retrieves all data needed for the main page (index.html).
  * @returns {object} An object containing projects, settings, and LLMs.
  */
-function getMainPageData() {
+function get_main_page_data() {
 	// MODIFIED: Select full path from projects table
 	const projects = db.prepare('SELECT path FROM projects ORDER BY path ASC').all();
 	const settings = db.prepare('SELECT key, value FROM app_settings').all();
-	const appSettings = settings.reduce((acc, row) => {
+	const app_settings = settings.reduce((acc, row) => {
 		acc[row.key] = row.value;
 		return acc;
 	}, {});
 	const llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
-	const allowedExtensionsRow = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
+	const allowed_extensions_row = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
 	
-	const promptTokens = appSettings.total_prompt_tokens || '0';
-	const completionTokens = appSettings.total_completion_tokens || '0';
+	const prompt_tokens = app_settings.total_prompt_tokens || '0';
+	const completion_tokens = app_settings.total_completion_tokens || '0';
 	
 	return {
 		projects,
-		lastSelectedProject: appSettings.lastSelectedProject || '',
-		darkMode: appSettings.darkMode === 'true',
-		rightSidebarCollapsed: appSettings.rightSidebarCollapsed === 'true',
+		last_selected_project: app_settings.last_selected_project || '',
+		dark_mode: app_settings.dark_mode === 'true',
+		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',
 		llms,
-		lastSelectedLlm: appSettings.lastSelectedLlm || '',
-		prompt_content_footer: appSettings.prompt_content_footer || '',
-		last_smart_prompt: appSettings.last_smart_prompt || '',
-		sessionTokens: {
-			prompt: parseInt(promptTokens, 10),
-			completion: parseInt(completionTokens, 10)
+		last_selected_llm: app_settings.last_selected_llm || '',
+		prompt_content_footer: app_settings.prompt_content_footer || '',
+		last_smart_prompt: app_settings.last_smart_prompt || '',
+		session_tokens: {
+			prompt: parseInt(prompt_tokens, 10),
+			completion: parseInt(completion_tokens, 10)
 		},
-		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
-		compress_extensions: appSettings.compress_extensions || '[]'
+		allowed_extensions: allowed_extensions_row ? allowed_extensions_row.value : '[]',
+		compress_extensions: app_settings.compress_extensions || '[]'
 	};
 }
 
 module.exports = {
 	db,
 	config,
-	initializeDatabaseAndConfig,
-	getSetupData,
-	saveSetupData,
-	setDarkMode,
-	setRightSidebarCollapsed,
-	saveSelectedLlm,
-	saveLastSmartPrompt,
-	saveCompressExtensions,
-	getMainPageData,
-	resetPromptsToDefault,
-	resetLlmLog
+	initialize_database_and_config,
+	get_setup_data,
+	save_setup_data,
+	set_dark_mode,
+	setright_sidebar_collapsed,
+	save_selected_llm,
+	save_last_smart_prompt,
+	save_compress_extensions,
+	get_main_page_data,
+	reset_prompts_to_default,
+	reset_llm_log
 };

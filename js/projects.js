@@ -44,7 +44,7 @@ function renderProjectList(projects) {
                 <div class="card bg-base-200 shadow-md hover:bg-base-300 transition-colors">
                     <div class="card-body p-4">
                         <label for="proj-${identifier}" class="label cursor-pointer justify-start gap-4">
-                             <input class="checkbox checkbox-primary" type="checkbox" value="${identifier}" id="proj-${identifier}" data-root-index="${project.rootIndex}" data-path="${project.path}" ${isChecked ? 'checked' : ''}>
+                             <input class="checkbox checkbox-primary" type="checkbox" value="${identifier}" id="proj-${identifier}" data-path="${project.path}" ${isChecked ? 'checked' : ''}>
                              <span class="label-text text-lg">${project.path}</span>
                         </label>
                     </div>
@@ -101,7 +101,6 @@ document.getElementById('projects-list').addEventListener('change', async (e) =>
 		try {
 			await postData({
 				action: 'toggle_project',
-				rootIndex: projectData.rootIndex,
 				path: projectData.path,
 				isSelected: checkbox.checked
 			});

@@ -91,7 +91,6 @@ async function handleQuestionSubmit() {
 		// Step 1: Get relevant files based on the question
 		const relevantFilesResponse = await postData({
 			action: 'get_relevant_files_from_prompt', // Re-using the smart prompt logic
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			userPrompt: userQuestion,
 			llmId: llmId,
@@ -109,7 +108,6 @@ async function handleQuestionSubmit() {
 		// Step 2: Ask the LLM the question with the context of the relevant files
 		const qaResponse = await postData({
 			action: 'ask_question_about_code',
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			question: userQuestion,
 			relevantFiles: JSON.stringify(relevantFiles),

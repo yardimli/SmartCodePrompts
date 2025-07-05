@@ -78,7 +78,6 @@ export function loadFolders (path, element) {
 			const response = await postData({
 				action: 'get_folders',
 				path: path,
-				rootIndex: currentProject.rootIndex,
 				projectPath: currentProject.path
 			});
 			const fileTree = document.getElementById('file-tree');
@@ -169,7 +168,7 @@ export async function updateSelectedContent () {
 	
 	const requestPromises = Array.from(checkedBoxes).map(box => {
 		const path = box.dataset.path;
-		return postData({action: 'get_file_content', rootIndex: getCurrentProject().rootIndex, path: path})
+		return postData({action: 'get_file_content', projectPath: getCurrentProject().path, path: path})
 			.then(response => `${path}:\n\n${response.content}\n\n`)
 			.catch(error => `/* --- ERROR loading ${path}: ${error.message || 'Unknown error'} --- */\n\n`);
 	});
@@ -217,7 +216,7 @@ export async function restoreState (state) {
 	const pathsToEnsureOpen = new Set(state.openFolders || []);
 	(state.selectedFiles || []).forEach(filePath => {
 		let parentPath = getParentPath(filePath);
-		while (parentPath && parentPath !== currentProject.path) {
+		while (parentPath && parentPath !== '.') { // MODIFIED: Project path is now the root, represented as '.' in file tree
 			pathsToEnsureOpen.add(parentPath);
 			parentPath = getParentPath(parentPath);
 		}
@@ -241,9 +240,10 @@ export async function restoreState (state) {
  */
 export async function ensureFileIsVisible (filePath) {
 	const parts = filePath.split('/');
-	let currentPath = parts[0];
-	for (let i = 1; i < parts.length - 1; i++) {
-		currentPath = `${currentPath}/${parts[i]}`;
+	let currentPath = '.'; // Start from root
+	for (let i = 0; i < parts.length - 1; i++) {
+		// Build path part by part, avoiding leading './' for subsequent parts
+		currentPath = currentPath === '.' ? parts[i] : `${currentPath}/${parts[i]}`;
 		const folderElement = document.querySelector(`#file-tree .folder[data-path="${currentPath}"]`);
 		if (folderElement && !folderElement.classList.contains('open')) {
 			folderElement.classList.add('open');
@@ -351,7 +351,6 @@ export function startFileTreePolling () {
 		try {
 			const updates = await postData({
 				action: 'check_folder_updates',
-				rootIndex: currentProject.rootIndex,
 				projectPath: currentProject.path
 			});
 			

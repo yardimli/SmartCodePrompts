@@ -2,12 +2,14 @@
 import {showLoading, hideLoading, postData} from './utils.js';
 import {getCurrentProject, saveCurrentProjectState, getLastSmartPrompt, setLastSmartPrompt} from './state.js';
 import {ensureFileIsVisible, updateSelectedContent} from './fileTree.js';
-import {updateStatusBar} from './statusBar.js'; // NEW: Import status bar updater
+import {updateStatusBar} from './statusBar.js';
 
 let searchModal = null;
 let logModal = null;
-let reanalysisPromptModal = null; // ADDED: Reference for the new modal
+let reanalysisPromptModal = null;
+let projectModal = null; // NEW: Reference for the project browser modal
 let currentSearchFolderPath = null;
+let currentBrowserPath = null; // NEW: To track the current path in the project browser
 
 /**
  * Initializes the modal element references.
@@ -15,7 +17,54 @@ let currentSearchFolderPath = null;
 export function initializeModals() {
 	searchModal = document.getElementById('searchModal');
 	logModal = document.getElementById('logModal');
-	reanalysisPromptModal = document.getElementById('reanalysisPromptModal'); // ADDED: Initialize the new modal
+	reanalysisPromptModal = document.getElementById('reanalysisPromptModal');
+	projectModal = document.getElementById('projectModal'); // NEW: Initialize the project modal
+}
+
+/**
+ * NEW: Fetches and displays a list of directories for the project browser modal.
+ * @param {string|null} dirPath - The absolute path of the directory to browse. If null, starts at the top level.
+ */
+async function browseDirectory(dirPath = null) {
+	const listEl = document.getElementById('project-browser-list');
+	const pathEl = document.getElementById('project-browser-current-path');
+	listEl.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
+	
+	try {
+		const data = await postData({action: 'browse_directory', path: dirPath});
+		currentBrowserPath = data.current;
+		pathEl.textContent = currentBrowserPath || 'Select a drive or directory';
+		pathEl.title = currentBrowserPath;
+		
+		let html = '';
+		// Add "up" directory if a parent exists
+		if (data.parent) {
+			html += `<a href="#" class="block p-2 rounded-md hover:bg-base-300" data-path="${data.parent}"><i class="bi bi-arrow-90deg-up mr-2"></i>..</a>`;
+		}
+		
+		// Add subdirectories
+		data.directories.forEach(dir => {
+			const separator = currentBrowserPath && (currentBrowserPath.includes('\\')) ? '\\' : '/';
+			const isRoot = !currentBrowserPath || currentBrowserPath.endsWith(separator);
+			const fullPath = currentBrowserPath ? `${currentBrowserPath}${isRoot ? '' : separator}${dir}` : dir;
+			html += `<a href="#" class="block p-2 rounded-md hover:bg-base-300 truncate" data-path="${fullPath}" title="${fullPath}"><i class="bi bi-folder mr-2"></i>${dir}</a>`;
+		});
+		
+		listEl.innerHTML = html || '<p class="text-base-content/70 p-3">No subdirectories found.</p>';
+		
+	} catch (error) {
+		console.error('Failed to browse directory:', error);
+		listEl.innerHTML = `<p class="text-error p-3">Could not browse directory: ${error.message}</p>`;
+		pathEl.textContent = 'Error';
+	}
+}
+
+/**
+ * NEW: Opens the project browser modal and loads the initial directory list.
+ */
+export function openProjectModal() {
+	projectModal.showModal();
+	browseDirectory(); // Start at the root (drives on Windows, home on others)
 }
 
 /**
@@ -50,14 +99,14 @@ export async function handleLogButtonClick() {
         `;
 		
 		for (const entry of logData) {
-			const timestamp = new Date(entry.timestamp).toLocaleString(); // MODIFIED: Use toLocaleString for date and time
+			const timestamp = new Date(entry.timestamp).toLocaleString();
 			tableHtml += `
                 <tr class="hover">
                     <td class="log-timestamp">${timestamp}</td>
                     <td class="log-reason">${entry.reason}</td>
                     <td class="log-model">${entry.modelId || 'N/A'}</td>
-                    <td class="log-tokens">${(entry.promptTokens || 0).toLocaleString()}</td>
-                    <td class="log-tokens">${(entry.completionTokens || 0).toLocaleString()}</td>
+                    <td class="log-tokens text-right">${(entry.promptTokens || 0).toLocaleString()}</td>
+                    <td class="log-tokens text-right">${(entry.completionTokens || 0).toLocaleString()}</td>
                 </tr>
             `;
 		}
@@ -81,17 +130,13 @@ export function handleSearchIconClick(target) {
 
 /**
  * Handles the click event on a file's analysis icon.
- * this now injects the analysis
- * content directly into the #analysis-view div in the main workspace.
+ * This now injects the analysis content directly into the #analysis-view div.
  */
 export async function handleAnalysisIconClick(target) {
 	const filePath = target.dataset.path;
 	const analysisView = document.getElementById('analysis-view');
 	const promptTextarea = document.getElementById('selected-content');
-	const mainTitle = document.getElementById('main-content-title');
 	
-	// Show loading state and switch views
-	if (mainTitle) mainTitle.textContent = `Analyzing ${filePath}...`;
 	promptTextarea.classList.add('hidden');
 	analysisView.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
 	analysisView.classList.remove('hidden');
@@ -100,7 +145,6 @@ export async function handleAnalysisIconClick(target) {
 		const currentProject = getCurrentProject();
 		const data = await postData({
 			action: 'get_file_analysis',
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			filePath: filePath
 		});
@@ -108,48 +152,45 @@ export async function handleAnalysisIconClick(target) {
 		let bodyContent = '<p>No analysis data found for this file.</p>';
 		if (data.file_overview || data.functions_overview) {
 			bodyContent = '';
-			if (data.file_overview) {
+			const renderJson = (title, jsonString) => {
+				let content;
 				try {
-					const overview = JSON.parse(data.file_overview);
-					bodyContent += `<h6>File Overview</h6><pre>${JSON.stringify(overview, null, 2)}</pre>`;
+					const parsed = JSON.parse(jsonString);
+					content = JSON.stringify(parsed, null, 2);
 				} catch (err) {
-					bodyContent += `<h6>File Overview (Raw)</h6><pre>${data.file_overview}</pre>`;
+					content = jsonString;
 				}
+				return `<h6 class="font-bold mt-2">${title}</h6><pre class="bg-base-300 p-2 rounded-md text-xs overflow-auto">${content}</pre>`;
+			};
+			if (data.file_overview) {
+				bodyContent += renderJson('File Overview', data.file_overview);
 			}
 			if (data.functions_overview) {
-				try {
-					const functions = JSON.parse(data.functions_overview);
-					bodyContent += `<h6>Functions & Logic</h6><pre>${JSON.stringify(functions, null, 2)}</pre>`;
-				} catch (err) {
-					bodyContent += `<h6>Functions & Logic (Raw)</h6><pre>${data.functions_overview}</pre>`;
-				}
+				bodyContent += renderJson('Functions & Logic', data.functions_overview);
 			}
 		}
 		
-		// Construct the full analysis view HTML
 		analysisView.innerHTML = `
-            <div id="analysis-view-header">
-                <h2 id="analysis-view-title">Analysis for ${filePath}</h2>
-                <button id="close-analysis-view" class="btn btn-sm btn-ghost">
-                    <i class="fa-solid fa-times"></i> Close
-                </button>
-            </div>
-            <div id="analysis-view-body">
-                ${bodyContent}
+            <div class="p-4 h-full flex flex-col">
+                <div id="analysis-view-header" class="flex justify-between items-center mb-2 flex-shrink-0">
+                    <h2 id="analysis-view-title" class="text-lg font-bold truncate" title="Analysis for ${filePath}">Analysis for ${filePath}</h2>
+                    <button id="close-analysis-view" class="btn btn-sm btn-ghost">
+                        <i class="bi bi-x-lg"></i> Close
+                    </button>
+                </div>
+                <div id="analysis-view-body" class="flex-grow overflow-y-auto">
+                    ${bodyContent}
+                </div>
             </div>
         `;
-		if (mainTitle) mainTitle.textContent = 'File Analysis';
 		
 	} catch (error) {
 		analysisView.innerHTML = `<p class="text-error p-4">Error fetching analysis: ${error.message}</p>`;
-		if (mainTitle) mainTitle.textContent = 'Error';
 	}
 }
 
 /**
  * Performs the "smart prompt" action to select relevant files using an LLM.
- * This logic was extracted from the 'sendPromptButton' event listener and is now called
- * from both the modal and the main bottom prompt bar.
  * @param {string} userPrompt - The user's high-level request.
  */
 export async function performSmartPrompt(userPrompt) {
@@ -171,19 +212,15 @@ export async function performSmartPrompt(userPrompt) {
 		const currentProject = getCurrentProject();
 		const response = await postData({
 			action: 'get_relevant_files_from_prompt',
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			userPrompt: trimmedPrompt,
 			llmId: llmId,
+			temperature: document.getElementById('temperature-slider').value
 		});
 		
 		if (response.relevant_files && response.relevant_files.length > 0) {
-			// Uncheck all files
-			document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
-				cb.checked = false;
-			});
+			document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 			
-			// Check only the relevant files, ensuring they are visible
 			let checkedCount = 0;
 			for (const filePath of response.relevant_files) {
 				const isVisible = await ensureFileIsVisible(filePath);
@@ -196,9 +233,7 @@ export async function performSmartPrompt(userPrompt) {
 				}
 			}
 			
-			// Now update the main content area with the new selection
 			await updateSelectedContent();
-			
 			saveCurrentProjectState();
 			alert(`LLM selected ${checkedCount} relevant file(s). Prompt has been built.`);
 		} else {
@@ -235,7 +270,7 @@ export function setupModalEventListeners() {
 				action: 'search_files',
 				folderPath: currentSearchFolderPath,
 				searchTerm: searchTerm,
-				rootIndex: currentProject.rootIndex
+				projectPath: currentProject.path
 			});
 			
 			if (response.matchingFiles && response.matchingFiles.length > 0) {
@@ -267,20 +302,16 @@ export function setupModalEventListeners() {
 		}
 	});
 	
-	// LLM Log Modal Button Listener
+	// LLM Log Modal Listeners
 	document.getElementById('log-modal-button').addEventListener('click', handleLogButtonClick);
 	
-	// NEW: LLM Log Reset Button Listener
 	document.getElementById('reset-log-button').addEventListener('click', async () => {
 		if (confirm('Are you sure you want to permanently delete the LLM call log and reset all token counters? This cannot be undone.')) {
 			showLoading('Resetting log...');
 			try {
 				await postData({action: 'reset_llm_log'});
-				// Refresh the modal view by re-triggering the log fetch
 				await handleLogButtonClick();
-				// Refresh the status bar with the new zeroed counts
-				const stats = await postData({action: 'get_session_stats'});
-				updateStatusBar(stats);
+				updateStatusBar({prompt: 0, completion: 0});
 			} catch (error) {
 				console.error('Failed to reset log:', error);
 				alert(`Failed to reset log: ${error.message}`);
@@ -292,13 +323,39 @@ export function setupModalEventListeners() {
 	
 	// Analysis View Close Button Listener (delegated)
 	document.getElementById('workspace').addEventListener('click', (e) => {
-		if (e.target.id === 'close-analysis-view') {
+		if (e.target.closest('#close-analysis-view')) {
 			document.getElementById('analysis-view').classList.add('hidden');
 			document.getElementById('selected-content').classList.remove('hidden');
-			const mainTitle = document.getElementById('main-content-title');
-			if (mainTitle) {
-				mainTitle.textContent = 'Prompt Builder';
-			}
+		}
+	});
+	
+	// NEW: Project Modal Listeners
+	document.getElementById('add-project-button').addEventListener('click', openProjectModal);
+	
+	document.getElementById('project-browser-list').addEventListener('click', (e) => {
+		e.preventDefault();
+		const target = e.target.closest('a');
+		if (target && target.dataset.path) {
+			browseDirectory(target.dataset.path);
+		}
+	});
+	
+	document.getElementById('select-project-folder-button').addEventListener('click', async () => {
+		if (!currentBrowserPath) {
+			alert('No folder is selected.');
+			return;
+		}
+		showLoading('Adding project...');
+		try {
+			await postData({action: 'add_project', path: currentBrowserPath});
+			projectModal.close();
+			// Reload the page to refresh the project list and load the new project.
+			window.location.reload();
+		} catch (error) {
+			console.error('Failed to add project:', error);
+			alert(`Failed to add project: ${error.message}`);
+		} finally {
+			hideLoading();
 		}
 	});
 }

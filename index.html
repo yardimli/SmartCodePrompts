@@ -32,8 +32,8 @@
 			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
 				<i class="bi bi-file-earmark-plus"></i>
 			</div>
-			<!-- MODIFIED: Moved "Ask a Question" and added prominent-icon class -->
-			<a href="/projects" title="Select Projects"><i class="bi bi-database"></i></a>
+			<!-- MODIFIED: Changed link to a button for adding a project -->
+			<div id="add-project-button" class="cursor-pointer" title="Add New Project"><i class="bi bi-database-add"></i></div>
 			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
 			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
 				<i class="bi bi-eraser"></i>
@@ -49,10 +49,8 @@
 	<div class="flex flex-col flex-grow">
 		<!-- File Tree and Workspace -->
 		<div id="main-split-pane" class="grid grid-cols-[320px_auto_1fr] flex-grow overflow-hidden">
+			<!-- MODIFIED: Removed project dropdown from this pane -->
 			<div id="file-tree-pane" class="flex flex-col h-full border-r border-base-300 overflow-hidden">
-				<div class="p-2 border-b border-base-300 flex-shrink-0">
-					<select id="projects-dropdown" class="select select-bordered select-sm w-full"></select>
-				</div>
 				<div id="file-tree" class="flex-grow p-2 overflow-auto font-mono text-sm"></div>
 			</div>
 			
@@ -129,6 +127,14 @@
 	<!-- Right Settings Sidebar -->
 	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar"> <!-- MODIFIED: Added ID for sidebar control -->
 		<div class="space-y-4">
+			<!-- NEW: Project selection dropdown moved here from the file tree pane -->
+			<div class="form-control">
+				<label class="label"><span class="label-text">Project</span></label>
+				<select id="projects-dropdown" class="select select-bordered select-sm w-full" title="Select Project"></select>
+			</div>
+			
+			<div class="divider"></div>
+			
 			<div class="form-control">
 				<label class="label"><span class="label-text">LLM Model</span></label>
 				<div class="flex gap-2">
@@ -190,6 +196,25 @@
 </div>
 
 <!-- Modals -->
+<!-- NEW: Project Browser Modal -->
+<dialog id="projectModal" class="modal">
+	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
+		<h3 class="font-bold text-lg">Select a Project Folder</h3>
+		<div class="py-2">
+			<p class="font-mono text-sm bg-base-300 p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
+		</div>
+		<div id="project-browser-list" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
+			<!-- Directory list will be populated here -->
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
+			<button class="btn btn-primary" id="select-project-folder-button">Select This Folder</button>
+		</div>
+	</div>
+</dialog>
+
 <dialog id="searchModal" class="modal">
 	<div class="modal-box">
 		<h3 class="font-bold text-lg" id="searchModalLabel">Search in Folder</h3>

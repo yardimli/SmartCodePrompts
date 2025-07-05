@@ -53,7 +53,6 @@ async function handleSmartPromptSubmission(promptText) {
 		// It should return { needsReanalysis: boolean, count: number }
 		const checkResponse = await postData({
 			action: 'check_for_modified_files',
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path
 		});
 		
@@ -87,7 +86,6 @@ async function handleSmartPromptSubmission(promptText) {
 				try {
 					await postData({
 						action: 'reanalyze_modified_files',
-						rootIndex: currentProject.rootIndex,
 						projectPath: currentProject.path,
 						llmId: llmId,
 						force: false, // Only re-analyze modified files

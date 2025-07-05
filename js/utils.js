@@ -32,29 +32,8 @@ export function getParentPath(filePath) {
 	return filePath.substring(0, filePath.lastIndexOf('/'));
 }
 
-/**
- * Creates a unique string identifier for a project.
- * @param {object} project - The project object { rootIndex, path }.
- * @returns {string|null} The unique identifier.
- */
-export function getProjectIdentifier(project) {
-	if (!project) return null;
-	return `${project.rootIndex}_${project.path}`;
-}
-
-/**
- * Parses a project identifier string back into an object.
- * @param {string} identifier - The unique project identifier.
- * @returns {object|null} The project object { rootIndex, path }.
- */
-export function parseProjectIdentifier(identifier) {
-	if (!identifier) return null;
-	const parts = identifier.split('_');
-	return {
-		rootIndex: parseInt(parts[0], 10),
-		path: parts.slice(1).join('_')
-	};
-}
+// MODIFIED: Removed getProjectIdentifier and parseProjectIdentifier as they are no longer needed.
+// The full project path is now used as the identifier.
 
 /**
  * A reusable async function to handle POST requests using fetch.
@@ -117,9 +96,9 @@ export function simpleMarkdownToHtml(text) {
 			
 			// Escape HTML entities inside the code block to display them as text.
 			const escapedCode = codeContent
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;');
+				.replace(/&/g, '&')
+				.replace(/</g, '<')
+				.replace(/>/g, '>');
 			
 			// MODIFIED: Wrap in a div with a copy button.
 			// The button is initially hidden and appears on hover of the container (`group`).
@@ -135,9 +114,9 @@ export function simpleMarkdownToHtml(text) {
 			// An even index (0, 2, 4...) indicates regular text.
 			// Escape it first to prevent rendering of any raw HTML.
 			let regularText = part
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;');
+				.replace(/&/g, '&')
+				.replace(/</g, '<')
+				.replace(/>/g, '>');
 			
 			// Order of replacement matters for markdown parsing. Use non-greedy matchers.
 			regularText = regularText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold

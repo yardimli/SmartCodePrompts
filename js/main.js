@@ -1,10 +1,11 @@
 // SmartCodePrompts/js/main.js
 // --- CORE & STATE IMPORTS ---
-import {getProjectIdentifier, postData} from './utils.js';
+import {postData} from './utils.js';
 import {setContentFooterPrompt, setLastSmartPrompt} from './state.js';
 
 // --- MODULE IMPORTS ---
 import {setupFileTreeListeners} from './fileTree.js';
+// MODIFIED: Removed import for initializeProjectModal as it's handled by initializeModals
 import {initializeModals, setupModalEventListeners} from './modals.js';
 import {setupAnalysisActionsListener} from './analysis.js';
 import {initializeLlmSelector, setupLlmListeners} from './llm.js';
@@ -18,7 +19,7 @@ import {
 	setupUIEventListeners
 } from './uiComponents.js';
 import {initializeQAModal, setupQAListeners} from './qa.js';
-import {initializeDirectPromptModal, setupDirectPromptListeners} from './directPrompt.js'; // NEW: Import Direct Prompt module
+import {initializeDirectPromptModal, setupDirectPromptListeners} from './directPrompt.js';
 
 /**
  * Initializes the entire application on page load.
@@ -43,11 +44,9 @@ async function initializeApp() {
 			document.querySelector('#toggle-mode i').classList = 'bi-sun';
 		}
 		
-		// NEW: Apply sidebar collapsed state from server
 		if (data.rightSidebarCollapsed) {
 			document.getElementById('app-container').classList.add('right-sidebar-collapsed');
 		} else {
-			// Ensure it's not collapsed if the server says it's not
 			document.getElementById('app-container').classList.remove('right-sidebar-collapsed');
 		}
 		
@@ -55,7 +54,7 @@ async function initializeApp() {
 		setContentFooterPrompt(data.prompt_content_footer || '');
 		setLastSmartPrompt(data.last_smart_prompt || '');
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
-		adjustPromptTextareaHeight(); // Adjust height of prompt textarea
+		adjustPromptTextareaHeight();
 		
 		// 3. Initialize UI Components from their respective modules
 		initializeLlmSelector(data.llms, data.lastSelectedLlm);
@@ -66,25 +65,25 @@ async function initializeApp() {
 		const dropdown = document.getElementById('projects-dropdown');
 		dropdown.innerHTML = '';
 		if (!data.projects || data.projects.length === 0) {
-			dropdown.innerHTML = '<option value="">No projects selected</option>';
-			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please go to "Select Projects" to begin.</p>';
-			return;
+			dropdown.innerHTML = '<option value="">No projects found</option>';
+			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please add a project to begin.</p>';
+		} else {
+			data.projects.forEach(project => {
+				const option = document.createElement('option');
+				option.value = project.path; // The full path is the value
+				option.textContent = project.path;
+				dropdown.appendChild(option);
+			});
 		}
-		data.projects.forEach(project => {
-			const identifier = getProjectIdentifier(project);
-			const option = document.createElement('option');
-			option.value = identifier;
-			option.textContent = project.path;
-			dropdown.appendChild(option);
-		});
+		// Add the "Add New Project" option at the end
+		dropdown.insertAdjacentHTML('beforeend', '<option value="add_new_project" class="text-accent font-bold">Add New Project...</option>');
 		
 		// 5. Load last or first project
-		const lastProjectIdentifier = data.lastSelectedProject;
-		if (lastProjectIdentifier && dropdown.querySelector(`option[value="${lastProjectIdentifier}"]`)) {
-			await loadProject(lastProjectIdentifier);
+		const lastProjectPath = data.lastSelectedProject;
+		if (lastProjectPath && dropdown.querySelector(`option[value="${lastProjectPath}"]`)) {
+			await loadProject(lastProjectPath);
 		} else if (data.projects.length > 0) {
-			const firstProjectIdentifier = getProjectIdentifier(data.projects[0]);
-			await loadProject(firstProjectIdentifier);
+			await loadProject(data.projects[0].path);
 		}
 	} catch (error) {
 		console.error('Failed to initialize app:', error);
@@ -95,9 +94,10 @@ async function initializeApp() {
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', function () {
 	// Initialize UI elements first
-	initializeModals();
+	initializeModals(); // This function now initializes the project modal as well.
 	initializeQAModal();
-	initializeDirectPromptModal(); // NEW: Initialize Direct Prompt modal
+	initializeDirectPromptModal();
+	// REMOVED: The redundant call to initializeProjectModal()
 	initializeResizers();
 	initializeAutoExpandTextarea();
 	initializeTemperatureSlider();
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Setup all event listeners from the various modules
 	setupModalEventListeners();
 	setupQAListeners();
-	setupDirectPromptListeners(); // NEW: Setup Direct Prompt listeners
+	setupDirectPromptListeners();
 	setupAnalysisActionsListener();
 	setupLlmListeners();
 	setupProjectListeners();

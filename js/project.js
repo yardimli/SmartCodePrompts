@@ -1,37 +1,37 @@
 // SmartCodePrompts/js/project.js
-import {showLoading, hideLoading, parseProjectIdentifier, postData} from './utils.js';
+import {showLoading, hideLoading, postData} from './utils.js';
 import {setCurrentProject} from './state.js';
 import {loadFolders, restoreState, startFileTreePolling, stopFileTreePolling} from './fileTree.js';
+import {openProjectModal} from './modals.js';
 
 /**
  * Loads a project, including its file tree and saved state.
- * @param {string} identifier - The unique project identifier.
+ * @param {string} projectPath - The full, absolute path of the project.
  */
-export async function loadProject(identifier) {
+export async function loadProject(projectPath) {
 	stopFileTreePolling();
 	
-	const project = parseProjectIdentifier(identifier);
 	const fileTree = document.getElementById('file-tree');
-	if (!project) {
+	if (!projectPath) {
 		fileTree.innerHTML = '<p class="p-3 text-base-content/70">Please select a project.</p>';
 		return;
 	}
-	showLoading(`Loading project "${project.path}"...`);
-	setCurrentProject(project);
-	document.getElementById('projects-dropdown').value = identifier;
+	showLoading(`Loading project "${projectPath}"...`);
+	setCurrentProject({path: projectPath});
+	document.getElementById('projects-dropdown').value = projectPath;
 	try {
 		const savedState = await postData({
 			action: 'get_project_state',
-			rootIndex: project.rootIndex,
-			projectPath: project.path
+			projectPath: projectPath
 		});
-		await loadFolders(project.path, null);
+		// Load the root of the project. The path '.' is relative to the project root.
+		await loadFolders('.', null);
 		await restoreState(savedState || {openFolders: [], selectedFiles: []});
 		
 		//Start polling for file system changes now that the project is loaded.
 		startFileTreePolling();
 	} catch (error) {
-		console.error(`Error loading project ${project.path}:`, error);
+		console.error(`Error loading project ${projectPath}:`, error);
 		alert(`Error loading project. Check console for details.`);
 	} finally {
 		hideLoading();
@@ -43,6 +43,10 @@ export async function loadProject(identifier) {
  */
 export function setupProjectListeners() {
 	document.getElementById('projects-dropdown').addEventListener('change', function () {
-		loadProject(this.value);
+		if (this.value === 'add_new_project') {
+			openProjectModal();
+		} else {
+			loadProject(this.value);
+		}
 	});
 }

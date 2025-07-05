@@ -4,7 +4,7 @@ import {postData} from './utils.js';
 // --- DOM Element References ---
 const form = document.getElementById('setup-form');
 const loadingIndicator = document.getElementById('loading-indicator');
-const rootDirsInput = document.getElementById('root-directories-input');
+// MODIFIED: Removed root-directories-input
 const allowedExtsInput = document.getElementById('allowed-extensions-input');
 const excludedFoldersInput = document.getElementById('excluded-folders-input');
 const serverPortInput = document.getElementById('server-port-input');
@@ -37,7 +37,7 @@ async function loadSetupData() {
 		const config = data.config;
 		
 		// Populate form fields
-		rootDirsInput.value = (config.root_directories || []).join('\n');
+		// MODIFIED: Removed root_directories population
 		allowedExtsInput.value = (config.allowed_extensions || []).join(', ');
 		excludedFoldersInput.value = (config.excluded_folders || []).join(', ');
 		serverPortInput.value = config.server_port || 3000;
@@ -70,7 +70,7 @@ form.addEventListener('submit', async (e) => {
 	try {
 		const saveData = {
 			action: 'save_setup',
-			root_directories: JSON.stringify(rootDirsInput.value.split('\n').map(s => s.trim()).filter(Boolean)),
+			// MODIFIED: Removed root_directories from save data
 			allowed_extensions: JSON.stringify(allowedExtsInput.value.split(',').map(s => s.trim()).filter(Boolean)),
 			excluded_folders: JSON.stringify(excludedFoldersInput.value.split(',').map(s => s.trim()).filter(Boolean)),
 			server_port: serverPortInput.value,

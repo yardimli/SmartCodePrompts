@@ -192,7 +192,6 @@ async function refreshLlms() {
  * Analyzes a single file using two separate LLM calls for overview and function details,
  * then saves the results to the database. Skips analysis if file content has not changed, unless forced.
  * @param {object} params - The parameters for the analysis.
- * @param {number} params.rootIndex - The index of the project's root directory.
  * @param {string} params.projectPath - The path of the project.
  * @param {string} params.filePath - The path of the file to analyze.
  * @param {string} params.llmId - The ID of the LLM to use for analysis.
@@ -200,14 +199,14 @@ async function refreshLlms() {
  * @param {number} [params.temperature] - The temperature for the LLM call.
  * @returns {Promise<object>} A promise that resolves to a success object with a status ('analyzed' or 'skipped').
  */
-async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = false, temperature}) {
+async function analyzeFile({projectPath, filePath, llmId, force = false, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
-	const rawFileContent = getRawFileContent(filePath, rootIndex);
+	const rawFileContent = getRawFileContent(filePath, projectPath);
 	const currentChecksum = crypto.createHash('sha256').update(rawFileContent).digest('hex');
-	const existingMetadata = db.prepare('SELECT last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?')
-		.get(rootIndex, projectPath, filePath);
+	const existingMetadata = db.prepare('SELECT last_checksum FROM file_metadata WHERE project_path = ? AND file_path = ?')
+		.get(projectPath, filePath);
 	
 	if (!force && existingMetadata && existingMetadata.last_checksum === currentChecksum) {
 		console.log(`Skipping analysis for ${filePath}, checksum matches.`);
@@ -215,7 +214,7 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 	}
 	
 	console.log(`Analyzing ${filePath}, checksum mismatch or new file.`);
-	const fileContent = getFileContent(filePath, rootIndex).content;
+	const fileContent = getFileContent(filePath, projectPath).content;
 	const shortFileName = path.basename(filePath); // Get just the filename for the log.
 	
 	const overviewPromptTemplate = config.prompt_file_overview;
@@ -231,9 +230,9 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
 	const functionsResult = await callLlm(functionsPrompt, llmId, `Functions/Logic: ${shortFileName}`, temperature);
 	
 	db.prepare(`
-        INSERT OR REPLACE INTO file_metadata (project_root_index, project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(rootIndex, projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
+        INSERT OR REPLACE INTO file_metadata (project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(projectPath, filePath, overviewResult, functionsResult, new Date().toISOString(), currentChecksum);
 	
 	return {success: true, status: 'analyzed'};
 }
@@ -245,19 +244,18 @@ async function analyzeFile({rootIndex, projectPath, filePath, llmId, force = fal
  * If a previously analyzed file is no longer found on the filesystem, its entry
  * is removed from the `file_metadata` table.
  * @param {object} params - The parameters for the operation.
- * @param {number} params.rootIndex - The index of the project's root directory.
  * @param {string} params.projectPath - The path of the project.
  * @param {string} params.llmId - The ID of the LLM to use for analysis.
  * @param {boolean} [params.force=false] - If true, re-analyzes all files, ignoring checksums.
  * @param {number} [params.temperature] - The temperature for the LLM call.
  * @returns {Promise<object>} A summary of the operation.
  */
-async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = false, temperature}) {
+async function reanalyzeModifiedFiles({projectPath, llmId, force = false, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
-	const analyzedFiles = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?')
-		.all(rootIndex, projectPath);
+	const analyzedFiles = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
+		.all(projectPath);
 	
 	// Initialize progress tracking state.
 	reanalysisProgress = {
@@ -271,7 +269,7 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 	let deletedCount = 0; // Counter for deleted files
 	const errors = [];
 	
-	const deleteStmt = db.prepare('DELETE FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?');
+	const deleteStmt = db.prepare('DELETE FROM file_metadata WHERE project_path = ? AND file_path = ?');
 	
 	try {
 		for (const file of analyzedFiles) {
@@ -280,24 +278,24 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
 			reanalysisProgress.message = `Processing ${file.file_path}`;
 			try {
 				// Resolve the full path to check for existence
-				const fullPath = path.join(config.root_directories[rootIndex], file.file_path);
+				const fullPath = path.join(projectPath, file.file_path);
 				
 				if (!fs.existsSync(fullPath)) {
 					// If the file no longer exists, remove its metadata from the database
 					console.log(`File not found, removing metadata: ${file.file_path}`);
-					deleteStmt.run(rootIndex, projectPath, file.file_path);
+					deleteStmt.run(projectPath, file.file_path);
 					deletedCount++;
 					continue; // Skip to the next file
 				}
 				
-				const rawFileContent = getRawFileContent(file.file_path, rootIndex);
+				const rawFileContent = getRawFileContent(file.file_path, projectPath);
 				const currentChecksum = calculateChecksum(rawFileContent);
 				
 				if (force || currentChecksum !== file.last_checksum) {
 					reanalysisProgress.message = `Analyzing ${file.file_path}`; // More specific message
 					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
 					// Pass `force: true` to analyzeFile to ensure it runs without its own redundant check, and pass temperature.
-					await analyzeFile({rootIndex, projectPath, filePath: file.file_path, llmId, force: true, temperature});
+					await analyzeFile({projectPath, filePath: file.file_path, llmId, force: true, temperature});
 					analyzedCount++;
 				} else {
 					skippedCount++;
@@ -319,17 +317,16 @@ async function reanalyzeModifiedFiles({rootIndex, projectPath, llmId, force = fa
  * @param {object} params - The parameters for the operation.
  * @returns {Promise<object>} A promise resolving to an object with a `relevant_files` array.
  */
-async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, llmId, temperature}) {
+async function getRelevantFilesFromPrompt({projectPath, userPrompt, llmId, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for analysis.');
 	}
 	const analyzedFiles = db.prepare(`
         SELECT file_path, file_overview, functions_overview
         FROM file_metadata
-        WHERE project_root_index = ?
-          AND project_path = ?
+        WHERE project_path = ?
           AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
-    `).all(rootIndex, projectPath);
+    `).all(projectPath);
 	
 	if (!analyzedFiles || analyzedFiles.length === 0) {
 		throw new Error('No files have been analyzed in this project. Please analyze files before using this feature.');
@@ -376,7 +373,7 @@ async function getRelevantFilesFromPrompt({rootIndex, projectPath, userPrompt, l
  * @param {object} params - The parameters for the operation.
  * @returns {Promise<object>} A promise resolving to an object with the `answer`.
  */
-async function askQuestionAboutCode({rootIndex, projectPath, question, relevantFiles, llmId, temperature}) {
+async function askQuestionAboutCode({projectPath, question, relevantFiles, llmId, temperature}) {
 	if (!llmId) {
 		throw new Error('No LLM selected for the question.');
 	}
@@ -387,7 +384,7 @@ async function askQuestionAboutCode({rootIndex, projectPath, question, relevantF
 	let fileContext = '';
 	for (const filePath of relevantFiles) {
 		try {
-			const content = getRawFileContent(filePath, rootIndex);
+			const content = getRawFileContent(filePath, projectPath);
 			fileContext += `--- FILE: ${filePath} ---\n\n${content}\n\n`;
 		} catch (error) {
 			console.warn(`Could not read file ${filePath} for QA context:`, error.message);

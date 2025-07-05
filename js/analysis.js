@@ -35,7 +35,6 @@ async function performSelectionAnalysis() {
 		try {
 			const response = await postData({
 				action: 'analyze_file',
-				rootIndex: currentProject.rootIndex,
 				projectPath: currentProject.path,
 				filePath: filePath,
 				llmId: llmId,
@@ -93,7 +92,6 @@ async function performReanalysis(forceReanalysis) {
 	try {
 		const response = await postData({
 			action: 'reanalyze_modified_files',
-			rootIndex: currentProject.rootIndex,
 			projectPath: currentProject.path,
 			llmId: llmId,
 			force: forceReanalysis,

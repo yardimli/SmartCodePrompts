@@ -2,7 +2,7 @@
 import {postData} from './utils.js';
 
 // Application state variables
-let currentProject = null; // { rootIndex: number, path: string }
+let currentProject = null; // { path: string }
 let contentFooterPrompt = '';
 let lastSmartPrompt = '';
 
@@ -57,7 +57,6 @@ export function saveCurrentProjectState() {
 	
 	postData({
 		action: 'save_project_state',
-		rootIndex: currentProject.rootIndex,
 		projectPath: currentProject.path,
 		openFolders: JSON.stringify(openFolders),
 		selectedFiles: JSON.stringify(selectedFiles)

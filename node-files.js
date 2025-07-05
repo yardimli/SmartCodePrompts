@@ -4,22 +4,18 @@ const crypto = require('crypto');
 const {db, config} = require('./node-config');
 
 /**
- * Resolves a relative path from the client against a configured root directory,
- * ensuring it does not traverse outside the root.
- * @param {string} inputPath - The relative path from the client.
- * @param {number} rootIndex - The index of the root directory to use.
+ * Resolves a relative path from the client against a project's absolute path,
+ * ensuring it does not traverse outside the project folder.
+ * @param {string} relativePath - The relative path from the client (e.g., 'src/components/Button.js').
+ * @param {string} projectFullPath - The absolute path of the project on the server.
  * @returns {string} The absolute, validated file system path.
  * @throws {Error} If the path is invalid or attempts traversal.
  */
-function resolvePath(inputPath, rootIndex) {
-	if (rootIndex >= config.root_directories.length) {
-		throw new Error("Invalid root directory index.");
-	}
-	const realRoot = path.resolve(config.root_directories[rootIndex]);
-	// If inputPath is '.', use the realRoot. Otherwise, resolve it against the realRoot.
-	const fullPath = inputPath === '.' ? realRoot : path.resolve(realRoot, inputPath);
-	// Security check: ensure the resolved path is still within the intended root directory.
-	if (!fullPath.startsWith(realRoot)) {
+function resolvePath(relativePath, projectFullPath) {
+	console.log(`Resolving path: ${relativePath} against project: ${projectFullPath}`);
+	const fullPath = path.resolve(projectFullPath, relativePath);
+	// Security check: ensure the resolved path is still within the intended project directory.
+	if (!fullPath.startsWith(projectFullPath)) {
 		throw new Error("Invalid path traversal attempt.");
 	}
 	return fullPath;
@@ -37,18 +33,17 @@ function calculateChecksum(data) {
 /**
  * Reads the contents of a directory and returns separate lists of folders and files,
  * filtering by allowed extensions and excluded folder names.
- * @param {string} inputPath - The path of the directory to read.
- * @param {number} rootIndex - The index of the project's root directory.
- * @param {string} projectPath - The path of the project (used for analysis metadata lookup).
+ * @param {string} inputPath - The path of the directory to read, relative to the project root.
+ * @param {string} projectPath - The absolute path of the project.
  * @returns {object} An object containing `folders` and `files` arrays.
  */
-function getFolders(inputPath, rootIndex, projectPath) {
-	const fullPath = resolvePath(inputPath, rootIndex);
+function getFolders(inputPath, projectPath) {
+	const fullPath = resolvePath(inputPath, projectPath);
 	const folders = [];
 	const files = [];
 	// Get analysis metadata for all files in this project to avoid N+1 queries in the loop.
-	const metadataStmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?'); // Modified to get checksum
-	const analyzedFilesMap = new Map(metadataStmt.all(rootIndex, projectPath).map(r => [r.file_path, r.last_checksum])); // Use a Map for checksums
+	const metadataStmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const analyzedFilesMap = new Map(metadataStmt.all(projectPath).map(r => [r.file_path, r.last_checksum]));
 	
 	try {
 		const items = fs.readdirSync(fullPath);
@@ -69,7 +64,6 @@ function getFolders(inputPath, rootIndex, projectPath) {
 			} else if (stats.isFile()) {
 				const ext = path.extname(itemFullPath).slice(1);
 				let base = path.basename(itemFullPath);
-				// Handle dotfiles or files with no extension that are explicitly allowed
 				if (base.startsWith('.')) {
 					base = base.slice(1);
 				}
@@ -78,7 +72,6 @@ function getFolders(inputPath, rootIndex, projectPath) {
 					const hasAnalysis = analyzedFilesMap.has(relativeFilePath);
 					let isModified = false;
 					
-					// If the file has been analyzed, check if it has been modified.
 					if (hasAnalysis) {
 						const storedChecksum = analyzedFilesMap.get(relativeFilePath);
 						if (storedChecksum) {
@@ -98,7 +91,7 @@ function getFolders(inputPath, rootIndex, projectPath) {
 						name: item,
 						path: relativeFilePath,
 						has_analysis: hasAnalysis,
-						is_modified: isModified // Include modification status in response
+						is_modified: isModified
 					});
 				}
 			}
@@ -111,18 +104,15 @@ function getFolders(inputPath, rootIndex, projectPath) {
 }
 
 /**
- * Reads the content of a single file and collapses whitespace.
- * @param {string} inputPath - The path of the file to read.
- * @param {number} rootIndex - The index of the project's root directory.
- * @returns {object} An object containing the minified `content` of the file.
+ * Reads the content of a single file.
+ * @param {string} inputPath - The path of the file to read, relative to the project root.
+ * @param {string} projectPath - The absolute path of the project.
+ * @returns {object} An object containing the `content` of the file.
  */
-function getFileContent(inputPath, rootIndex) {
-	const fullPath = resolvePath(inputPath, rootIndex);
+function getFileContent(inputPath, projectPath) {
+	const fullPath = resolvePath(inputPath, projectPath);
 	try {
 		const fileContents = fs.readFileSync(fullPath, 'utf8');
-		// Collapse multiple whitespace characters into a single space for minification.
-		// don't collapse for now -- we'll only collapse in node-server.js get_file_content function
-		// const collapsedContent = fileContents.replace(/\s+/g, ' ');
 		return {content: fileContents};
 	} catch (error) {
 		console.error(`Error reading file ${fullPath}:`, error);
@@ -132,13 +122,13 @@ function getFileContent(inputPath, rootIndex) {
 
 /**
  * Reads the raw, unmodified content of a single file.
- * @param {string} inputPath - The path of the file to read.
- * @param {number} rootIndex - The index of the project's root directory.
+ * @param {string} inputPath - The path of the file to read, relative to the project root.
+ * @param {string} projectPath - The absolute path of the project.
  * @returns {string} The raw content of the file.
  * @throws {Error} If the file cannot be read.
  */
-function getRawFileContent(inputPath, rootIndex) {
-	const fullPath = resolvePath(inputPath, rootIndex);
+function getRawFileContent(inputPath, projectPath) {
+	const fullPath = resolvePath(inputPath, projectPath);
 	try {
 		return fs.readFileSync(fullPath, 'utf8');
 	} catch (error) {
@@ -149,14 +139,13 @@ function getRawFileContent(inputPath, rootIndex) {
 
 /**
  * Recursively searches for a term within files in a given directory.
- * @param {string} startPath - The directory path to start the search from.
+ * @param {string} startPath - The directory path to start the search from, relative to the project root.
  * @param {string} searchTerm - The case-insensitive term to search for.
- * @param {number} rootIndex - The index of the project's root directory.
+ * @param {string} projectPath - The absolute path of the project.
  * @returns {object} An object containing an array of `matchingFiles`.
  */
-function searchFiles(startPath, searchTerm, rootIndex) {
-	const realRoot = path.resolve(config.root_directories[rootIndex]);
-	const absoluteStartPath = resolvePath(startPath, rootIndex);
+function searchFiles(startPath, searchTerm, projectPath) {
+	const absoluteStartPath = resolvePath(startPath, projectPath);
 	const matchingFiles = [];
 	const searchLower = searchTerm.toLowerCase();
 	
@@ -188,7 +177,7 @@ function searchFiles(startPath, searchTerm, rootIndex) {
 					try {
 						const content = fs.readFileSync(itemFullPath, 'utf8');
 						if (content.toLowerCase().includes(searchLower)) {
-							const relativePath = path.relative(realRoot, itemFullPath).replace(/\\/g, '/');
+							const relativePath = path.relative(projectPath, itemFullPath).replace(/\\/g, '/');
 							matchingFiles.push(relativePath);
 						}
 					} catch (err) {
@@ -206,32 +195,25 @@ function searchFiles(startPath, searchTerm, rootIndex) {
 /**
  * Retrieves the stored analysis metadata for a specific file from the database.
  * @param {object} params - The parameters for the lookup.
- * @param {number} params.rootIndex - The index of the project's root directory.
- * @param {string} params.projectPath - The path of the project.
- * @param {string} params.filePath - The path of the file.
+ * @param {string} params.projectPath - The absolute path of the project.
+ * @param {string} params.filePath - The path of the file, relative to the project root.
  * @returns {object} The stored analysis data or nulls if not found.
  */
-function getFileAnalysis({rootIndex, projectPath, filePath}) {
-	const data = db.prepare('SELECT file_overview, functions_overview FROM file_metadata WHERE project_root_index = ? AND project_path = ? AND file_path = ?')
-		.get(rootIndex, projectPath, filePath);
+function getFileAnalysis({projectPath, filePath}) {
+	const data = db.prepare('SELECT file_overview, functions_overview FROM file_metadata WHERE project_path = ? AND file_path = ?')
+		.get(projectPath, filePath);
 	return data || {file_overview: null, functions_overview: null};
 }
 
 /**
- * MODIFIED: This function has been repurposed based on the new polling strategy.
- * It no longer checks for general filesystem changes in specific open folders.
- * Instead, it checks the modification status of all *analyzed* files within a project
+ * Checks the modification status of all *analyzed* files within a project
  * by comparing their current checksums against those stored in the database.
- * This is used for live-updating the "modified" icon in the file tree.
- * Note: This change means new/deleted files in open folders will no longer appear/disappear
- * automatically via polling; a folder must be collapsed and re-opened to refresh its contents.
- * @param {number} rootIndex - The index of the project's root directory.
- * @param {string} projectPath - The path of the project.
+ * @param {string} projectPath - The absolute path of the project.
  * @returns {object} An object containing arrays of file paths for `modified`, `unmodified`, and `deleted` files.
  */
-function checkFolderUpdates(rootIndex, projectPath) {
-	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?');
-	const analyzedFiles = stmt.all(rootIndex, projectPath);
+function checkFolderUpdates(projectPath) {
+	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const analyzedFiles = stmt.all(projectPath);
 	
 	const results = {
 		modified: [],
@@ -245,7 +227,7 @@ function checkFolderUpdates(rootIndex, projectPath) {
 	
 	for (const file of analyzedFiles) {
 		try {
-			const fullPath = resolvePath(file.file_path, rootIndex);
+			const fullPath = resolvePath(file.file_path, projectPath);
 			
 			if (!fs.existsSync(fullPath)) {
 				results.deleted.push(file.file_path);
@@ -261,7 +243,6 @@ function checkFolderUpdates(rootIndex, projectPath) {
 				results.unmodified.push(file.file_path);
 			}
 		} catch (error) {
-			// If we can't read the file, we can't get a checksum. Treat as modified.
 			console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
 			results.modified.push(file.file_path);
 		}
@@ -271,16 +252,14 @@ function checkFolderUpdates(rootIndex, projectPath) {
 }
 
 /**
- * NEW: Checks all analyzed files in a project to see if any have been modified since their last analysis.
+ * Checks all analyzed files in a project to see if any have been modified since their last analysis.
  * @param {object} params - The parameters for the check.
- * @param {number} params.rootIndex - The index of the project's root directory.
- * @param {string} params.projectPath - The path of the project.
+ * @param {string} params.projectPath - The absolute path of the project.
  * @returns {{needsReanalysis: boolean, count: number}} An object indicating if re-analysis is needed and the count of modified files.
  */
-function checkForModifiedFiles({rootIndex, projectPath}) {
-	// Get all files that have existing analysis metadata for this project.
-	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_root_index = ? AND project_path = ?');
-	const analyzedFiles = stmt.all(rootIndex, projectPath);
+function checkForModifiedFiles({projectPath}) {
+	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const analyzedFiles = stmt.all(projectPath);
 	
 	if (analyzedFiles.length === 0) {
 		return {needsReanalysis: false, count: 0};
@@ -290,10 +269,8 @@ function checkForModifiedFiles({rootIndex, projectPath}) {
 	
 	for (const file of analyzedFiles) {
 		try {
-			const fullPath = resolvePath(file.file_path, rootIndex);
+			const fullPath = resolvePath(file.file_path, projectPath);
 			
-			// If a file that was previously analyzed no longer exists, we don't count it as "modified"
-			// for the purpose of re-analysis, as there's nothing to re-analyze.
 			if (!fs.existsSync(fullPath)) {
 				console.warn(`Analyzed file not found (likely deleted): ${fullPath}`);
 				continue;
@@ -306,8 +283,6 @@ function checkForModifiedFiles({rootIndex, projectPath}) {
 				modifiedCount++;
 			}
 		} catch (error) {
-			// This could happen if file permissions change, preventing a read.
-			// We'll log the error but treat it as a modification, as the state is uncertain.
 			console.error(`Error checking file for modification: ${file.file_path}`, error);
 			modifiedCount++;
 		}
@@ -319,5 +294,4 @@ function checkForModifiedFiles({rootIndex, projectPath}) {
 	};
 }
 
-// MODIFIED: Export the new function
 module.exports = {getFolders, getFileContent, getRawFileContent, searchFiles, getFileAnalysis, calculateChecksum, checkFolderUpdates, checkForModifiedFiles};

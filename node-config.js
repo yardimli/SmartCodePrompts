@@ -2,7 +2,7 @@
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const db = new Database(path.join(__dirname, 'llm-helper.sqlite'));
+const db = new Database(path.join(__dirname, 'smart_code.sqlite'));
 
 // Global config object, will be populated from the database.
 // This object is exported and should be mutated, not reassigned.
@@ -14,29 +14,24 @@ let config = {};
 function createTables() {
 	db.exec(`
         CREATE TABLE IF NOT EXISTS projects (
-            root_index INTEGER NOT NULL,
-            path TEXT NOT NULL,
-            PRIMARY KEY (root_index, path)
+            path TEXT PRIMARY KEY
         );
 
         CREATE TABLE IF NOT EXISTS project_states (
-            project_root_index INTEGER NOT NULL,
-            project_path TEXT NOT NULL,
+            project_path TEXT PRIMARY KEY,
             open_folders TEXT,
             selected_files TEXT,
-            PRIMARY KEY (project_root_index, project_path),
-            FOREIGN KEY (project_root_index, project_path) REFERENCES projects (root_index, path) ON DELETE CASCADE
+            FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS file_metadata (
-            project_root_index INTEGER NOT NULL,
             project_path TEXT NOT NULL,
             file_path TEXT NOT NULL,
             file_overview TEXT,
             functions_overview TEXT,
             last_analyze_update_time TEXT,
             last_checksum TEXT,
-            PRIMARY KEY (project_root_index, project_path, file_path)
+            PRIMARY KEY (project_path, file_path)
         );
 
         CREATE TABLE IF NOT EXISTS llms (
@@ -75,7 +70,7 @@ function createTables() {
  */
 function setDefaultConfig() {
 	const defaultConfig = {
-		root_directories: JSON.stringify(["path/to/your/first/directory", "c:/myprojects"]),
+		// MODIFIED: Removed root_directories
 		allowed_extensions: JSON.stringify(["js", "jsx", "json", "ts", "tsx", "php", "py", "html", "css", "swift", "xcodeproj", "xcworkspace", "storyboard", "xib", "plist", "xcassets", "playground", "cs", "csproj", "htaccess"]),
 		excluded_folders: JSON.stringify([".git", ".idea", "vendor", "storage", "node_modules"]),
 		server_port: "3000",
@@ -272,14 +267,7 @@ function loadConfigFromDb() {
 	
 	newConfigData.server_port = parseInt(newConfigData.server_port, 10);
 	
-	// Resolve root directories to absolute paths.
-	if (Array.isArray(newConfigData.root_directories)) {
-		newConfigData.root_directories = newConfigData.root_directories.map(dir =>
-			path.isAbsolute(dir) ? dir : path.resolve(__dirname, dir)
-		);
-	} else {
-		newConfigData.root_directories = [];
-	}
+	// MODIFIED: Removed root_directories logic
 	
 	// Mutate the original config object by copying the new properties into it.
 	Object.assign(config, newConfigData);
@@ -323,8 +311,8 @@ function getSetupData() {
  * @param {URLSearchParams} postData - The form data from the request.
  */
 function saveSetupData(postData) {
-	const setupKeys = new Set(['root_directories', 'allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
-	// MODIFIED: Added new prompt key
+	// MODIFIED: Removed root_directories
+	const setupKeys = new Set(['allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
 	const settingsKeys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
 	const upsertSetupStmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettingsStmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
@@ -350,7 +338,6 @@ function saveSetupData(postData) {
  * @returns {object} A success object.
  */
 function resetPromptsToDefault() {
-	// MODIFIED: Added new prompt key
 	const promptKeys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
 	const deleteStmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
 	const transaction = db.transaction(() => {
@@ -427,17 +414,16 @@ function saveCompressExtensions(extensionsJson) {
  * @returns {object} An object containing projects, settings, and LLMs.
  */
 function getMainPageData() {
-	const projects = db.prepare('SELECT root_index as rootIndex, path FROM projects ORDER BY path ASC').all();
+	// MODIFIED: Select full path from projects table
+	const projects = db.prepare('SELECT path FROM projects ORDER BY path ASC').all();
 	const settings = db.prepare('SELECT key, value FROM app_settings').all();
 	const appSettings = settings.reduce((acc, row) => {
 		acc[row.key] = row.value;
 		return acc;
 	}, {});
 	const llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
-	// Get allowed_extensions from app_setup.
 	const allowedExtensionsRow = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions');
 	
-	// MODIFIED: Fetch persistent token counts instead of session-based ones.
 	const promptTokens = appSettings.total_prompt_tokens || '0';
 	const completionTokens = appSettings.total_completion_tokens || '0';
 	
@@ -445,18 +431,15 @@ function getMainPageData() {
 		projects,
 		lastSelectedProject: appSettings.lastSelectedProject || '',
 		darkMode: appSettings.darkMode === 'true',
-		// NEW: Pass the right sidebar collapsed state to the client
 		rightSidebarCollapsed: appSettings.rightSidebarCollapsed === 'true',
 		llms,
 		lastSelectedLlm: appSettings.lastSelectedLlm || '',
 		prompt_content_footer: appSettings.prompt_content_footer || '',
-		last_smart_prompt: appSettings.lastSmartPrompt || '',
-		// MODIFIED: Pass the persistent total tokens to the client. Kept key name for compatibility.
+		last_smart_prompt: appSettings.last_smart_prompt || '',
 		sessionTokens: {
 			prompt: parseInt(promptTokens, 10),
 			completion: parseInt(completionTokens, 10)
 		},
-		// Add settings for the compress dropdown.
 		allowed_extensions: allowedExtensionsRow ? allowedExtensionsRow.value : '[]',
 		compress_extensions: appSettings.compress_extensions || '[]'
 	};
@@ -469,11 +452,11 @@ module.exports = {
 	getSetupData,
 	saveSetupData,
 	setDarkMode,
-	setRightSidebarCollapsed, // NEW: Export the new function
+	setRightSidebarCollapsed,
 	saveSelectedLlm,
 	saveLastSmartPrompt,
 	saveCompressExtensions,
 	getMainPageData,
 	resetPromptsToDefault,
-	resetLlmLog // NEW: Export reset function
+	resetLlmLog
 };

@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const os = require('os');
 
 const configManager = require('./node-config');
 const llmManager = require('./node-llm');
@@ -43,7 +44,6 @@ async function handlePostRequest(req, res) {
 				case 'reset_prompts':
 					result = configManager.resetPromptsToDefault();
 					break;
-				// NEW: Action to reset the LLM log and tokens
 				case 'reset_llm_log':
 					result = configManager.resetLlmLog();
 					break;
@@ -51,7 +51,6 @@ async function handlePostRequest(req, res) {
 					configManager.setDarkMode(postData.get('isDarkMode') === 'true');
 					result = {success: true};
 					break;
-				// NEW: Action to set the right sidebar collapsed state
 				case 'set_right_sidebar_collapsed':
 					configManager.setRightSidebarCollapsed(postData.get('isCollapsed') === 'true');
 					result = {success: true};
@@ -81,7 +80,6 @@ async function handlePostRequest(req, res) {
 					break;
 				case 'analyze_file':
 					result = await llmManager.analyzeFile({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						filePath: postData.get('filePath'),
 						llmId: postData.get('llmId'),
@@ -90,7 +88,6 @@ async function handlePostRequest(req, res) {
 					break;
 				case 'reanalyze_modified_files':
 					result = await llmManager.reanalyzeModifiedFiles({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						llmId: postData.get('llmId'),
 						force: postData.get('force') === 'true',
@@ -99,17 +96,14 @@ async function handlePostRequest(req, res) {
 					break;
 				case 'get_relevant_files_from_prompt':
 					result = await llmManager.getRelevantFilesFromPrompt({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						userPrompt: postData.get('userPrompt'),
 						llmId: postData.get('llmId'),
 						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
-				// NEW: Action for the QA feature
 				case 'ask_question_about_code':
 					result = await llmManager.askQuestionAboutCode({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						question: postData.get('question'),
 						relevantFiles: JSON.parse(postData.get('relevantFiles')),
@@ -117,7 +111,6 @@ async function handlePostRequest(req, res) {
 						temperature: parseFloat(postData.get('temperature'))
 					});
 					break;
-				// NEW: Action for the Direct Prompt feature
 				case 'direct_prompt':
 					result = await llmManager.handleDirectPrompt({
 						prompt: postData.get('prompt'),
@@ -127,25 +120,23 @@ async function handlePostRequest(req, res) {
 					break;
 				
 				// --- Project Actions (from node-projects.js) ---
-				case 'get_projects_page_data':
-					result = projectManager.getProjectsPageData();
-					break;
-				case 'toggle_project':
-					result = projectManager.toggleProject({
-						rootIndex: parseInt(postData.get('rootIndex')),
-						path: postData.get('path'),
-						isSelected: postData.get('isSelected') === 'true'
+				// NEW: Action to add a project by its full path
+				case 'add_project':
+					result = projectManager.addProject({
+						path: postData.get('path')
 					});
+					break;
+				// NEW: Action to browse the filesystem
+				case 'browse_directory':
+					result = projectManager.browseDirectory(postData.get('path') || null);
 					break;
 				case 'get_project_state':
 					result = projectManager.getProjectState({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath')
 					});
 					break;
 				case 'save_project_state':
 					result = projectManager.saveProjectState({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						openFolders: postData.get('openFolders'),
 						selectedFiles: postData.get('selectedFiles')
@@ -155,8 +146,7 @@ async function handlePostRequest(req, res) {
 				// --- File Actions (from node-files.js) ---
 				case 'get_folders':
 					result = fileManager.getFolders(
-						postData.get('path') || '.',
-						parseInt(postData.get('rootIndex') || '0'),
+						postData.get('path'),
 						postData.get('projectPath')
 					);
 					break;
@@ -164,10 +154,9 @@ async function handlePostRequest(req, res) {
 					const filePath = postData.get('path');
 					result = fileManager.getFileContent(
 						filePath,
-						parseInt(postData.get('rootIndex') || '0')
+						postData.get('projectPath')
 					);
 					const fileExt = path.extname(filePath).slice(1);
-					// Ensure config.compress_extensions is an array before using .includes().
 					const compressExtensions = Array.isArray(configManager.config.compress_extensions) ? configManager.config.compress_extensions : [];
 					if (result && result.content && compressExtensions.includes(fileExt)) {
 						result.content = result.content.replace(/\s+/g, ' ');
@@ -178,28 +167,22 @@ async function handlePostRequest(req, res) {
 					result = fileManager.searchFiles(
 						postData.get('folderPath'),
 						postData.get('searchTerm'),
-						parseInt(postData.get('rootIndex') || '0')
+						postData.get('projectPath')
 					);
 					break;
 				case 'get_file_analysis':
 					result = fileManager.getFileAnalysis({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath'),
 						filePath: postData.get('filePath')
 					});
 					break;
 				case 'check_for_modified_files':
 					result = fileManager.checkForModifiedFiles({
-						rootIndex: parseInt(postData.get('rootIndex')),
 						projectPath: postData.get('projectPath')
 					});
 					break;
-				// MODIFIED: Action now checks modification status of all analyzed files in a project,
-				// instead of syncing filesystem changes for specific open folders. The payload from
-				// the client has changed accordingly.
 				case 'check_folder_updates':
 					result = fileManager.checkFolderUpdates(
-						parseInt(postData.get('rootIndex')),
 						postData.get('projectPath')
 					);
 					break;
@@ -259,9 +242,7 @@ const server = http.createServer((req, res) => {
 			case '/':
 				serveStaticFile('index.html', res);
 				break;
-			case '/projects':
-				serveStaticFile('projects.html', res);
-				break;
+			// MODIFIED: Removed /projects route
 			case '/setup':
 				serveStaticFile('setup.html', res);
 				break;

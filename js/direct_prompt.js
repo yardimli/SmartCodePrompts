@@ -23,11 +23,12 @@ async function handle_direct_prompt() {
 		return;
 	}
 	
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use the dedicated Direct Prompt LLM dropdown.
+	const llm_id = document.getElementById('llm-dropdown-direct-prompt').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!llm_id) {
-		alert('Please select an LLM before sending a prompt.');
+		alert('Please select an LLM for Direct Prompts before sending a prompt.');
 		return;
 	}
 	
@@ -72,8 +73,8 @@ export function setup_direct_prompt_listeners() {
 			if (!copy_button) return;
 			
 			// The <pre> element is the button's next sibling in our structure.
-			const pre = copy_button.next_element_sibling;
-			if (pre && pre.tag_name === 'PRE') {
+			const pre = copy_button.nextElementSibling;
+			if (pre && pre.tagName === 'PRE') {
 				const code = pre.querySelector('code');
 				if (code) {
 					navigator.clipboard.writeText(code.innerText).then(() => {

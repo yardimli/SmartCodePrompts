@@ -70,11 +70,13 @@ async function handle_question_submit() {
 	if (!user_question) return;
 	
 	const current_project = get_current_project();
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use dedicated LLMs for QA and for finding relevant files.
+	const qa_llm_id = document.getElementById('llm-dropdown-qa').value;
+	const smart_prompt_llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
-	if (!current_project || !llm_id) {
-		alert('Please select a project and an LLM before asking a question.');
+	if (!current_project || !qa_llm_id || !smart_prompt_llm_id) {
+		alert('Please select a project and LLMs for both Q&A and Smart Prompt File Selection before asking a question.');
 		return;
 	}
 	
@@ -88,12 +90,12 @@ async function handle_question_submit() {
 	const thinking_placeholder = add_message_to_chat('assistant', '<i>Thinking... finding relevant files...</i>', true);
 	
 	try {
-		// Step 1: Get relevant files based on the question
+		// Step 1: Get relevant files based on the question using the Smart Prompt LLM
 		const relevant_files_response = await post_data({
 			action: 'get_relevant_files_from_prompt', // Re-using the smart prompt logic
 			project_path: current_project.path,
 			user_prompt: user_question,
-			llm_id: llm_id,
+			llm_id: smart_prompt_llm_id,
 			temperature: parseFloat(temperature)
 		});
 		
@@ -105,13 +107,13 @@ async function handle_question_submit() {
 		
 		thinking_placeholder.innerHTML = `<i>Found ${relevant_files.length} relevant file(s). Asking the LLM...</i>`;
 		
-		// Step 2: Ask the LLM the question with the context of the relevant files
+		// Step 2: Ask the LLM the question with the context of the relevant files, using the Q&A LLM
 		const qa_response = await post_data({
 			action: 'ask_question_about_code',
 			project_path: current_project.path,
 			question: user_question,
 			relevant_files: JSON.stringify(relevant_files),
-			llm_id: llm_id,
+			llm_id: qa_llm_id,
 			temperature: parseFloat(temperature)
 		});
 		
@@ -162,8 +164,8 @@ export function setup_qa_listeners() {
 			const copy_button = e.target.closest('.copy-code-button');
 			if (!copy_button) return;
 			
-			const pre = copy_button.next_element_sibling;
-			if (pre && pre.tag_name === 'PRE') {
+			const pre = copy_button.nextElementSibling;
+			if (pre && pre.tagName === 'PRE') {
 				const code = pre.querySelector('code');
 				if (code) {
 					navigator.clipboard.writeText(code.innerText).then(() => {

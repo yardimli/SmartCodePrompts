@@ -12,7 +12,6 @@ const {db, config} = require('./node-config');
  * @throws {Error} If the path is invalid or attempts traversal.
  */
 function resolve_path(relative_path, project_full_path) {
-	console.log(`Resolving path: ${relative_path} against project: ${project_full_path}`);
 	const full_path = path.resolve(project_full_path, relative_path);
 	// Security check: ensure the resolved path is still within the intended project directory.
 	if (!full_path.startsWith(project_full_path)) {

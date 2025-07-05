@@ -94,7 +94,11 @@ function set_default_app_settings() {
 	const transaction = db.transaction(() => {
 		initSettings_stmt.run('dark_mode', 'false');
 		initSettings_stmt.run('last_selected_project', '');
-		initSettings_stmt.run('last_selected_llm', '');
+		// MODIFIED: Replaced single last_selected_llm with four specific ones.
+		initSettings_stmt.run('last_selected_llm_analysis', '');
+		initSettings_stmt.run('last_selected_llm_smart_prompt', '');
+		initSettings_stmt.run('last_selected_llm_qa', '');
+		initSettings_stmt.run('last_selected_llm_direct_prompt', '');
 		initSettings_stmt.run('last_smart_prompt', '');
 		// NEW: Persistent token counters
 		initSettings_stmt.run('total_prompt_tokens', '0');
@@ -386,14 +390,6 @@ function setright_sidebar_collapsed(is_collapsed) {
 }
 
 /**
- * Saves the ID of the last selected LLM.
- * @param {string} llm_id - The ID of the selected LLM.
- */
-function save_selected_llm(llm_id) {
-	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(llm_id, 'last_selected_llm');
-}
-
-/**
  * @param {string} prompt - The prompt text to save.
  */
 function save_last_smart_prompt(prompt) {
@@ -433,7 +429,11 @@ function get_main_page_data() {
 		dark_mode: app_settings.dark_mode === 'true',
 		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',
 		llms,
-		last_selected_llm: app_settings.last_selected_llm || '',
+		// MODIFIED: Return all four last selected LLM values.
+		last_selected_llm_analysis: app_settings.last_selected_llm_analysis || '',
+		last_selected_llm_smart_prompt: app_settings.last_selected_llm_smart_prompt || '',
+		last_selected_llm_qa: app_settings.last_selected_llm_qa || '',
+		last_selected_llm_direct_prompt: app_settings.last_selected_llm_direct_prompt || '',
 		prompt_content_footer: app_settings.prompt_content_footer || '',
 		last_smart_prompt: app_settings.last_smart_prompt || '',
 		session_tokens: {
@@ -453,7 +453,6 @@ module.exports = {
 	save_setup_data,
 	set_dark_mode,
 	setright_sidebar_collapsed,
-	save_selected_llm,
 	save_last_smart_prompt,
 	save_compress_extensions,
 	get_main_page_data,

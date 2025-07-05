@@ -38,12 +38,17 @@ async function handle_smart_prompt_submission(prompt_text) {
 		return;
 	}
 	
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use the dedicated Smart Prompt LLM dropdown.
+	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
 	
-	if (!llm_id || !current_project) {
-		alert('Please select a project and an LLM.');
+	if (!current_project) {
+		alert('Please select a project.');
+		return;
+	}
+	if (!llm_id) {
+		alert('Please select an LLM for Smart Prompts.');
 		return;
 	}
 	
@@ -84,10 +89,17 @@ async function handle_smart_prompt_submission(prompt_text) {
 				modal.close();
 				show_loading('Re-analyzing modified files...');
 				try {
+					// MODIFIED: Use the dedicated Analysis LLM for re-analysis.
+					const analysis_llm_id = document.getElementById('llm-dropdown-analysis').value;
+					if (!analysis_llm_id) {
+						alert('Please select an LLM for Analysis to proceed.');
+						hide_loading();
+						return;
+					}
 					await post_data({
 						action: 'reanalyze_modified_files',
 						project_path: current_project.path,
-						llm_id: llm_id,
+						llm_id: analysis_llm_id,
 						force: false, // Only re-analyze modified files
 						temperature: parseFloat(temperature)
 					});

@@ -1,0 +1,204 @@
+<!-- SmartCodePrompts/modals.html -->
+<!-- Project Browser Modal -->
+<dialog id="project_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
+		<h3 class="font-bold text-lg">Select a Project Folder</h3>
+		<div class="py-2">
+			<p class="font-mono text-sm bg-base-300 p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
+		</div>
+		<div id="project-browser-list" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
+			<!-- Directory list will be populated here -->
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
+			<button class="btn btn-primary" id="select-project-folder-button">Select This Folder</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- Search Modal -->
+<dialog id="search_modal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg" id="search_modal_label">Search in Folder</h3>
+		<p class="py-4">Searching within: <strong id="search_modal_folder_path"></strong></p>
+		<div class="form-control">
+			<label class="label" for="search_term_input">
+				<span class="label-text">Search Term (case-insensitive):</span>
+			</label>
+			<input type="text" class="input input-bordered" id="search_term_input"
+			       placeholder="Enter text to search for...">
+		</div>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+			<button class="btn btn-primary" id="perform_search_button">Search Files</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- Log Modal -->
+<dialog id="log_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-7xl h-5/6 flex flex-col">
+		<h3 class="font-bold text-lg flex-shrink-0" id="log_modal_label">LLM Call Log (Persistent)</h3>
+		<div class="py-4 flex-grow overflow-y-auto" id="log_modal_body">
+			<p class="text-base-content/70">No LLM calls have been made yet.</p>
+		</div>
+		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
+			<button class="btn btn-error" id="reset-log-button">Reset Log & Tokens</button>
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>
+
+<!-- Reanalysis Prompt Modal -->
+<dialog id="reanalysis_prompt_modal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
+		<p class="py-4">For the best results, it's recommended to re-analyze modified files before running the prompt.</p>
+		<p id="reanalysis-file-count" class="font-bold mb-4"></p>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
+			<button class="btn" id="run-without-reanalysis-button">Run Anyway</button>
+			<button class="btn btn-primary" id="run-with-reanalysis-button">Re-analyze and Run</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- QA Modal -->
+<dialog id="qa_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg" id="qa-modal-title">Ask a Question</h3>
+		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
+			<!-- Chat messages will be appended here -->
+		</div>
+		<div class="flex gap-2">
+			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..."
+			          rows="1"></textarea>
+			<button id="qa-send-button" class="btn btn-primary">Send</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- Direct Prompt Modal -->
+<dialog id="direct_prompt_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg">LLM Response</h3>
+		<div id="direct-prompt-response" class="flex-grow overflow-y-auto mt-1 mb-1 p-2 bg-base-200 rounded-lg">
+			<!-- LLM response will be appended here -->
+		</div>
+		<div class="modal-action border-t border-base-300 pt-1">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>
+
+<!-- NEW: Setup Modal -->
+<dialog id="setup_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg flex-shrink-0">Application Setup</h3>
+		<div class="flex-grow overflow-y-auto py-4">
+			<div id="setup-loading-indicator" class="text-center p-5">
+				<span class="loading loading-spinner loading-lg"></span>
+			</div>
+			
+			<form id="setup-form" style="display: none;" class="space-y-6">
+				<div role="alert" class="alert alert-info">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+					     class="stroke-current shrink-0 w-6 h-6">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+						      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+					<span><strong>Note:</strong> Changes to the <strong>Server Port</strong> require a manual restart of the server.</span>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="allowed-extensions-input"><span
+						class="label-text">Allowed File Extensions</span></label>
+					<textarea class="textarea textarea-bordered font-mono" id="allowed-extensions-input" rows="4"
+					          placeholder="Enter extensions separated by commas. e.g., js, php, py, html"></textarea>
+					<label class="label"><span class="label-text-alt">Only files with these extensions will be shown.</span></label>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="excluded-folders-input"><span class="label-text">Excluded Folders</span></label>
+					<textarea class="textarea textarea-bordered font-mono" id="excluded-folders-input" rows="3"
+					          placeholder="Enter folder names separated by commas. e.g., .git, node_modules, vendor"></textarea>
+					<label class="label"><span class="label-text-alt">These folders will be ignored entirely.</span></label>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="server-port-input"><span class="label-text">Server Port</span></label>
+					<input type="number" class="input input-bordered font-mono" id="server-port-input" placeholder="e.g., 3000">
+					<label class="label"><span
+						class="label-text-alt">The port the application server runs on. Requires a restart.</span></label>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="openrouter-api-key-input"><span class="label-text">OpenRouter API Key</span></label>
+					<input type="password" class="input input-bordered font-mono" id="openrouter-api-key-input"
+					       placeholder="sk-or-...">
+					<label class="label"><span
+						class="label-text-alt">Your API key for making requests to OpenRouter.ai for analysis.</span></label>
+				</div>
+				
+				<div class="divider"></div>
+				<h4 class="text-xl font-bold">LLM Prompts</h4>
+				<div role="alert" class="alert">
+					<span>Use <code>${file_path}</code> and <code>${file_content}</code> as placeholders in analysis prompts.</span>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="prompt-file-overview-input"><span
+						class="label-text">File Overview Prompt</span></label>
+					<textarea class="textarea textarea-bordered font-mono h-32" id="prompt-file-overview-input"></textarea>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="prompt-functions-logic-input"><span
+						class="label-text">Functions & Logic Prompt</span></label>
+					<textarea class="textarea textarea-bordered font-mono h-32" id="prompt-functions-logic-input"></textarea>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="prompt-content-footer-input"><span
+						class="label-text">Content Footer Prompt</span></label>
+					<textarea class="textarea textarea-bordered font-mono h-32" id="prompt-content-footer-input"></textarea>
+					<label class="label"><span class="label-text-alt">This text is appended to the main prompt when you combine multiple files.</span></label>
+				</div>
+				
+				<div class="form-control">
+					<label class="label" for="prompt-smart-prompt-input"><span
+						class="label-text">Smart Prompt Builder Prompt</span></label>
+					<textarea class="textarea textarea-bordered font-mono h-32" id="prompt-smart-prompt-input"></textarea>
+					<label class="label"><span
+						class="label-text-alt">Use <code>${user_prompt}</code> and <code>${analysis_data_string}</code> as placeholders.</span></label>
+				</div>
+			</form>
+		</div>
+		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
+			<button type="button" id="reset-prompts-btn" class="btn btn-warning">Reset Prompts</button>
+			<form method="dialog" class="ml-auto">
+				<button class="btn">Close</button>
+			</form>
+			<button type="button" id="save-setup-button" class="btn btn-success">Save Configuration</button>
+		</div>
+	</div>
+</dialog>

@@ -82,8 +82,8 @@ export function load_folders (path, element) {
 			});
 			const file_tree = document.getElementById('file-tree');
 			if (element) {
-				const next_ul = element.closest('li').next_element_sibling; // MODIFIED: Look for sibling of <li>
-				if (next_ul && next_ul.tag_name === 'UL') {
+				const next_ul = element.closest('li').nextElementSibling; // MODIFIED: Look for sibling of <li>
+				if (next_ul && next_ul.tagName === 'UL') {
 					next_ul.remove();
 				}
 			} else {
@@ -411,16 +411,16 @@ export function setup_file_tree_listeners () {
 			e.stopPropagation();
 			// MODIFIED: Find the <ul> that is the next sibling of the folder's parent <li>.
 			const li = folder.closest('li');
-			const ul = li.next_element_sibling;
+			const ul = li.nextElementSibling;
 			
 			if (folder.classList.contains('open')) {
 				folder.classList.remove('open');
 				// MODIFIED: Check if the sibling is a UL before trying to hide it.
-				if (ul && ul.tag_name === 'UL') ul.style.display = 'none';
+				if (ul && ul.tagName === 'UL') ul.style.display = 'none';
 				save_current_project_state();
 			} else {
 				// MODIFIED: Check if the sibling is a UL before trying to show it.
-				if (ul && ul.tag_name === 'UL') {
+				if (ul && ul.tagName === 'UL') {
 					folder.classList.add('open');
 					ul.style.display = 'block';
 					save_current_project_state();

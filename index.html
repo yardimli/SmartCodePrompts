@@ -34,7 +34,8 @@
 			</div>
 			<!-- MODIFIED: Changed link to a button for adding a project -->
 			<div id="add-project-button" class="cursor-pointer" title="Add New Project"><i class="bi bi-database-add"></i></div>
-			<a href="/setup" title="Configure"><i class="bi bi-gear-fill"></i></a>
+			<!-- MODIFIED: Changed configure link to a div to trigger the modal -->
+			<div id="setup-modal-button" class="cursor-pointer" title="Configure"><i class="bi bi-gear-fill"></i></div>
 			<div id="unselect-all" class="cursor-pointer" title="Unselect All Files">
 				<i class="bi bi-eraser"></i>
 			</div>
@@ -135,19 +136,6 @@
 			
 			<div class="divider"></div>
 			
-			<div class="form-control">
-				<label class="label"><span class="label-text">LLM Model</span></label>
-				<div class="flex gap-2">
-					<select id="llm-dropdown" class="select select-bordered select-sm w-full" title="Select LLM"></select>
-					<button id="refresh-llms" class="btn btn-sm btn-square btn-outline" title="Refresh LLM List">
-						<i class="bi bi-arrow-clockwise"></i>
-					</button>
-				</div>
-			</div>
-			
-			<div class="divider"></div>
-			
-			<h3 class="font-bold">Tools</h3>
 			<div class="grid gap-2">
 				<button class="btn btn-primary btn-sm" id="analyze_selected_button"
 				        title="Performs a one-time analysis on the files currently checked in the file tree.">
@@ -165,6 +153,42 @@
 					<i class="bi bi-arrow-repeat me-2"></i>Force Re-analyze All
 				</button>
 			</div>
+			
+			<div class="divider"></div>
+			
+			<!-- MODIFIED: Replaced single LLM dropdown with four dedicated ones -->
+			<div class="flex justify-end -mb-2">
+				<button id="refresh-llms" class="btn btn-xs btn-ghost" title="Refresh LLM List">
+					<i class="bi bi-arrow-clockwise"></i> Refresh Models
+				</button>
+			</div>
+			<div class="form-control">
+				<label class="label py-1"><span class="label-text text-xs">Analysis & Re-analysis</span></label>
+				<select id="llm-dropdown-analysis" class="select select-bordered select-sm w-full" title="Select LLM for Analysis"></select>
+			</div>
+			<div class="form-control">
+				<label class="label py-1"><span class="label-text text-xs">Smart Prompt File Selection</span></label>
+				<select id="llm-dropdown-smart-prompt" class="select select-bordered select-sm w-full" title="Select LLM for Smart Prompts"></select>
+			</div>
+			<div class="form-control">
+				<label class="label py-1"><span class="label-text text-xs">Q&A over Project</span></label>
+				<select id="llm-dropdown-qa" class="select select-bordered select-sm w-full" title="Select LLM for Q&A"></select>
+			</div>
+			<div class="form-control">
+				<label class="label py-1"><span class="label-text text-xs">Direct Prompt</span></label>
+				<select id="llm-dropdown-direct-prompt" class="select select-bordered select-sm w-full" title="Select LLM for Direct Prompts"></select>
+			</div>
+			
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Temperature</span>
+					<span class="label-text-alt" id="temperature-value">0.25</span>
+				</label>
+				<input id="temperature-slider" type="range" min="0" max="1" value="0.25" step="0.01"
+				       class="range range-sm"/>
+			</div>
+			
+			
 			<div class="form-control">
 				<label class="label">
 					<span class="label-text">Compress Extensions</span>
@@ -180,134 +204,13 @@
 					</ul>
 				</div>
 			</div>
-			
-			<div class="divider"></div>
-			
-			<div class="form-control">
-				<label class="label">
-					<span class="label-text">Temperature</span>
-					<span class="label-text-alt" id="temperature-value">0.25</span>
-				</label>
-				<input id="temperature-slider" type="range" min="0" max="1" value="0.25" step="0.01"
-				       class="range range-sm"/>
-			</div>
 		</div>
 	</aside>
 </div>
 
-<!-- Modals -->
-<!-- NEW: Project Browser Modal -->
-<dialog id="project_modal" class="modal">
-	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
-		<h3 class="font-bold text-lg">Select a Project Folder</h3>
-		<div class="py-2">
-			<p class="font-mono text-sm bg-base-300 p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
-		</div>
-		<div id="project-browser-list" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
-			<!-- Directory list will be populated here -->
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Cancel</button>
-			</form>
-			<button class="btn btn-primary" id="select-project-folder-button">Select This Folder</button>
-		</div>
-	</div>
-</dialog>
-
-<dialog id="search_modal" class="modal">
-	<div class="modal-box">
-		<h3 class="font-bold text-lg" id="search_modal_label">Search in Folder</h3>
-		<p class="py-4">Searching within: <strong id="search_modal_folder_path"></strong></p>
-		<div class="form-control">
-			<label class="label" for="search_term_input">
-				<span class="label-text">Search Term (case-insensitive):</span>
-			</label>
-			<input type="text" class="input input-bordered" id="search_term_input"
-			       placeholder="Enter text to search for...">
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-			<button class="btn btn-primary" id="perform_search_button">Search Files</button>
-		</div>
-	</div>
-</dialog>
-
-<dialog id="log_modal" class="modal">
-	<!-- MODIFIED: Added flex classes for fixed footer -->
-	<div class="modal-box w-11/12 max-w-7xl h-5/6 flex flex-col">
-		<h3 class="font-bold text-lg flex-shrink-0" id="log_modal_label">LLM Call Log (Persistent)</h3>
-		<!-- MODIFIED: Added flex-grow and overflow for scrolling content -->
-		<div class="py-4 flex-grow overflow-y-auto" id="log_modal_body">
-			<p class="text-base-content/70">No LLM calls have been made yet.</p>
-		</div>
-		<!-- MODIFIED: This is now the fixed footer -->
-		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
-			<!-- NEW: Button to reset the log and token counts -->
-			<button class="btn btn-error" id="reset-log-button">Reset Log & Tokens</button>
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-		</div>
-	</div>
-</dialog>
-
-<dialog id="reanalysis_prompt_modal" class="modal">
-	<div class="modal-box">
-		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
-		<p class="py-4">For the best results, it's recommended to re-analyze modified files before running the prompt.</p>
-		<p id="reanalysis-file-count" class="font-bold mb-4"></p>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Cancel</button>
-			</form>
-			<button class="btn" id="run-without-reanalysis-button">Run Anyway</button>
-			<button class="btn btn-primary" id="run-with-reanalysis-button">Re-analyze and Run</button>
-		</div>
-	</div>
-</dialog>
-
-<!-- NEW: QA Modal -->
-<dialog id="qa_modal" class="modal">
-	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
-		<form method="dialog">
-			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-		</form>
-		<h3 class="font-bold text-lg" id="qa-modal-title">Ask a Question</h3>
-		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
-			<!-- Chat messages will be appended here -->
-		</div>
-		<div class="flex gap-2">
-			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..."
-			          rows="1"></textarea>
-			<button id="qa-send-button" class="btn btn-primary">Send</button>
-		</div>
-	</div>
-</dialog>
-
-<!-- NEW: Direct Prompt Modal -->
-<dialog id="direct_prompt_modal" class="modal">
-	<!-- MODIFIED: Added flex-col to modal-box for proper layout and adjusted width/height for larger size -->
-	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
-		<form method="dialog">
-			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-		</form>
-		<h3 class="font-bold text-lg">LLM Response</h3>
-		<!-- MODIFIED: Adjusted margin-top and margin-bottom to reduce space -->
-		<div id="direct-prompt-response" class="flex-grow overflow-y-auto mt-1 mb-1 p-2 bg-base-200 rounded-lg">
-			<!-- LLM response will be appended here -->
-		</div>
-		<!-- MODIFIED: Adjusted padding-top to reduce space above the action buttons -->
-		<div class="modal-action border-t border-base-300 pt-1">
-			<form method="dialog">
-				<button class="btn">Close</button>
-			</form>
-		</div>
-	</div>
-</dialog>
-
+<!-- MODIFIED: All modals are removed from here and will be loaded dynamically -->
+<!-- NEW: Container for dynamically loaded modals -->
+<div id="modal-container"></div>
 
 </body>
 </html>

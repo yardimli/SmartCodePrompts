@@ -96,9 +96,9 @@ export function simple_markdown_to_html(text) {
 			
 			// Escape HTML entities inside the code block to display them as text.
 			const escaped_code = code_content
-				.replace(/&/g, '&')
-				.replace(/</g, '<')
-				.replace(/>/g, '>');
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
 			
 			// MODIFIED: Wrap in a div with a copy button.
 			// The button is initially hidden and appears on hover of the container (`group`).
@@ -114,9 +114,9 @@ export function simple_markdown_to_html(text) {
 			// An even index (0, 2, 4...) indicates regular text.
 			// Escape it first to prevent rendering of any raw HTML.
 			let regular_text = part
-				.replace(/&/g, '&')
-				.replace(/</g, '<')
-				.replace(/>/g, '>');
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
 			
 			// Order of replacement matters for markdown parsing. Use non-greedy matchers.
 			regular_text = regular_text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold

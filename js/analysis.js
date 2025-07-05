@@ -8,7 +8,8 @@ import {get_current_project} from './state.js';
  */
 async function perform_selection_analysis() {
 	const checked_boxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use the dedicated analysis LLM dropdown.
+	const llm_id = document.getElementById('llm-dropdown-analysis').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (checked_boxes.length === 0) {
@@ -17,7 +18,7 @@ async function perform_selection_analysis() {
 	}
 	// Note: LLM check is already performed before opening the modal, so it's not strictly needed here, but good for safety.
 	if (!llm_id) {
-		alert('Please select an LLM from the dropdown to perform the analysis.');
+		alert('Please select an LLM for Analysis to perform the analysis.');
 		return;
 	}
 	
@@ -81,11 +82,13 @@ async function perform_selection_analysis() {
  * @param {boolean} force_reanalysis - Whether to force re-analysis of all files.
  */
 async function perform_reanalysis(force_reanalysis) {
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use the dedicated analysis LLM dropdown.
+	const llm_id = document.getElementById('llm-dropdown-analysis').value;
 	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!llm_id || !current_project) {
+		alert('Please select a project and an LLM for Analysis.');
 		return;
 	}
 	

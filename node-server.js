@@ -56,7 +56,9 @@ async function handle_post_request(req, res) {
 					result = {success: true};
 					break;
 				case 'save_selected_llm':
-					config_manager.save_selected_llm(post_data.get('llm_id'));
+					// MODIFIED: This action now takes a 'key' to save the correct LLM preference.
+					config_manager.db.prepare('UPDATE app_settings SET value = ? WHERE key = ?')
+						.run(post_data.get('llm_id'), post_data.get('key'));
 					result = {success: true};
 					break;
 				case 'save_last_smart_prompt':
@@ -120,13 +122,13 @@ async function handle_post_request(req, res) {
 					break;
 				
 				// --- Project Actions (from node-projects.js) ---
-				// NEW: Action to add a project by its full path
+				// Action to add a project by its full path
 				case 'add_project':
 					result = project_manager.add_project({
 						path: post_data.get('path')
 					});
 					break;
-				// NEW: Action to browse the filesystem
+				// Action to browse the filesystem
 				case 'browse_directory':
 					result = project_manager.browse_directory(post_data.get('path') || null);
 					break;
@@ -241,10 +243,6 @@ const server = http.createServer((req, res) => {
 		switch (parsed_url.pathname) {
 			case '/':
 				serve_static_file('index.html', res);
-				break;
-			// MODIFIED: Removed /projects route
-			case '/setup':
-				serve_static_file('setup.html', res);
 				break;
 			default:
 				// Serve other static files like JS, CSS

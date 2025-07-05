@@ -7,9 +7,10 @@ import {update_status_bar} from './status_bar.js';
 let search_modal = null;
 let log_modal = null;
 let reanalysis_prompt_modal = null;
-let project_modal = null; // NEW: Reference for the project browser modal
+let project_modal = null;
+let setup_modal = null; // NEW: Reference for the setup modal
 let current_search_folder_path = null;
-let current_browser_path = null; // NEW: To track the current path in the project browser
+let current_browser_path = null;
 
 /**
  * Initializes the modal element references.
@@ -18,7 +19,8 @@ export function initialize_modals() {
 	search_modal = document.getElementById('search_modal');
 	log_modal = document.getElementById('log_modal');
 	reanalysis_prompt_modal = document.getElementById('reanalysis_prompt_modal');
-	project_modal = document.getElementById('project_modal'); // NEW: Initialize the project modal
+	project_modal = document.getElementById('project_modal');
+	setup_modal = document.getElementById('setup_modal'); // NEW: Initialize the setup modal
 }
 
 /**
@@ -65,6 +67,47 @@ async function browse_directory(dir_path = null) {
 export function open_project_modal() {
 	project_modal.showModal();
 	browse_directory(); // Start at the root (drives on Windows, home on others)
+}
+
+/**
+ * NEW: Loads configuration data from the server and populates the setup form in the modal.
+ */
+async function load_setup_data() {
+	const form = document.getElementById('setup-form');
+	const loading_indicator = document.getElementById('setup-loading-indicator');
+	
+	loading_indicator.style.display = 'block';
+	form.style.display = 'none';
+	
+	try {
+		const data = await post_data({action: 'get_setup'});
+		const config = data.config;
+		
+		// Populate form fields
+		document.getElementById('allowed-extensions-input').value = (config.allowed_extensions || []).join(', ');
+		document.getElementById('excluded-folders-input').value = (config.excluded_folders || []).join(', ');
+		document.getElementById('server-port-input').value = config.server_port || 3000;
+		document.getElementById('openrouter-api-key-input').value = config.openrouter_api_key || '';
+		document.getElementById('prompt-file-overview-input').value = config.prompt_file_overview || '';
+		document.getElementById('prompt-functions-logic-input').value = config.prompt_functions_logic || '';
+		document.getElementById('prompt-content-footer-input').value = config.prompt_content_footer || '';
+		document.getElementById('prompt-smart-prompt-input').value = config.prompt_smart_prompt || '';
+		
+		loading_indicator.style.display = 'none';
+		form.style.display = 'block';
+	} catch (error) {
+		loading_indicator.innerHTML = `<p class="text-center text-error">Error loading setup data: ${error.message}</p>`;
+	}
+}
+
+/**
+ * NEW: Opens the setup modal and loads the current configuration.
+ */
+export function open_setup_modal() {
+	if (setup_modal) {
+		setup_modal.showModal();
+		load_setup_data();
+	}
 }
 
 /**
@@ -199,9 +242,10 @@ export async function perform_smart_prompt(user_prompt) {
 		alert('Please enter a prompt.');
 		return;
 	}
-	const llm_id = document.getElementById('llm-dropdown').value;
+	// MODIFIED: Use the dedicated Smart Prompt LLM dropdown.
+	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	if (!llm_id) {
-		alert('Please select an LLM from the dropdown.');
+		alert('Please select an LLM for Smart Prompts from the dropdown.');
 		return;
 	}
 	
@@ -329,7 +373,7 @@ export function setup_modal_event_listeners() {
 		}
 	});
 	
-	// NEW: Project Modal Listeners
+	// Project Modal Listeners
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
 	
 	document.getElementById('project-browser-list').addEventListener('click', (e) => {
@@ -356,6 +400,52 @@ export function setup_modal_event_listeners() {
 			alert(`Failed to add project: ${error.message}`);
 		} finally {
 			hide_loading();
+		}
+	});
+	
+	// NEW: Setup Modal Listeners
+	document.getElementById('setup-modal-button').addEventListener('click', open_setup_modal);
+	
+	document.getElementById('save-setup-button').addEventListener('click', async () => {
+		const save_button = document.getElementById('save-setup-button');
+		const original_text = save_button.textContent;
+		save_button.disabled = true;
+		save_button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Saving...';
+		
+		try {
+			const save_data = {
+				action: 'save_setup',
+				allowed_extensions: JSON.stringify(document.getElementById('allowed-extensions-input').value.split(',').map(s => s.trim()).filter(Boolean)),
+				excluded_folders: JSON.stringify(document.getElementById('excluded-folders-input').value.split(',').map(s => s.trim()).filter(Boolean)),
+				server_port: document.getElementById('server-port-input').value,
+				openrouter_api_key: document.getElementById('openrouter-api-key-input').value.trim(),
+				prompt_file_overview: document.getElementById('prompt-file-overview-input').value,
+				prompt_functions_logic: document.getElementById('prompt-functions-logic-input').value,
+				prompt_content_footer: document.getElementById('prompt-content-footer-input').value,
+				prompt_smart_prompt: document.getElementById('prompt-smart-prompt-input').value
+			};
+			await post_data(save_data);
+			alert('Configuration saved successfully!\n\nApplication will now reload. Please restart the server for port changes to take effect.');
+			window.location.reload();
+		} catch (error) {
+			alert(`Failed to save configuration: ${error.message}`);
+			save_button.disabled = false;
+			save_button.innerHTML = original_text;
+		}
+	});
+	
+	document.getElementById('reset-prompts-btn').addEventListener('click', async () => {
+		if (confirm('Are you sure you want to reset all prompts to their default values? This cannot be undone.')) {
+			try {
+				show_loading('Resetting prompts...');
+				await post_data({action: 'reset_prompts'});
+				await load_setup_data(); // Reload data in the modal
+				hide_loading();
+				alert('Prompts have been reset to their default values.');
+			} catch (error) {
+				hide_loading();
+				alert(`Failed to reset prompts: ${error.message}`);
+			}
 		}
 	});
 }

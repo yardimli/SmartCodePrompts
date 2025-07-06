@@ -1,8 +1,20 @@
 // SmartCodePrompts/node-config.js
 const path = require('path');
 const Database = require('better-sqlite3');
+const fs = require('fs'); // NEW: require fs for directory check
 
-const db = new Database(path.join(__dirname, 'smart_code.sqlite'));
+// NEW: Determine the application data path. Use the OS-specific userData folder in Electron, or the app's root directory otherwise.
+// This ensures user data (database, logs) is stored in a persistent, user-specific location for a packaged app.
+const isElectron = !!process.env.ELECTRON_RUN;
+const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
+
+// NEW: Ensure the data directory exists, especially for the first run in Electron's userData path.
+if (isElectron && !fs.existsSync(appDataPath)) {
+	fs.mkdirSync(appDataPath, {recursive: true});
+}
+
+// MODIFIED: Use the determined path for the database.
+const db = new Database(path.join(appDataPath, 'smart_code.sqlite'));
 
 // Global config object, will be populated from the database.
 // This object is exported and should be mutated, not reassigned.

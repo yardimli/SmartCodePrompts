@@ -6,6 +6,10 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {get_file_content, get_raw_file_content, get_file_analysis, calculate_checksum} = require('./node-files');
 
+// NEW: Determine the application data path from environment variables for consistency with node-config.js.
+const isElectron = !!process.env.ELECTRON_RUN;
+const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
+
 // Session-specific state is now only for re-analysis progress.
 let reanalysis_progress = {total: 0, current: 0, running: false, message: ''};
 
@@ -16,7 +20,8 @@ let reanalysis_progress = {total: 0, current: 0, running: false, message: ''};
  * @param {boolean} [is_error=false] - Flag to indicate if the log entry is an error.
  */
 function log_llm_interaction(prompt, response, is_error = false) {
-	const log_file_path = path.join(__dirname, 'llm-log.txt');
+	// MODIFIED: Use the determined appDataPath to store the log file in the correct location.
+	const log_file_path = path.join(appDataPath, 'llm-log.txt');
 	const timestamp = new Date().toISOString();
 	const log_header = is_error ? '--- LLM ERROR ---' : '--- LLM INTERACTION ---';
 	const log_entry = ` ${log_header}\n Timestamp: ${timestamp} \n---\n PROMPT SENT \n---\n ${prompt} \n---\n RESPONSE RECEIVED \n---\n ${response} \n--- END ---\n \n`;

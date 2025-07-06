@@ -31,7 +31,7 @@ function add_message_to_chat(role, content, is_placeholder = false) {
 	message_wrapper.className = `chat ${role === 'user' ? 'chat-end' : 'chat-start'}`;
 	
 	const message_bubble = document.createElement('div');
-	message_bubble.className = `chat-bubble ${role === 'user' ? 'chat-bubble-primary' : ''}`;
+	message_bubble.className = `chat-bubble ${role === 'user' ? 'chat-bubble-primary' : 'chat-bubble-secondary'}`;
 	
 	// Handle content based on role and placeholder status
 	if (role === 'user') {

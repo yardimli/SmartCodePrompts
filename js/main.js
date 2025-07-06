@@ -138,6 +138,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
 	
+	// NEW: Show the about modal on first visit per session.
+	if (!sessionStorage.getItem('aboutModalShown')) {
+		const about_modal = document.getElementById('about_modal');
+		if (about_modal) {
+			about_modal.showModal();
+			sessionStorage.setItem('aboutModalShown', 'true');
+		}
+	}
+	
 	// Load main application data and state
 	await initialize_app(); // MODIFIED: Await the async app initialization.
 	

@@ -2,22 +2,27 @@
   "name": "smart-code-prompts",
   "version": "1.0.0",
   "description": "Smart Code Prompts",
-  "main": "server.js",
+  "main": "electron-main.js",
   "scripts": {
     "build": "tailwindcss -i ./css/index.css -o ./dist/output.css",
     "watch": "tailwindcss -i ./css/index.css -o ./dist/output.css --watch",
     "start": "npm run build && node node-server.js",
-    "dev": "concurrently \"npm:watch\" \"node node-server.js\""
+    "dev": "concurrently \"npm:watch\" \"node node-server.js\"",
+    "start:electron": "npm run build && electron .",
+    "postinstall": "electron-rebuild",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "author": "locutus de borg",
   "license": "ISC",
   "dependencies": {
-    "bootstrap-icons": "^1.11.3",
-    "better-sqlite3": "^12.2.0"
+    "better-sqlite3": "^12.2.0",
+    "bootstrap-icons": "^1.11.3"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "daisyui": "^4.10.2",
+    "electron": "^37.2.0",
+    "electron-rebuild": "^3.2.9",
     "tailwindcss": "^3.4.3"
   }
 }

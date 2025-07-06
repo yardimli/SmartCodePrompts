@@ -11,6 +11,7 @@ let project_modal = null;
 let setup_modal = null;
 let analysis_modal = null; // NEW: Reference for the analysis modal.
 let file_view_modal = null; // NEW: Reference for the file view modal.
+let about_modal = null; // NEW: Reference for the about modal.
 let current_search_folder_path = null;
 let current_browser_path = null;
 
@@ -25,6 +26,29 @@ export function initialize_modals() {
 	setup_modal = document.getElementById('setup_modal');
 	analysis_modal = document.getElementById('analysis_modal'); // NEW: Initialize the analysis modal.
 	file_view_modal = document.getElementById('file_view_modal'); // NEW: Initialize the file view modal.
+	about_modal = document.getElementById('about_modal'); // NEW: Initialize the about modal.
+}
+
+/**
+ * NEW: Opens the about modal.
+ */
+export function open_about_modal() {
+	if (about_modal) {
+		about_modal.showModal();
+	}
+}
+
+/**
+ * NEW: Checks if any projects exist and shows the 'About' modal as a welcome screen if not.
+ * This should be called once on page load after projects are fetched.
+ * @param {number} project_count - The number of configured projects.
+ */
+export function check_and_show_welcome_modal(project_count) {
+	// Use sessionStorage to only show the welcome modal once per session if the user closes it without adding a project.
+	if (project_count === 0 && !sessionStorage.getItem('welcome_modal_shown')) {
+		open_about_modal();
+		sessionStorage.setItem('welcome_modal_shown', 'true');
+	}
 }
 
 /**
@@ -45,15 +69,18 @@ async function browse_directory(dir_path = null) {
 		let html = '';
 		// Add "up" directory if a parent exists
 		if (data.parent) {
-			html += `<a href="#" class="block p-2 rounded-md hover:bg-base-300" data-path="${data.parent}"><i class="bi bi-arrow-90deg-up mr-2"></i>..</a>`;
+			html += `<a href="#" class="block p-2 rounded-md hover:bg-accent" data-path="${data.parent}"><i class="bi bi-arrow-90deg-up mr-2"></i>..</a>`;
 		}
 		
 		// Add subdirectories
 		data.directories.forEach(dir => {
+			// This logic correctly handles both full paths (like 'C:\' from a drive list) and relative names.
+			// If current_browser_path is null, full_path becomes dir.
+			// If current_browser_path is set, it correctly joins them.
 			const separator = current_browser_path && (current_browser_path.includes('\\')) ? '\\' : '/';
 			const is_root = !current_browser_path || current_browser_path.endsWith(separator);
 			const full_path = current_browser_path ? `${current_browser_path}${is_root ? '' : separator}${dir}` : dir;
-			html += `<a href="#" class="block p-2 rounded-md hover:bg-base-300 truncate" data-path="${full_path}" title="${full_path}"><i class="bi bi-folder mr-2"></i>${dir}</a>`;
+			html += `<a href="#" class="block p-2 rounded-md hover:bg-accent truncate" data-path="${full_path}" title="${full_path}"><i class="bi bi-folder mr-2"></i>${dir}</a>`;
 		});
 		
 		list_el.innerHTML = html || '<p class="text-base-content/70 p-3">No subdirectories found.</p>';
@@ -390,8 +417,6 @@ export function setup_modal_event_listeners() {
 		}
 	});
 	
-	// DELETED: The listener for the integrated analysis view is no longer needed.
-	
 	// Project Modal Listeners
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
 	
@@ -422,7 +447,7 @@ export function setup_modal_event_listeners() {
 		}
 	});
 	
-	// NEW: Setup Modal Listeners
+	// Setup Modal Listeners
 	document.getElementById('setup-modal-button').addEventListener('click', open_setup_modal);
 	
 	document.getElementById('save-setup-button').addEventListener('click', async () => {
@@ -467,4 +492,14 @@ export function setup_modal_event_listeners() {
 			}
 		}
 	});
+	
+	// NEW: About Modal Listener
+	// Note: This requires the main logo link in index.html to have id="about-modal-button"
+	const about_button = document.getElementById('about-modal-button');
+	if (about_button) {
+		about_button.addEventListener('click', (e) => {
+			e.preventDefault();
+			open_about_modal();
+		});
+	}
 }

@@ -4,7 +4,7 @@
 	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
 		<h3 class="font-bold text-lg">Select a Project Folder</h3>
 		<div class="py-2">
-			<p class="font-mono text-sm bg-base-300 p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
+			<p class="font-mono text-sm bg-accent p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
 		</div>
 		<div id="project-browser-list" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
 			<!-- Directory list will be populated here -->
@@ -235,6 +235,30 @@
 				<button class="btn">Close</button>
 			</form>
 			<button type="button" id="save-setup-button" class="btn btn-success">Save Configuration</button>
+		</div>
+	</div>
+</dialog>
+
+<!-- NEW: About Modal -->
+<dialog id="about_modal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg">Welcome to Smart Code Prompts!</h3>
+		<p class="py-4">
+			This tool helps you build context-rich prompts for Large Language Models by analyzing your codebase.
+		</p>
+		<p>
+			<strong>To get started:</strong>
+		<ol class="list-decimal list-inside pl-4 space-y-1 mt-2">
+			<li>Add a project folder using the <i class="bi bi-database-add"></i> icon or the dropdown.</li>
+			<li>Select files in the file tree and click "Analyze Selected".</li>
+			<li>Use the "Smart Prompt" bar to ask the LLM to select relevant files for your task.</li>
+			<li>Copy the generated prompt and use it with your favorite LLM.</li>
+		</ol>
+		</p>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn btn-primary">Get Started</button>
+			</form>
 		</div>
 	</div>
 </dialog>

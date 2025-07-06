@@ -50,15 +50,38 @@ function save_project_state({project_path, open_folders, selected_files}) {
 
 /**
  * Provides a list of directories for the project browser modal.
- * If no path is provided, it defaults to the application's root directory.
+ * If no path is provided, it provides an OS-specific root (drives for Windows, home dir for others).
+ * @param {string|null} dir_path - The path to browse.
  * @returns {object} An object with current path, parent path, and a list of subdirectories.
  */
 function browse_directory(dir_path) {
-	// MODIFIED: If no path is provided, default to the application's own directory.
-	// This is more reliable and intuitive than starting from system drives or home.
+	// MODIFIED: If no path is provided, determine the best root based on the OS.
 	if (!dir_path || dir_path.trim() === '' || dir_path === 'null') {
-		// Recursively call with __dirname, which is the absolute path of the current module's directory.
-		return browse_directory(__dirname);
+		// On Windows, list the logical drives for a better user experience.
+		if (os.platform() === 'win32') {
+			const { execSync } = require('child_process');
+			try {
+				// Use 'wmic' to get drive letters. It's reliable and doesn't require parsing complex output.
+				const stdout = execSync('wmic logicaldisk get name', { encoding: 'utf8' });
+				const drives = stdout.split('\r\n') // Split by lines
+					.slice(1) // Remove the 'Name' header
+					.map(line => line.trim()) // Trim whitespace
+					.filter(line => line.length > 0) // Filter out empty lines
+					.map(drive => `${drive}\\`); // Add trailing slash for a valid path
+				return {
+					current: null, // No "current" path when showing the list of drives
+					parent: null,
+					directories: drives
+				};
+			} catch (e) {
+				console.error("Failed to get Windows drives, falling back to home dir:", e);
+				// If 'wmic' fails for any reason, fall back to the user's home directory.
+				return browse_directory(os.homedir());
+			}
+		} else {
+			// On macOS/Linux, the home directory is the most sensible starting point.
+			return browse_directory(os.homedir());
+		}
 	}
 	
 	// Security check: ensure path is absolute.
@@ -73,7 +96,7 @@ function browse_directory(dir_path) {
 			.map(item => item.name);
 		
 		const parent = path.dirname(dir_path);
-		// Don't let user go "above" the root on Windows drives (e.g., C:\ -> C:)
+		// Don't let user go "above" the root (e.g., from C:\ to C:).
 		const is_root = parent === dir_path;
 		
 		return {

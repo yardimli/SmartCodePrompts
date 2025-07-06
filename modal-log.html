@@ -1,0 +1,15 @@
+<!-- SmartCodePrompts/modal-log.html -->
+<dialog id="log_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-7xl h-5/6 flex flex-col">
+		<h3 class="font-bold text-lg flex-shrink-0" id="log_modal_label">LLM Call Log (Persistent)</h3>
+		<div class="py-4 flex-grow overflow-y-auto" id="log_modal_body">
+			<p class="text-base-content/70">No LLM calls have been made yet.</p>
+		</div>
+		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
+			<button class="btn btn-error" id="reset-log-button">Reset Log & Tokens</button>
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>

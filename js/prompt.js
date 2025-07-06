@@ -1,8 +1,9 @@
 // SmartCodePrompts/js/prompt.js
 import {show_loading, hide_loading, post_data} from './utils.js';
-import {get_current_project, set_last_smart_prompt} from './state.js';
-import {perform_smart_prompt} from './modals.js';
-import {refresh_prompt_display} from './file_tree.js';
+// MODIFIED: Added save_current_project_state for use in the smart prompt action.
+import {get_current_project, set_last_smart_prompt, save_current_project_state} from './state.js';
+// MODIFIED: No longer importing from modals.js. Importing necessary functions from file_tree.js instead.
+import {refresh_prompt_display, ensure_file_is_visible, update_selected_content} from './file_tree.js';
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -24,6 +25,65 @@ export function initialize_auto_expand_textarea() {
 		adjust_prompt_textarea_height();
 		// Add listener for input changes
 		prompt_input.addEventListener('input', adjust_prompt_textarea_height);
+	}
+}
+
+/**
+ * NEW: Performs the "smart prompt" action to select relevant files using an LLM.
+ * This function was moved from the old modals.js to centralize prompt logic.
+ * @param {string} user_prompt - The user's high-level request.
+ */
+async function perform_smart_prompt (user_prompt) {
+	const trimmed_prompt = user_prompt.trim();
+	if (!trimmed_prompt) {
+		alert('Please enter a prompt.');
+		return;
+	}
+	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
+	if (!llm_id) {
+		alert('Please select an LLM for Smart Prompts from the dropdown.');
+		return;
+	}
+	
+	set_last_smart_prompt(user_prompt);
+	
+	show_loading('Asking LLM to select relevant files...');
+	try {
+		const current_project = get_current_project();
+		const response = await post_data({
+			action: 'get_relevant_files_from_prompt',
+			project_path: current_project.path,
+			user_prompt: trimmed_prompt,
+			llm_id: llm_id,
+			temperature: document.getElementById('temperature-slider').value
+		});
+		
+		if (response.relevant_files && response.relevant_files.length > 0) {
+			document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
+			
+			let checked_count = 0;
+			for (const file_path of response.relevant_files) {
+				const is_visible = await ensure_file_is_visible(file_path);
+				if (is_visible) {
+					const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${file_path}"]`);
+					if (checkbox) {
+						checkbox.checked = true;
+						checked_count++;
+					}
+				}
+			}
+			
+			await update_selected_content();
+			save_current_project_state();
+			alert(`LLM selected ${checked_count} relevant file(s). Prompt has been built.`);
+		} else {
+			alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
+		}
+	} catch (error) {
+		console.error('Failed to get relevant files from prompt:', error);
+		alert(`An error occurred: ${error.message}`);
+	} finally {
+		hide_loading();
 	}
 }
 

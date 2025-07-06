@@ -1,0 +1,17 @@
+<!-- SmartCodePrompts/modal-qa.html -->
+<dialog id="qa_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-4xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg" id="qa-modal-title">Ask a Question</h3>
+		<div id="qa-chat-window" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
+			<!-- Chat messages will be appended here -->
+		</div>
+		<div class="flex gap-2">
+			<textarea id="qa-input" class="textarea textarea-bordered flex-grow" placeholder="Ask anything about your code..."
+			          rows="1"></textarea>
+			<button id="qa-send-button" class="btn btn-primary">Send</button>
+		</div>
+	</div>
+</dialog>

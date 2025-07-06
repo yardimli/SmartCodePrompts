@@ -4,7 +4,13 @@ import {post_data} from './utils.js';
 import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
 
 // --- MODULE IMPORTS ---
-import {initialize_modals, setup_modal_event_listeners} from './modals.js';
+// MODIFIED: Import individual modal setup functions instead of a generic one.
+import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
+import {initialize_analysis_modal} from './modal-analysis.js';
+import {initialize_file_view_modal} from './modal-file-view.js';
+import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
+import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
+import {initialize_setup_modal, setup_setup_modal_listeners} from './modal-setup.js';
 import {setup_analysis_actions_listener} from './analysis.js';
 import {initialize_llm_selector, setup_llm_listeners} from './llm.js';
 import {initialize_status_bar} from './status_bar.js';
@@ -20,14 +26,23 @@ import {initialize_qa_modal, setup_qa_listeners} from './qa.js';
 import {initialize_direct_prompt_modal, setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 
-async function load_modals_html() {
+// MODIFIED: Function to load all individual modal HTML files.
+async function load_all_modals_html () {
+	const modal_files = [
+		'modal-about.html', 'modal-analysis.html', 'modal-direct-prompt.html',
+		'modal-file-view.html', 'modal-log.html', 'modal-qa.html',
+		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html'
+	];
+	const modal_container = document.getElementById('modal-container');
+	
 	try {
-		const response = await fetch('modals.html');
-		if (!response.ok) {
-			throw new Error(`Failed to load modals.html: ${response.statusText}`);
-		}
-		const html = await response.text();
-		document.getElementById('modal-container').innerHTML = html;
+		const fetch_promises = modal_files.map(file => fetch(file).then(res => {
+			if (!res.ok) throw new Error(`Failed to load ${file}: ${res.statusText}`);
+			return res.text();
+		}));
+		
+		const html_contents = await Promise.all(fetch_promises);
+		modal_container.innerHTML = html_contents.join('');
 	} catch (error) {
 		console.error(error);
 		document.body.innerHTML = `<div class="p-4"><div class="alert alert-error">Could not load essential UI components (modals). Please refresh the page or check the console.</div></div>`;
@@ -95,9 +110,9 @@ async function initialize_app() {
 				dropdown.appendChild(option);
 			});
 		}
-
+		
 		dropdown.insertAdjacentHTML ('beforeend', '<option value="add_new_project" class="text-accent font-bold">Add New Project...</option>');
-
+		
 		// 5. Load last or first project
 		const last_project_path = data.last_selected_project;
 		if (last_project_path) {
@@ -120,10 +135,16 @@ async function initialize_app() {
 
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', async function () {
-	await load_modals_html();
+	// MODIFIED: Load all individual modal HTML files instead of one.
+	await load_all_modals_html();
 	
-	// Initialize UI elements first
-	initialize_modals(); // This function now initializes all modals, including the new setup modal.
+	// MODIFIED: Initialize UI elements first, calling individual modal initializers.
+	initialize_about_modal();
+	initialize_analysis_modal();
+	initialize_file_view_modal();
+	initialize_log_modal();
+	initialize_search_modal();
+	initialize_setup_modal();
 	initialize_qa_modal();
 	initialize_direct_prompt_modal();
 	initialize_resizers();
@@ -132,18 +153,19 @@ document.addEventListener('DOMContentLoaded', async function () {
 	
 	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {
-		const about_modal = document.getElementById('about_modal');
-		if (about_modal) {
-			about_modal.showModal();
-			sessionStorage.setItem('aboutModalShown', 'true');
-		}
+		// MODIFIED: Use the imported function to open the modal.
+		open_about_modal();
+		sessionStorage.setItem('aboutModalShown', 'true');
 	}
 	
 	// Load main application data and state
 	await initialize_app();
 	
-	// Setup all event listeners from the various modules
-	setup_modal_event_listeners();
+	// MODIFIED: Setup all event listeners from the various modules, including new modal listener setups.
+	setup_about_modal_listeners();
+	setup_log_modal_listeners();
+	setup_search_modal_listeners();
+	setup_setup_modal_listeners();
 	setup_qa_listeners();
 	setup_direct_prompt_listeners();
 	setup_analysis_actions_listener();

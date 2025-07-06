@@ -1,7 +1,9 @@
 // SmartCodePrompts/js/file_tree.js
 import {show_loading, hide_loading, get_parent_path, post_data} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
-import {handle_analysis_icon_click, handle_file_name_click} from './modals.js';
+// MODIFIED: Import from new, specific modal files instead of the old generic modals.js.
+import {handle_analysis_icon_click} from './modal-analysis.js';
+import {handle_file_name_click} from './modal-file-view.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';

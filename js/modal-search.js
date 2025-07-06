@@ -1,0 +1,218 @@
+// SmartCodePrompts/js/modal-search.js
+import {show_loading, hide_loading, post_data} from './utils.js';
+import {get_current_project, save_current_project_state} from './state.js';
+import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
+
+let search_modal = null;
+let current_project_search_results = [];
+let current_search_matches = [];
+let current_search_match_index = -1;
+
+/**
+ * Initializes the search modal element reference.
+ */
+export function initialize_search_modal () {
+	search_modal = document.getElementById('search_modal');
+};
+
+// Helper function to highlight the current match in the search preview and scroll to it.
+function highlight_current_match () {
+	if (!current_search_matches.length || current_search_match_index < 0) {
+		return;
+	}
+	
+	const content_el = document.getElementById('search-preview-content');
+	const match = current_search_matches[current_search_match_index];
+	
+	setTimeout(() => {
+		content_el.focus();
+		content_el.setSelectionRange(match.start, match.end);
+	}, 0);
+	
+	document.getElementById('search-preview-matches').textContent = `${current_search_match_index + 1} of ${current_search_matches.length}`;
+}
+
+async function show_search_preview (file_path, search_term) {
+	const title_el = document.getElementById('search-preview-title');
+	const content_el = document.getElementById('search-preview-content');
+	const nav_el = document.getElementById('search-preview-nav');
+	
+	// Reset state for the new file preview.
+	title_el.textContent = `Loading ${file_path}...`;
+	content_el.value = 'Loading...';
+	nav_el.classList.add('hidden');
+	current_search_matches = [];
+	current_search_match_index = -1;
+	
+	try {
+		const current_project = get_current_project();
+		const data = await post_data({
+			action: 'get_file_content',
+			project_path: current_project.path,
+			path: file_path
+		});
+		
+		const file_content = data.content || '';
+		content_el.value = file_content;
+		
+		const search_regex = new RegExp(search_term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+		
+		let match;
+		while ((match = search_regex.exec(file_content)) !== null) {
+			current_search_matches.push({
+				start: match.index,
+				end: match.index + match[0].length
+			});
+		}
+		
+		title_el.textContent = file_path;
+		
+		if (current_search_matches.length > 0) {
+			nav_el.classList.remove('hidden');
+			current_search_match_index = 0;
+			highlight_current_match();
+		} else {
+			document.getElementById('search-preview-matches').textContent = '0 matches';
+		}
+		
+	} catch (error) {
+		title_el.textContent = `Error loading ${file_path}`;
+		content_el.value = `Error: ${error.message}`;
+	}
+}
+
+/**
+ * Sets up event listeners for the project-wide search modal.
+ */
+export function setup_search_modal_listeners () {
+	document.getElementById('project-search-button').addEventListener('click', (e) => {
+		e.preventDefault();
+		// Reset the entire search UI when opening the modal.
+		document.getElementById('search_term_input').value = '';
+		document.getElementById('search-results-list').innerHTML = '<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>';
+		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
+		document.getElementById('search-preview-content').value = '';
+		document.getElementById('search-preview-nav').classList.add('hidden');
+		document.getElementById('check_matching_files_button').disabled = true;
+		current_project_search_results = [];
+		current_search_matches = [];
+		current_search_match_index = -1;
+		search_modal.showModal();
+		document.getElementById('search_term_input').focus();
+	});
+	
+	const perform_search = async () => {
+		const search_term = document.getElementById('search_term_input').value.trim();
+		const results_list = document.getElementById('search-results-list');
+		const check_button = document.getElementById('check_matching_files_button');
+		
+		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
+		document.getElementById('search-preview-content').value = '';
+		document.getElementById('search-preview-nav').classList.add('hidden');
+		
+		if (!search_term) {
+			results_list.innerHTML = '<p class="text-error text-center">Please enter a search term.</p>';
+			check_button.disabled = true;
+			return;
+		}
+		
+		results_list.innerHTML = '<div class="text-center"><span class="loading loading-spinner"></span> Searching...</div>';
+		check_button.disabled = true;
+		
+		try {
+			const current_project = get_current_project();
+			const response = await post_data({
+				action: 'search_files',
+				folder_path: '.',
+				search_term: search_term,
+				project_path: current_project.path
+			});
+			
+			current_project_search_results = response.matching_files || [];
+			
+			if (current_project_search_results.length > 0) {
+				results_list.innerHTML = current_project_search_results.map(file => `
+                    <div class="p-1.5 hover:bg-base-300 rounded cursor-pointer search-result-item" data-path="${file.path}" title="${file.path}">
+                        <span class="badge badge-neutral badge-sm mr-2">${file.match_count}</span>
+                        <span class="truncate">${file.path}</span>
+                    </div>
+                `).join('');
+				check_button.disabled = false;
+			} else {
+				results_list.innerHTML = `<p class="text-base-content/80 text-center">No files found containing "${search_term}".</p>`;
+			}
+		} catch (error) {
+			results_list.innerHTML = `<p class="text-error text-center">Search failed: ${error.message || 'Unknown error'}</p>`;
+		}
+	};
+	
+	document.getElementById('search_term_input').addEventListener('keypress', e => {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			perform_search();
+		}
+	});
+	
+	document.getElementById('perform_search_button').addEventListener('click', perform_search);
+	
+	document.getElementById('search-results-list').addEventListener('click', e => {
+		const item = e.target.closest('.search-result-item');
+		if (item) {
+			const file_path = item.dataset.path;
+			const search_term = document.getElementById('search_term_input').value.trim();
+			
+			document.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('bg-primary/50'));
+			item.classList.add('bg-primary/50');
+			
+			if (file_path && search_term) {
+				show_search_preview(file_path, search_term);
+			}
+		}
+	});
+	
+	document.getElementById('search-next-match-btn').addEventListener('click', () => {
+		if (current_search_matches.length > 0) {
+			current_search_match_index = (current_search_match_index + 1) % current_search_matches.length;
+			highlight_current_match();
+		}
+	});
+	
+	document.getElementById('search-prev-match-btn').addEventListener('click', () => {
+		if (current_search_matches.length > 0) {
+			current_search_match_index = (current_search_match_index - 1 + current_search_matches.length) % current_search_matches.length;
+			highlight_current_match();
+		}
+	});
+	
+	document.getElementById('check_matching_files_button').addEventListener('click', async function () {
+		if (current_project_search_results.length === 0) return;
+		
+		search_modal.close();
+		show_loading(`Selecting ${current_project_search_results.length} file(s)...`);
+		
+		const files_to_check = current_project_search_results.map(f => f.path);
+		
+		try {
+			let successful_checks = 0;
+			for (const file_path of files_to_check) {
+				const is_visible = await ensure_file_is_visible(file_path);
+				if (is_visible) {
+					const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${file_path}"]`);
+					if (checkbox && !checkbox.checked) {
+						checkbox.checked = true;
+						successful_checks++;
+					}
+				}
+			}
+			if (successful_checks > 0) {
+				await update_selected_content();
+				save_current_project_state();
+			}
+			alert(`Selected ${successful_checks} new file(s) from search results.`);
+		} catch (error) {
+			alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`);
+		} finally {
+			hide_loading();
+		}
+	});
+};

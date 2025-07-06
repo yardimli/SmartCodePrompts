@@ -1,0 +1,17 @@
+<!-- SmartCodePrompts/modal-file-view.html -->
+<dialog id="file_view_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-5xl h-5/6 flex flex-col">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="font-bold text-lg" id="file-view-modal-title">File Content</h3>
+		<div class="flex-grow my-1 rounded-lg">
+			<textarea id="file-view-modal-content" class="textarea textarea-bordered w-full h-full font-mono text-xs" readonly></textarea>
+		</div>
+		<div class="modal-action border-t border-base-300 pt-1">
+			<form method="dialog">
+				<button class="btn">Close</button>
+			</form>
+		</div>
+	</div>
+</dialog>

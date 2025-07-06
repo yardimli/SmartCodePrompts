@@ -68,21 +68,25 @@ export function initialize_resizers() {
 		vertical_resizer.addEventListener('mousedown', (e) => {
 			e.preventDefault();
 			document.body.style.cursor = 'col-resize';
-			document.body.style.user_select = 'none';
+			// MODIFIED: Use camelCase for CSS properties in JS.
+			document.body.style.userSelect = 'none';
 			
 			const start_x = e.clientX;
-			const start_width = file_tree_pane.offset_width;
+			// MODIFIED: Use correct camelCase property 'offsetWidth'.
+			const start_width = file_tree_pane.offsetWidth;
 			
 			const do_drag = (e) => {
 				const new_width = start_width + e.clientX - start_x;
 				if (new_width >= 200 && new_width <= 600) {
-					main_split_pane.style.grid_template_columns = `${new_width}px auto 1fr`;
+					// MODIFIED: Use camelCase for CSS properties in JS.
+					main_split_pane.style.gridTemplateColumns = `${new_width}px auto 1fr`;
 				}
 			};
 			
 			const stop_drag = () => {
 				document.body.style.cursor = 'default';
-				document.body.style.user_select = 'auto';
+				// MODIFIED: Use camelCase for CSS properties in JS.
+				document.body.style.userSelect = 'auto';
 				document.removeEventListener('mousemove', do_drag);
 				document.removeEventListener('mouseup', stop_drag);
 			};
@@ -96,10 +100,12 @@ export function initialize_resizers() {
 		horizontal_resizer.addEventListener('mousedown', (e) => {
 			e.preventDefault();
 			document.body.style.cursor = 'row-resize';
-			document.body.style.user_select = 'none';
+			// MODIFIED: Use camelCase for CSS properties in JS.
+			document.body.style.userSelect = 'none';
 			
 			const start_y = e.clientY;
-			const start_height = bottom_panel.offset_height;
+			// MODIFIED: Use correct camelCase property 'offsetHeight'.
+			const start_height = bottom_panel.offsetHeight;
 			
 			const do_drag = (e) => {
 				const new_height = start_height - (e.clientY - start_y);
@@ -110,7 +116,8 @@ export function initialize_resizers() {
 			
 			const stop_drag = () => {
 				document.body.style.cursor = 'default';
-				document.body.style.user_select = 'auto';
+				// MODIFIED: Use camelCase for CSS properties in JS.
+				document.body.style.userSelect = 'auto';
 				document.removeEventListener('mousemove', do_drag);
 				document.removeEventListener('mouseup', stop_drag);
 			};

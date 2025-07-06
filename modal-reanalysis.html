@@ -1,0 +1,15 @@
+<!-- SmartCodePrompts/modal-reanalysis.html -->
+<dialog id="reanalysis_prompt_modal" class="modal">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg">Re-analysis Recommended</h3>
+		<p class="py-4">For the best results, it's recommended to re-analyze modified files before running the prompt.</p>
+		<p id="reanalysis-file-count" class="font-bold mb-4"></p>
+		<div class="modal-action">
+			<form method="dialog">
+				<button class="btn">Cancel</button>
+			</form>
+			<button class="btn" id="run-without-reanalysis-button">Run Anyway</button>
+			<button class="btn btn-primary" id="run-with-reanalysis-button">Re-analyze and Run</button>
+		</div>
+	</div>
+</dialog>

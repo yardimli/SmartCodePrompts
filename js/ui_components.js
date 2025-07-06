@@ -234,10 +234,19 @@ export function setup_ui_event_listeners() {
 		const new_theme = is_dark_mode ? 'light' : 'dark';
 		html.setAttribute('data-theme', new_theme);
 		
+		// MODIFIED: Also switch the highlight.js theme stylesheet.
+		const highlight_theme_link = document.getElementById('highlight-js-theme');
+		
 		if (new_theme === 'dark') {
 			this.querySelector('i').classList = 'bi-moon';
+			if (highlight_theme_link) {
+				highlight_theme_link.href = './vendor/highlight.js/styles/atom-one-dark.min.css';
+			}
 		} else { // new_theme === 'light'
 			this.querySelector('i').classList = 'bi-sun';
+			if (highlight_theme_link) {
+				highlight_theme_link.href = './vendor/highlight.js/styles/atom-one-light.min.css';
+			}
 		}
 		
 		post_data({action: 'set_dark_mode', is_dark_mode: !is_dark_mode});

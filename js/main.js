@@ -65,12 +65,20 @@ async function initialize_app() {
 		const data = await post_data({action: 'get_main_page_data'});
 		
 		// 1. Apply UI States (Dark Mode, Sidebar)
+		// MODIFIED: Also set the correct highlight.js theme on initial load.
+		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		if (data.dark_mode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
 			document.querySelector('#toggle-mode i').classList = 'bi-moon';
+			if (highlight_theme_link) {
+				highlight_theme_link.href = './vendor/highlight.js/styles/atom-one-dark.min.css';
+			}
 		} else {
 			document.documentElement.setAttribute('data-theme', 'light');
 			document.querySelector('#toggle-mode i').classList = 'bi-sun';
+			if (highlight_theme_link) {
+				highlight_theme_link.href = './vendor/highlight.js/styles/atom-one-light.min.css';
+			}
 		}
 		
 		if (data.right_sidebar_collapsed) {

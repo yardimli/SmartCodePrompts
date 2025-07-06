@@ -5,6 +5,7 @@ import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
 
 let search_modal = null;
 let current_project_search_results = [];
+// MODIFIED: This will now store the full match object from regex.exec().
 let current_search_matches = [];
 let current_search_match_index = -1;
 
@@ -15,23 +16,49 @@ export function initialize_search_modal () {
 	search_modal = document.getElementById('search_modal');
 };
 
-// Helper function to highlight the current match in the search preview and scroll to it.
+// MODIFIED: Corrected the implementation to actually escape HTML special characters.
+function escape_html (str) {
+	if (typeof str !== 'string') {
+		return '';
+	}
+	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// MODIFIED: This function is completely overhauled to work with a <pre><code> block
+// instead of a <textarea>. It now scrolls the highlighted <mark> element into view.
 function highlight_current_match () {
-	if (!current_search_matches.length || current_search_match_index < 0) {
+	const preview_el = document.getElementById('search-preview-content');
+	// The search matches are the <mark> tags we inserted.
+	const matches = preview_el.getElementsByClassName('search-match');
+	
+	if (!matches.length || current_search_match_index < 0) {
 		return;
 	}
 	
-	const content_el = document.getElementById('search-preview-content');
-	const match = current_search_matches[current_search_match_index];
+	// Remove 'current' class from the previously active match.
+	// Using a more specific class name to avoid conflicts.
+	const previous_match = preview_el.querySelector('.current-search-match');
+	if (previous_match) {
+		previous_match.classList.remove('current-search-match');
+	}
 	
-	setTimeout(() => {
-		content_el.focus();
-		content_el.setSelectionRange(match.start, match.end);
-	}, 0);
+	const current_match_el = matches[current_search_match_index];
+	if (current_match_el) {
+		// Add 'current' class to the new active match for distinct styling.
+		current_match_el.classList.add('current-search-match');
+		
+		// Scroll the element into view. This is much simpler than calculating scroll position.
+		current_match_el.scrollIntoView({
+			behavior: 'auto', // Use 'auto' for faster response than 'smooth'
+			block: 'center'
+		});
+	}
 	
-	document.getElementById('search-preview-matches').textContent = `${current_search_match_index + 1} of ${current_search_matches.length}`;
+	document.getElementById('search-preview-matches').textContent = `${current_search_match_index + 1} of ${matches.length}`;
 }
 
+// MODIFIED: This function is completely overhauled to correctly layer search-term
+// highlighting on top of syntax highlighting from highlight.js.
 async function show_search_preview (file_path, search_term) {
 	const title_el = document.getElementById('search-preview-title');
 	const content_el = document.getElementById('search-preview-content');
@@ -39,7 +66,8 @@ async function show_search_preview (file_path, search_term) {
 	
 	// Reset state for the new file preview.
 	title_el.textContent = `Loading ${file_path}...`;
-	content_el.value = 'Loading...';
+	content_el.textContent = 'Loading...';
+	content_el.className = 'font-mono text-xs p-2 block'; // Reset classes
 	nav_el.classList.add('hidden');
 	current_search_matches = [];
 	current_search_match_index = -1;
@@ -52,17 +80,70 @@ async function show_search_preview (file_path, search_term) {
 			path: file_path
 		});
 		
-		const file_content = data.content || '';
-		content_el.value = file_content;
+		const raw_content = data.content || '';
+		// Normalize newlines to ensure regex indices are correct. Do not escape HTML here.
+		const file_content = raw_content.replace(/\r\n/g, '\n');
 		
 		const search_regex = new RegExp(search_term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
 		
 		let match;
 		while ((match = search_regex.exec(file_content)) !== null) {
-			current_search_matches.push({
-				start: match.index,
-				end: match.index + match[0].length
+			current_search_matches.push(match);
+		}
+		
+		// If there are no matches, we can take a simple path.
+		if (current_search_matches.length === 0) {
+			content_el.textContent = file_content; // Let hljs handle content
+			if (window.hljs) {
+				content_el.removeAttribute('data-highlighted');
+				hljs.highlightElement(content_el);
+			}
+			document.getElementById('search-preview-matches').textContent = '0 matches';
+		} else {
+			// With matches, we use a placeholder strategy to combine highlighting.
+			// 1. Replace matches in the raw text with unique, safe placeholders.
+			const placeholders = [];
+			let content_with_placeholders = '';
+			let last_index = 0;
+			
+			current_search_matches.forEach((m, i) => {
+				const placeholder = `__SCPSM${i}__`; // A unique, simple placeholder
+				placeholders.push({placeholder: placeholder, text: m[0]});
+				
+				content_with_placeholders += file_content.substring(last_index, m.index);
+				content_with_placeholders += placeholder;
+				last_index = m.index + m[0].length;
 			});
+			content_with_placeholders += file_content.substring(last_index);
+			
+			// 2. Apply syntax highlighting to the text that now contains the placeholders.
+			let highlighted_html = '';
+			if (window.hljs) {
+				try {
+					// highlightAuto will escape the content and our placeholders.
+					highlighted_html = hljs.highlightAuto(content_with_placeholders).value;
+				} catch (e) {
+					console.error('Error during syntax highlighting:', e);
+					// Fallback to just escaping the text if highlighting fails.
+					highlighted_html = escape_html(content_with_placeholders);
+				}
+			} else {
+				// If highlight.js is not available, just escape the content.
+				highlighted_html = escape_html(content_with_placeholders);
+			}
+			
+			// 3. Replace the placeholders in the now-highlighted HTML with the final <mark> tags.
+			placeholders.forEach(p => {
+				const mark_tag = `<mark class="search-match">${escape_html(p.text)}</mark>`;
+				// The placeholder is treated as text, so it won't contain special HTML characters.
+				// A simple global replace is sufficient.
+				highlighted_html = highlighted_html.replace(new RegExp(p.placeholder, 'g'), mark_tag);
+			});
+			
+			// 4. Set the final, combined HTML to the content element.
+			content_el.innerHTML = highlighted_html;
+			// Ensure hljs can re-highlight this element in the future if needed.
+			content_el.removeAttribute('data-highlighted');
 		}
 		
 		title_el.textContent = file_path;
@@ -71,13 +152,11 @@ async function show_search_preview (file_path, search_term) {
 			nav_el.classList.remove('hidden');
 			current_search_match_index = 0;
 			highlight_current_match();
-		} else {
-			document.getElementById('search-preview-matches').textContent = '0 matches';
 		}
 		
 	} catch (error) {
 		title_el.textContent = `Error loading ${file_path}`;
-		content_el.value = `Error: ${error.message}`;
+		content_el.textContent = `Error: ${error.message}`;
 	}
 }
 
@@ -91,7 +170,8 @@ export function setup_search_modal_listeners () {
 		document.getElementById('search_term_input').value = '';
 		document.getElementById('search-results-list').innerHTML = '<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>';
 		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
-		document.getElementById('search-preview-content').value = '';
+		// MODIFIED: Use textContent to clear the <code> block.
+		document.getElementById('search-preview-content').textContent = '';
 		document.getElementById('search-preview-nav').classList.add('hidden');
 		document.getElementById('check_matching_files_button').disabled = true;
 		current_project_search_results = [];
@@ -107,7 +187,8 @@ export function setup_search_modal_listeners () {
 		const check_button = document.getElementById('check_matching_files_button');
 		
 		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
-		document.getElementById('search-preview-content').value = '';
+		// MODIFIED: Use textContent to clear the <code> block.
+		document.getElementById('search-preview-content').textContent = '';
 		document.getElementById('search-preview-nav').classList.add('hidden');
 		
 		if (!search_term) {

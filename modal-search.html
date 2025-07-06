@@ -32,7 +32,11 @@
 						</div>
 					</div>
 				</div>
-				<textarea id="search-preview-content" class="textarea textarea-bordered w-full flex-grow bg-base-200 font-mono text-xs" readonly></textarea>
+				<!-- MODIFIED: Replaced textarea with a div/pre/code structure for syntax highlighting. -->
+				<!-- This structure allows for rich text rendering and is compatible with libraries like highlight.js. -->
+				<div class="w-full flex-grow bg-base-200 rounded-md overflow-auto border border-base-300">
+					<pre class="h-full"><code id="search-preview-content" class="font-mono text-xs p-2 block"></code></pre>
+				</div>
 			</div>
 		</div>
 		

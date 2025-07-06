@@ -1,4 +1,5 @@
 // SmartCodePrompts/js/main.js
+
 // --- CORE & STATE IMPORTS ---
 import {post_data} from './utils.js';
 import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';

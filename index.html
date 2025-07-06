@@ -7,8 +7,10 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
 	<link href="./node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+	<link rel="stylesheet" href="./vendor/highlight.js/styles/atom-one-dark.min.css">
 	<link rel="stylesheet" href="./dist/output.css">
 	<script type="module" src="js/main.js"></script>
+	<script src="./vendor/highlight.js/highlight.min.js"></script>
 </head>
 <body class="h-screen overflow-hidden">
 <div class="flex h-full" id="app-container">
@@ -20,13 +22,12 @@
 			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
 				<i class="bi bi-sun"></i>
 			</div>
-			<!-- NEW: Added project-wide search button -->
-			<a href="#" id="project-search-button" title="Search Project" class="text-info"><i class="bi bi-search"></i></a>
 			<a href="#" id="qa-modal-button" title="Ask a Question" class=" text-success"><i class="bi bi-chat-dots"></i></i></a>
 			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt" class=" text-success"><i class="bi bi-asterisk"></i></a>
 		</div>
 		
 		<div class="bottom-icons">
+			<div id="project-search-button" title="Search Project" class="cursor-pointer text-info"><i class="bi bi-search"></i></div>
 			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
 				<i class="bi bi-file-earmark-plus"></i>
 			</div>

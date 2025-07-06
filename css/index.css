@@ -225,3 +225,18 @@
     height: 95vh;
     max-height: 95vh;
 }
+
+/* Style for all search matches found in the preview */
+mark.search-match {
+    background-color: #ff0; /* A standard bright yellow */
+    color: #000; /* Black text for readability on yellow */
+    padding: 1px 0;
+    border-radius: 2px;
+}
+
+/* A distinct style for the currently selected search match */
+mark.current-search-match {
+    background-color: #f7a000; /* A bright orange */
+    box-shadow: 0 0 0 2px #f7a000; /* A subtle glow effect */
+    outline: 1px solid #fff3; /* A faint white outline to stand out */
+}

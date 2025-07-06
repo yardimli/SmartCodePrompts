@@ -197,7 +197,7 @@ export function setup_ui_event_listeners() {
 			navigator.clipboard.writeText(text_to_copy).then(() => {
 				const button = this;
 				const original_html = button.innerHTML;
-				button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+				button.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
 				button.disabled = true;
 				setTimeout(() => {
 					button.innerHTML = original_html;
@@ -213,7 +213,7 @@ export function setup_ui_event_listeners() {
 				document.execCommand('copy');
 				const button = this;
 				const original_html = button.innerHTML;
-				button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+				button.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
 				button.disabled = true;
 				setTimeout(() => {
 					button.innerHTML = original_html;

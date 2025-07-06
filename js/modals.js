@@ -7,22 +7,22 @@ import {update_status_bar} from './status_bar.js';
 let search_modal = null;
 let log_modal = null;
 let reanalysis_prompt_modal = null;
-let project_modal = null;
+// DELETED: project_modal is no longer used.
 let setup_modal = null;
 let analysis_modal = null; // NEW: Reference for the analysis modal.
 let file_view_modal = null; // NEW: Reference for the file view modal.
 let about_modal = null; // NEW: Reference for the about modal.
 let current_search_folder_path = null;
-let current_browser_path = null;
+// DELETED: current_browser_path is no longer used.
 
 /**
  * Initializes the modal element references.
  */
-export function initialize_modals() {
+export function initialize_modals () {
 	search_modal = document.getElementById('search_modal');
 	log_modal = document.getElementById('log_modal');
 	reanalysis_prompt_modal = document.getElementById('reanalysis_prompt_modal');
-	project_modal = document.getElementById('project_modal');
+	// DELETED: project_modal is no longer used.
 	setup_modal = document.getElementById('setup_modal');
 	analysis_modal = document.getElementById('analysis_modal'); // NEW: Initialize the analysis modal.
 	file_view_modal = document.getElementById('file_view_modal'); // NEW: Initialize the file view modal.
@@ -32,7 +32,7 @@ export function initialize_modals() {
 /**
  * NEW: Opens the about modal.
  */
-export function open_about_modal() {
+export function open_about_modal () {
 	if (about_modal) {
 		about_modal.showModal();
 	}
@@ -43,7 +43,7 @@ export function open_about_modal() {
  * This should be called once on page load after projects are fetched.
  * @param {number} project_count - The number of configured projects.
  */
-export function check_and_show_welcome_modal(project_count) {
+export function check_and_show_welcome_modal (project_count) {
 	// Use sessionStorage to only show the welcome modal once per session if the user closes it without adding a project.
 	if (project_count === 0 && !sessionStorage.getItem('welcome_modal_shown')) {
 		open_about_modal();
@@ -51,59 +51,40 @@ export function check_and_show_welcome_modal(project_count) {
 	}
 }
 
-/**
- * NEW: Fetches and displays a list of directories for the project browser modal.
- * @param {string|null} dir_path - The absolute path of the directory to browse. If null, starts at the top level.
- */
-async function browse_directory(dir_path = null) {
-	const list_el = document.getElementById('project-browser-list');
-	const path_el = document.getElementById('project-browser-current-path');
-	list_el.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
-	
-	try {
-		const data = await post_data({action: 'browse_directory', path: dir_path});
-		current_browser_path = data.current;
-		path_el.textContent = current_browser_path || 'Select a drive or directory';
-		path_el.title = current_browser_path;
-		
-		let html = '';
-		// Add "up" directory if a parent exists
-		if (data.parent) {
-			html += `<a href="#" class="block p-2 rounded-md hover:bg-accent" data-path="${data.parent}"><i class="bi bi-arrow-90deg-up mr-2"></i>..</a>`;
-		}
-		
-		// Add subdirectories
-		data.directories.forEach(dir => {
-			// This logic correctly handles both full paths (like 'C:\' from a drive list) and relative names.
-			// If current_browser_path is null, full_path becomes dir.
-			// If current_browser_path is set, it correctly joins them.
-			const separator = current_browser_path && (current_browser_path.includes('\\')) ? '\\' : '/';
-			const is_root = !current_browser_path || current_browser_path.endsWith(separator);
-			const full_path = current_browser_path ? `${current_browser_path}${is_root ? '' : separator}${dir}` : dir;
-			html += `<a href="#" class="block p-2 rounded-md hover:bg-accent truncate" data-path="${full_path}" title="${full_path}"><i class="bi bi-folder mr-2"></i>${dir}</a>`;
-		});
-		
-		list_el.innerHTML = html || '<p class="text-base-content/70 p-3">No subdirectories found.</p>';
-		
-	} catch (error) {
-		console.error('Failed to browse directory:', error);
-		list_el.innerHTML = `<p class="text-error p-3">Could not browse directory: ${error.message}</p>`;
-		path_el.textContent = 'Error';
-	}
-}
+// DELETED: The browse_directory function is no longer needed.
 
+// MODIFIED: This function now uses Electron's native dialog to select a project folder.
 /**
- * NEW: Opens the project browser modal and loads the initial directory list.
+ * Opens a native dialog to select a project folder and adds it to the application.
  */
-export function open_project_modal() {
-	project_modal.showModal();
-	browse_directory(); // Start at the root (drives on Windows, home on others)
+export async function open_project_modal () {
+	try {
+		// Call the method exposed from the main process via the preload script.
+		const selected_path = await window.electronAPI.openDirectoryDialog();
+		
+		if (selected_path) {
+			show_loading('Adding project...');
+			try {
+				await post_data({action: 'add_project', path: selected_path});
+				// Reload the page to refresh the project list and load the new project.
+				window.location.reload();
+			} catch (error) {
+				console.error('Failed to add project:', error);
+				alert(`Failed to add project: ${error.message}`);
+			} finally {
+				hide_loading();
+			}
+		}
+	} catch (error) {
+		console.error('Error opening directory dialog:', error);
+		alert(`Could not open directory selector: ${error.message}`);
+	}
 }
 
 /**
  * NEW: Loads configuration data from the server and populates the setup form in the modal.
  */
-async function load_setup_data() {
+async function load_setup_data () {
 	const form = document.getElementById('setup-form');
 	const loading_indicator = document.getElementById('setup-loading-indicator');
 	
@@ -117,7 +98,7 @@ async function load_setup_data() {
 		// Populate form fields
 		document.getElementById('allowed-extensions-input').value = (config.allowed_extensions || []).join(', ');
 		document.getElementById('excluded-folders-input').value = (config.excluded_folders || []).join(', ');
-		document.getElementById('server-port-input').value = config.server_port || 3000;
+		// DELETED: Server port input is removed.
 		document.getElementById('openrouter-api-key-input').value = config.openrouter_api_key || '';
 		document.getElementById('prompt-file-overview-input').value = config.prompt_file_overview || '';
 		document.getElementById('prompt-functions-logic-input').value = config.prompt_functions_logic || '';
@@ -134,7 +115,7 @@ async function load_setup_data() {
 /**
  * NEW: Opens the setup modal and loads the current configuration.
  */
-export function open_setup_modal() {
+export function open_setup_modal () {
 	if (setup_modal) {
 		setup_modal.showModal();
 		load_setup_data();
@@ -145,7 +126,7 @@ export function open_setup_modal() {
  * Handles the click on the LLM Log button in the status bar.
  * Fetches log data and displays the modal.
  */
-export async function handle_log_button_click() {
+export async function handle_log_button_click () {
 	const modal_body = document.getElementById('log_modal_body');
 	modal_body.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
 	log_modal.showModal();
@@ -196,7 +177,7 @@ export async function handle_log_button_click() {
 /**
  * Handles the click event on a folder's search icon.
  */
-export function handle_search_icon_click(target) {
+export function handle_search_icon_click (target) {
 	current_search_folder_path = target.closest('.folder').dataset.path;
 	document.getElementById('search_modal_folder_path').textContent = current_search_folder_path || 'Root';
 	search_modal.showModal();
@@ -207,7 +188,7 @@ export function handle_search_icon_click(target) {
  * This now opens a modal and displays the analysis content in a textarea.
  * @param {HTMLElement} target - The analysis icon element that was clicked.
  */
-export async function handle_analysis_icon_click(target) {
+export async function handle_analysis_icon_click (target) {
 	const file_path = target.dataset.path;
 	const title_el = document.getElementById('analysis-modal-title');
 	const content_el = document.getElementById('analysis-modal-content');
@@ -260,7 +241,7 @@ export async function handle_analysis_icon_click(target) {
  * Opens a modal to display the file's content in a textarea.
  * @param {HTMLElement} target - The file-entry element that was clicked.
  */
-export async function handle_file_name_click(target) {
+export async function handle_file_name_click (target) {
 	const file_path = target.dataset.path;
 	const title_el = document.getElementById('file-view-modal-title');
 	const content_el = document.getElementById('file-view-modal-content');
@@ -288,7 +269,7 @@ export async function handle_file_name_click(target) {
  * Performs the "smart prompt" action to select relevant files using an LLM.
  * @param {string} user_prompt - The user's high-level request.
  */
-export async function perform_smart_prompt(user_prompt) {
+export async function perform_smart_prompt (user_prompt) {
 	const trimmed_prompt = user_prompt.trim();
 	if (!trimmed_prompt) {
 		alert('Please enter a prompt.');
@@ -346,7 +327,7 @@ export async function perform_smart_prompt(user_prompt) {
 /**
  * Sets up event listeners for modal-related controls.
  */
-export function setup_modal_event_listeners() {
+export function setup_modal_event_listeners () {
 	// Search Modal Listeners
 	document.getElementById('search_term_input').addEventListener('keypress', e => {
 		if (e.key === 'Enter') {
@@ -417,35 +398,9 @@ export function setup_modal_event_listeners() {
 		}
 	});
 	
-	// Project Modal Listeners
+	// MODIFIED: Project button now calls the new open_project_modal function.
+	// The old project browser modal listeners are removed.
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
-	
-	document.getElementById('project-browser-list').addEventListener('click', (e) => {
-		e.preventDefault();
-		const target = e.target.closest('a');
-		if (target && target.dataset.path) {
-			browse_directory(target.dataset.path);
-		}
-	});
-	
-	document.getElementById('select-project-folder-button').addEventListener('click', async () => {
-		if (!current_browser_path) {
-			alert('No folder is selected.');
-			return;
-		}
-		show_loading('Adding project...');
-		try {
-			await post_data({action: 'add_project', path: current_browser_path});
-			project_modal.close();
-			// Reload the page to refresh the project list and load the new project.
-			window.location.reload();
-		} catch (error) {
-			console.error('Failed to add project:', error);
-			alert(`Failed to add project: ${error.message}`);
-		} finally {
-			hide_loading();
-		}
-	});
 	
 	// Setup Modal Listeners
 	document.getElementById('setup-modal-button').addEventListener('click', open_setup_modal);
@@ -461,7 +416,7 @@ export function setup_modal_event_listeners() {
 				action: 'save_setup',
 				allowed_extensions: JSON.stringify(document.getElementById('allowed-extensions-input').value.split(',').map(s => s.trim()).filter(Boolean)),
 				excluded_folders: JSON.stringify(document.getElementById('excluded-folders-input').value.split(',').map(s => s.trim()).filter(Boolean)),
-				server_port: document.getElementById('server-port-input').value,
+				// DELETED: Server port is no longer part of the setup.
 				openrouter_api_key: document.getElementById('openrouter-api-key-input').value.trim(),
 				prompt_file_overview: document.getElementById('prompt-file-overview-input').value,
 				prompt_functions_logic: document.getElementById('prompt-functions-logic-input').value,
@@ -469,7 +424,7 @@ export function setup_modal_event_listeners() {
 				prompt_smart_prompt: document.getElementById('prompt-smart-prompt-input').value
 			};
 			await post_data(save_data);
-			alert('Configuration saved successfully!\n\nApplication will now reload. Please restart the server for port changes to take effect.');
+			alert('Configuration saved successfully!\n\nApplication will now reload.');
 			window.location.reload();
 		} catch (error) {
 			alert(`Failed to save configuration: ${error.message}`);

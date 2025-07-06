@@ -2,35 +2,29 @@
 <html lang="en" data-theme="light">
 <head>
 	<meta charset="UTF-8">
-	<!-- NEW: Content Security Policy for better security in Electron -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:*; font-src 'self' data:;">
+
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
-	<!-- MODIFIED: Swapped Font Awesome for Bootstrap Icons -->
-	<link href="/node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-	<link rel="stylesheet" href="/dist/output.css">
+	<link href="./node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+	<link rel="stylesheet" href="./dist/output.css">
 	<script type="module" src="js/main.js"></script>
 </head>
 <body class="h-screen overflow-hidden">
-<div class="flex h-full" id="app-container"> <!-- MODIFIED: Added ID for sidebar control -->
-	<!-- Left Icon Sidebar -->
-	<!-- MODIFIED: Added flex-grow to the main icon container to push bottom icons down -->
+<div class="flex h-full" id="app-container">
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
-		<a href="/" class="text-blue-500 text-2xl" title="Smart Code Prompts">
+		<a href="#" id="about-modal-button" class="text-blue-500 text-2xl" title="About Smart Code Prompts">
 			<i class="bi bi-award"></i>
 		</a>
-		<!-- MODIFIED: Added flex-grow to this div to push the bottom-icons div down -->
 		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center flex-grow">
 			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
 				<i class="bi bi-sun"></i>
 			</div>
 			<a href="#" id="qa-modal-button" title="Ask a Question" class=" text-success"><i class="bi bi-chat-dots"></i></i></a>
-			<!-- MODIFIED: Moved "Send Selection as Prompt" and added prominent-icon class -->
 			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt" class=" text-success"><i class="bi bi-asterisk"></i></a>
 		</div>
-		<!-- NEW: Container for icons moved to the bottom -->
+
 		<div class="bottom-icons">
-			<!-- NEW: Icon for selecting unanalyzed files -->
 			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
 				<i class="bi bi-file-earmark-plus"></i>
 			</div>
@@ -47,9 +41,7 @@
 	
 	<!-- Main Content Area -->
 	<div class="flex flex-col flex-grow">
-		<!-- File Tree and Workspace -->
 		<div id="main-split-pane" class="grid grid-cols-[320px_auto_1fr] flex-grow overflow-hidden">
-			<!-- MODIFIED: Removed project dropdown from this pane -->
 			<div id="file-tree-pane" class="flex flex-col h-full border-r border-base-300 overflow-hidden">
 				<div id="file-tree" class="flex-grow p-2 overflow-auto font-mono text-sm"></div>
 			</div>
@@ -58,17 +50,13 @@
 			
 			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
 				<div id="workspace" class="relative flex flex-col h-full">
-					<!-- The main prompt building textarea -->
 					<textarea id="selected-content"
 					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
 					
 					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10"
 					        title="Copy to Clipboard">
-						<!-- MODIFIED: Icon changed -->
 						<i class="bi bi-clipboard"></i> Copy
 					</button>
-					
-					<!-- DELETED: The container for the analysis view is removed as it's now a modal -->
 				</div>
 			</div>
 		</div>
@@ -122,9 +110,8 @@
 	</div>
 	
 	<!-- Right Settings Sidebar -->
-	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar"> <!-- MODIFIED: Added ID for sidebar control -->
+	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar">
 		<div class="space-y-4">
-			<!-- NEW: Project selection dropdown moved here from the file tree pane -->
 			<div class="form-control">
 				<label class="label"><span class="label-text">Project</span></label>
 				<select id="projects-dropdown" class="select select-bordered select-sm w-full" title="Select Project"></select>
@@ -135,20 +122,16 @@
 			<div class="grid gap-2">
 				<button class="btn btn-primary btn-sm" id="analyze_selected_button"
 				        title="Analyzes (or forces re-analysis of) the files currently checked in the file tree.">
-					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-check-square me-2"></i>Analyze Selected
 				</button>
 				<button class="btn btn-info btn-sm" id="reanalyze_modified_only_button"
 				        title="Scans for files changed since their last analysis and re-analyzes only those.">
-					<!-- MODIFIED: Icon changed -->
 					<i class="bi bi-file-earmark-diff me-2"></i>Re-analyze Modified
 				</button>
-				<!-- DELETED: The force re-analyze all button is removed. -->
 			</div>
 			
 			<div class="divider"></div>
-			
-			<!-- MODIFIED: Replaced single LLM dropdown with four dedicated ones -->
+
 			<div class="flex justify-end -mb-2">
 				<button id="refresh-llms" class="btn btn-xs btn-ghost" title="Refresh LLM List">
 					<i class="bi bi-arrow-clockwise"></i> Refresh Models

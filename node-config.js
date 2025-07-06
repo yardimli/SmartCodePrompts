@@ -1,19 +1,10 @@
 // SmartCodePrompts/node-config.js
 const path = require('path');
 const Database = require('better-sqlite3');
-const fs = require('fs'); // NEW: require fs for directory check
 
-// NEW: Determine the application data path. Use the OS-specific userData folder in Electron, or the app's root directory otherwise.
-// This ensures user data (database, logs) is stored in a persistent, user-specific location for a packaged app.
 const isElectron = !!process.env.ELECTRON_RUN;
 const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
 
-// NEW: Ensure the data directory exists, especially for the first run in Electron's userData path.
-if (isElectron && !fs.existsSync(appDataPath)) {
-	fs.mkdirSync(appDataPath, {recursive: true});
-}
-
-// MODIFIED: Use the determined path for the database.
 const db = new Database(path.join(appDataPath, 'smart_code.sqlite'));
 
 // Global config object, will be populated from the database.
@@ -23,7 +14,7 @@ let config = {};
 /**
  * Creates all necessary tables if they don't exist. This function defines the database schema.
  */
-function create_tables() {
+function create_tables () {
 	db.exec(`
         CREATE TABLE IF NOT EXISTS projects (
             path TEXT PRIMARY KEY
@@ -80,12 +71,11 @@ function create_tables() {
  * Sets default configuration values in the database.
  * Uses INSERT OR IGNORE to prevent overwriting user-modified settings.
  */
-function set_default_config() {
+function set_default_config () {
 	const default_config = {
-		// MODIFIED: Removed root_directories
+		// MODIFIED: Removed root_directories and server_port
 		allowed_extensions: JSON.stringify(["js", "jsx", "json", "ts", "tsx", "php", "py", "html", "css", "swift", "xcodeproj", "xcworkspace", "storyboard", "xib", "plist", "xcassets", "playground", "cs", "csproj", "htaccess"]),
 		excluded_folders: JSON.stringify([".git", ".idea", "vendor", "storage", "node_modules"]),
-		server_port: "3000",
 		openrouter_api_key: "YOUR_API_KEY_HERE"
 	};
 	const insert_stmt = db.prepare('INSERT OR IGNORE INTO app_setup (key, value) VALUES (?, ?)');
@@ -101,7 +91,7 @@ function set_default_config() {
  * Sets default application settings (like dark mode state and LLM prompts).
  * Uses INSERT OR IGNORE to prevent overwriting existing values.
  */
-function set_default_app_settings() {
+function set_default_app_settings () {
 	const initSettings_stmt = db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)");
 	const transaction = db.transaction(() => {
 		initSettings_stmt.run('dark_mode', 'false');
@@ -250,7 +240,7 @@ QUESTION:
  * Loads the configuration from `app_setup` and `app_settings` tables into the global 'config' object.
  * It resolves relative paths and ensures correct data types.
  */
-function load_config_from_db() {
+function load_config_from_db () {
 	// Clear existing properties from the config object without creating a new reference.
 	Object.keys(config).forEach(key => delete config[key]);
 	
@@ -281,7 +271,7 @@ function load_config_from_db() {
 		}
 	});
 	
-	new_config_data.server_port = parseInt(new_config_data.server_port, 10);
+	// DELETED: server_port parsing is removed.
 	
 	// MODIFIED: Removed root_directories logic
 	
@@ -294,7 +284,7 @@ function load_config_from_db() {
  * Initializes the entire database and configuration setup.
  * This should be called once on server startup.
  */
-function initialize_database_and_config() {
+function initialize_database_and_config () {
 	create_tables();
 	set_default_config();
 	set_default_app_settings();
@@ -305,7 +295,7 @@ function initialize_database_and_config() {
  * Retrieves all setup data for the /setup page.
  * @returns {object} An object containing the current config and dark mode status.
  */
-function get_setup_data() {
+function get_setup_data () {
 	const setup_rows = db.prepare('SELECT key, value FROM app_setup').all();
 	const settings_rows = db.prepare("SELECT key, value FROM app_settings").all();
 	const current_config = {};
@@ -322,20 +312,23 @@ function get_setup_data() {
 	return {config: current_config, dark_mode: current_config.dark_mode === 'true'};
 }
 
+// MODIFIED: The function now accepts a plain object instead of URLSearchParams.
 /**
  * Saves the setup configuration from the /setup page to the appropriate tables.
- * @param {URLSearchParams} post_data - The form data from the request.
+ * @param {object} data - The form data from the request.
  */
-function save_setup_data(post_data) {
-	// MODIFIED: Removed root_directories
-	const setup_keys = new Set(['allowed_extensions', 'excluded_folders', 'server_port', 'openrouter_api_key']);
+function save_setup_data (data) {
+	// MODIFIED: Removed server_port from the list of keys.
+	const setup_keys = new Set(['allowed_extensions', 'excluded_folders', 'openrouter_api_key']);
 	const settings_keys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
 	const upsertSetup_stmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettings_stmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
 	const transaction = db.transaction(() => {
-		for (const [key, value] of post_data.entries()) {
+		// MODIFIED: Iterate over the object's keys.
+		for (const key in data) {
 			if (key === 'action') continue;
+			const value = data[key];
 			if (setup_keys.has(key)) {
 				upsertSetup_stmt.run(key, value);
 			} else if (settings_keys.has(key)) {
@@ -353,7 +346,7 @@ function save_setup_data(post_data) {
  * Resets LLM prompts to their default values.
  * @returns {object} A success object.
  */
-function reset_prompts_to_default() {
+function reset_prompts_to_default () {
 	const prompt_keys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
 	const delete_stmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
 	const transaction = db.transaction(() => {
@@ -374,7 +367,7 @@ function reset_prompts_to_default() {
  * NEW: Resets the LLM log and token counters in the database.
  * @returns {{success: boolean}}
  */
-function reset_llm_log() {
+function reset_llm_log () {
 	db.exec('DELETE FROM llm_log');
 	const stmt = db.prepare('UPDATE app_settings SET value = ? WHERE key = ?');
 	const transaction = db.transaction(() => {
@@ -389,7 +382,7 @@ function reset_llm_log() {
  * Sets the dark mode preference in the database.
  * @param {boolean} is_dark_mode - The new dark mode state.
  */
-function set_dark_mode(is_dark_mode) {
+function set_dark_mode (is_dark_mode) {
 	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(is_dark_mode ? 'true' : 'false', 'dark_mode');
 }
 
@@ -397,21 +390,21 @@ function set_dark_mode(is_dark_mode) {
  * NEW: Sets the right sidebar collapsed preference in the database.
  * @param {boolean} is_collapsed - The new collapsed state.
  */
-function setright_sidebar_collapsed(is_collapsed) {
+function setright_sidebar_collapsed (is_collapsed) {
 	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(is_collapsed ? 'true' : 'false', 'right_sidebar_collapsed');
 }
 
 /**
  * @param {string} prompt - The prompt text to save.
  */
-function save_last_smart_prompt(prompt) {
+function save_last_smart_prompt (prompt) {
 	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(prompt, 'last_smart_prompt');
 }
 
 /**
  * @param {string} extensions_json - A JSON string array of extensions.
  */
-function save_compress_extensions(extensions_json) {
+function save_compress_extensions (extensions_json) {
 	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(extensions_json, 'compress_extensions');
 	// Reload config into memory to make the change effective immediately for get_file_content.
 	load_config_from_db();
@@ -421,7 +414,7 @@ function save_compress_extensions(extensions_json) {
  * Retrieves all data needed for the main page (index.html).
  * @returns {object} An object containing projects, settings, and LLMs.
  */
-function get_main_page_data() {
+function get_main_page_data () {
 	// MODIFIED: Select full path from projects table
 	const projects = db.prepare('SELECT path FROM projects ORDER BY path ASC').all();
 	const settings = db.prepare('SELECT key, value FROM app_settings').all();

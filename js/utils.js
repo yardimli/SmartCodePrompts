@@ -4,7 +4,7 @@
  * Shows the main loading indicator with a custom message.
  * @param {string} [message='Loading...'] - The message to display.
  */
-export function show_loading(message = 'Loading...') {
+export function show_loading (message = 'Loading...') {
 	const indicator = document.getElementById('loading-indicator');
 	if (indicator) {
 		indicator.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}`;
@@ -15,7 +15,7 @@ export function show_loading(message = 'Loading...') {
 /**
  * Hides the main loading indicator.
  */
-export function hide_loading() {
+export function hide_loading () {
 	const indicator = document.getElementById('loading-indicator');
 	if (indicator) {
 		indicator.style.display = 'none';
@@ -27,44 +27,30 @@ export function hide_loading() {
  * @param {string} file_path - The full path of the file.
  * @returns {string|null} The parent path or null.
  */
-export function get_parent_path(file_path) {
+export function get_parent_path (file_path) {
 	if (!file_path || !file_path.includes('/')) return null;
 	return file_path.substring(0, file_path.lastIndexOf('/'));
 }
 
-// MODIFIED: Removed get_project_identifier and parseProjectIdentifier as they are no longer needed.
-// The full project path is now used as the identifier.
-
+// MODIFIED: The post_data function is now a wrapper for the Electron IPC bridge.
+// It sends data to the main process and returns the result.
 /**
- * A reusable async function to handle POST requests using fetch.
- * @param {object} data - The data to send in the request body.
- * @returns {Promise<object>} A promise that resolves with the JSON response.
- * @throws {Error} If the request fails or the response is not ok.
+ * A reusable async function to handle IPC requests to the main process.
+ * @param {object} data - The data to send, must include an 'action' property.
+ * @returns {Promise<object>} A promise that resolves with the JSON response from the main process.
+ * @throws {Error} If the main process returns an error.
  */
-export async function post_data(data) {
-	const form_data = new URLSearchParams();
-	for (const key in data) {
-		form_data.append(key, data[key]);
+export async function post_data (data) {
+	try {
+		// The 'electronAPI' is exposed on the window object by the preload script.
+		const result = await window.electronAPI.postData(data);
+		return result;
+	} catch (error) {
+		// Errors thrown in the main process are propagated here.
+		console.error('Error from main process:', error);
+		// Re-throw the error so calling functions can handle it.
+		throw error;
 	}
-	
-	const response = await fetch('/', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		body: form_data
-	});
-	
-	if (!response.ok) {
-		let error_payload = {error: `Request failed: ${response.status_text}`};
-		try {
-			error_payload = await response.json();
-		} catch (e) {
-			// Ignore if response is not JSON
-		}
-		throw new Error(error_payload.error);
-	}
-	return response.json();
 }
 
 /**
@@ -75,7 +61,7 @@ export async function post_data(data) {
  * @param {string} text The raw text from the LLM, which may contain markdown.
  * @returns {string} Sanitized and formatted HTML string.
  */
-export function simple_markdown_to_html(text) {
+export function simple_markdown_to_html (text) {
 	// Split the text by code blocks (```) to treat them separately.
 	const parts = text.split('```');
 	

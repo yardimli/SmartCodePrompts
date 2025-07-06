@@ -1,22 +1,5 @@
 <!-- SmartCodePrompts/modals.html -->
-<!-- Project Browser Modal -->
-<dialog id="project_modal" class="modal">
-	<div class="modal-box w-11/12 max-w-2xl h-4/6 flex flex-col">
-		<h3 class="font-bold text-lg">Select a Project Folder</h3>
-		<div class="py-2">
-			<p class="font-mono text-sm bg-accent p-2 rounded-md truncate" id="project-browser-current-path">/path/to/somewhere</p>
-		</div>
-		<div id="project-browser-list" class="flex-grow overflow-y-auto my-2 p-2 bg-base-200 rounded-lg">
-			<!-- Directory list will be populated here -->
-		</div>
-		<div class="modal-action">
-			<form method="dialog">
-				<button class="btn">Cancel</button>
-			</form>
-			<button class="btn btn-primary" id="select-project-folder-button">Select This Folder</button>
-		</div>
-	</div>
-</dialog>
+<!-- DELETED: The Project Browser Modal is no longer needed. -->
 
 <!-- Search Modal -->
 <dialog id="search_modal" class="modal">
@@ -156,14 +139,7 @@
 			</div>
 			
 			<form id="setup-form" style="display: none;" class="space-y-6">
-				<div role="alert" class="alert alert-info">
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-					     class="stroke-current shrink-0 w-6 h-6">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-						      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-					</svg>
-					<span><strong>Note:</strong> Changes to the <strong>Server Port</strong> require a manual restart of the server.</span>
-				</div>
+				<!-- DELETED: The server port alert is removed. -->
 				
 				<div class="form-control">
 					<label class="label" for="allowed-extensions-input"><span
@@ -180,12 +156,7 @@
 					<label class="label"><span class="label-text-alt">These folders will be ignored entirely.</span></label>
 				</div>
 				
-				<div class="form-control">
-					<label class="label" for="server-port-input"><span class="label-text">Server Port</span></label>
-					<input type="number" class="input input-bordered font-mono" id="server-port-input" placeholder="e.g., 3000">
-					<label class="label"><span
-						class="label-text-alt">The port the application server runs on. Requires a restart.</span></label>
-				</div>
+				<!-- DELETED: The Server Port input control is removed. -->
 				
 				<div class="form-control">
 					<label class="label" for="openrouter-api-key-input"><span class="label-text">OpenRouter API Key</span></label>

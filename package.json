@@ -6,9 +6,7 @@
   "scripts": {
     "build": "tailwindcss -i ./css/index.css -o ./dist/output.css",
     "watch": "tailwindcss -i ./css/index.css -o ./dist/output.css --watch",
-    "start": "npm run build && node node-server.js",
-    "dev": "concurrently \"npm:watch\" \"node node-server.js\"",
-    "start:electron": "npm run build && electron .",
+    "start": "npm run build && electron .",
     "postinstall": "electron-rebuild",
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
@@ -19,7 +17,6 @@
     "bootstrap-icons": "^1.11.3"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
     "daisyui": "^4.10.2",
     "electron": "^37.2.0",
     "electron-rebuild": "^3.2.9",

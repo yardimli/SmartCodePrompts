@@ -4,7 +4,6 @@ import {post_data} from './utils.js';
 import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
 
 // --- MODULE IMPORTS ---
-// MODIFIED: Removed import for initialize_project_modal as it's handled by initialize_modals
 import {initialize_modals, setup_modal_event_listeners} from './modals.js';
 import {setup_analysis_actions_listener} from './analysis.js';
 import {initialize_llm_selector, setup_llm_listeners} from './llm.js';
@@ -21,10 +20,6 @@ import {initialize_qa_modal, setup_qa_listeners} from './qa.js';
 import {initialize_direct_prompt_modal, setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 
-/**
- * NEW: Loads the HTML for all modals from an external file.
- * This ensures the DOM is ready before other scripts try to access modal elements.
- */
 async function load_modals_html() {
 	try {
 		const response = await fetch('modals.html');
@@ -35,7 +30,6 @@ async function load_modals_html() {
 		document.getElementById('modal-container').innerHTML = html;
 	} catch (error) {
 		console.error(error);
-		// Display a critical error to the user if modals can't be loaded.
 		document.body.innerHTML = `<div class="p-4"><div class="alert alert-error">Could not load essential UI components (modals). Please refresh the page or check the console.</div></div>`;
 	}
 }
@@ -77,7 +71,6 @@ async function initialize_app() {
 		adjust_prompt_textarea_height();
 		
 		// 3. Initialize UI Components from their respective modules
-		// MODIFIED: Pass a structured object with all four last-selected LLM IDs.
 		const last_selected_llms = {
 			analysis: data.last_selected_llm_analysis,
 			smart_prompt: data.last_selected_llm_smart_prompt,
@@ -102,8 +95,9 @@ async function initialize_app() {
 				dropdown.appendChild(option);
 			});
 		}
-		// Add the "Add New Project" option at the end
+
 		dropdown.insertAdjacentHTML ('beforeend', '<option value="add_new_project" class="text-accent font-bold">Add New Project...</option>');
+
 		// 5. Load last or first project
 		const last_project_path = data.last_selected_project;
 		if (last_project_path) {
@@ -125,9 +119,7 @@ async function initialize_app() {
 }
 
 // --- Document Ready ---
-// MODIFIED: Made the event listener async to handle await for loading modals and app data.
 document.addEventListener('DOMContentLoaded', async function () {
-	// NEW: Load modal HTML first, before any script tries to access modal elements.
 	await load_modals_html();
 	
 	// Initialize UI elements first
@@ -138,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
 	
-	// NEW: Show the about modal on first visit per session.
+	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {
 		const about_modal = document.getElementById('about_modal');
 		if (about_modal) {
@@ -148,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	}
 	
 	// Load main application data and state
-	await initialize_app(); // MODIFIED: Await the async app initialization.
+	await initialize_app();
 	
 	// Setup all event listeners from the various modules
 	setup_modal_event_listeners();

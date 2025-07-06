@@ -28,7 +28,7 @@ export function initialize_auto_expand_textarea() {
 }
 
 /**
- * NEW: The core logic for submitting a smart prompt. Checks for modified files
+ * The core logic for submitting a smart prompt. Checks for modified files
  * and asks the user if they want to re-analyze before proceeding.
  * @param {string} prompt_text The user's prompt.
  */
@@ -38,7 +38,6 @@ async function handle_smart_prompt_submission(prompt_text) {
 		return;
 	}
 	
-	// MODIFIED: Use the dedicated Smart Prompt LLM dropdown.
 	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
@@ -89,7 +88,7 @@ async function handle_smart_prompt_submission(prompt_text) {
 				modal.close();
 				show_loading('Re-analyzing modified files...');
 				try {
-					// MODIFIED: Use the dedicated Analysis LLM for re-analysis.
+					// Use the dedicated Analysis LLM for re-analysis.
 					const analysis_llm_id = document.getElementById('llm-dropdown-analysis').value;
 					if (!analysis_llm_id) {
 						alert('Please select an LLM for Analysis to proceed.');
@@ -130,7 +129,6 @@ async function handle_smart_prompt_submission(prompt_text) {
 
 /**
  * Sets up event listeners for the main prompt bar actions.
- * MODIFIED: This function is completely refactored for the new single-button workflow.
  */
 export function setup_prompt_bar_listeners() {
 	const prompt_input = document.getElementById('prompt-input');

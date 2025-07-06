@@ -8,7 +8,6 @@ import {get_current_project} from './state.js';
  */
 async function perform_selection_analysis() {
 	const checked_boxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
-	// MODIFIED: Use the dedicated analysis LLM dropdown.
 	const llm_id = document.getElementById('llm-dropdown-analysis').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
@@ -40,7 +39,7 @@ async function perform_selection_analysis() {
 				file_path: file_path,
 				llm_id: llm_id,
 				temperature: parseFloat(temperature),
-				force: true // MODIFIED: Force re-analysis for selected files.
+				force: true
 			});
 			
 			if (response.status === 'analyzed') {
@@ -49,7 +48,6 @@ async function perform_selection_analysis() {
 				// Check if an icon for this file already exists to prevent duplicates
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
-					// MODIFIED: Replaced Font Awesome icon with Bootstrap Icon.
 					icon.className = 'bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1';
 					icon.dataset.path = file_path;
 					icon.title = 'View Analysis';
@@ -82,7 +80,6 @@ async function perform_selection_analysis() {
  * @param {boolean} force_reanalysis - Whether to force re-analysis of all files.
  */
 async function perform_reanalysis(force_reanalysis) {
-	// MODIFIED: Use the dedicated analysis LLM dropdown.
 	const llm_id = document.getElementById('llm-dropdown-analysis').value;
 	const current_project = get_current_project();
 	const temperature = document.getElementById('temperature-slider').value;
@@ -115,9 +112,6 @@ async function perform_reanalysis(force_reanalysis) {
 	}
 }
 
-/**
- * Sets up event listeners for the analysis buttons in the right sidebar.
- */
 export function setup_analysis_actions_listener() {
 	const analyze_selected_btn = document.getElementById('analyze_selected_button');
 	const reanalyze_modified_btn = document.getElementById('reanalyze_modified_only_button');

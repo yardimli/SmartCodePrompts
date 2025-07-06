@@ -7,13 +7,13 @@ import {update_status_bar} from './status_bar.js';
 let search_modal = null;
 let log_modal = null;
 let reanalysis_prompt_modal = null;
-// DELETED: project_modal is no longer used.
 let setup_modal = null;
 let analysis_modal = null; // NEW: Reference for the analysis modal.
 let file_view_modal = null; // NEW: Reference for the file view modal.
 let about_modal = null; // NEW: Reference for the about modal.
-let current_search_folder_path = null;
-// DELETED: current_browser_path is no longer used.
+let current_project_search_results = []; // NEW: To store results from project search.
+let current_search_matches = [];
+let current_search_match_index = -1;
 
 /**
  * Initializes the modal element references.
@@ -22,38 +22,19 @@ export function initialize_modals () {
 	search_modal = document.getElementById('search_modal');
 	log_modal = document.getElementById('log_modal');
 	reanalysis_prompt_modal = document.getElementById('reanalysis_prompt_modal');
-	// DELETED: project_modal is no longer used.
 	setup_modal = document.getElementById('setup_modal');
-	analysis_modal = document.getElementById('analysis_modal'); // NEW: Initialize the analysis modal.
-	file_view_modal = document.getElementById('file_view_modal'); // NEW: Initialize the file view modal.
-	about_modal = document.getElementById('about_modal'); // NEW: Initialize the about modal.
+	analysis_modal = document.getElementById('analysis_modal');
+	file_view_modal = document.getElementById('file_view_modal');
+	about_modal = document.getElementById('about_modal');
 }
 
-/**
- * NEW: Opens the about modal.
- */
 export function open_about_modal () {
 	if (about_modal) {
 		about_modal.showModal();
 	}
 }
 
-/**
- * NEW: Checks if any projects exist and shows the 'About' modal as a welcome screen if not.
- * This should be called once on page load after projects are fetched.
- * @param {number} project_count - The number of configured projects.
- */
-export function check_and_show_welcome_modal (project_count) {
-	// Use sessionStorage to only show the welcome modal once per session if the user closes it without adding a project.
-	if (project_count === 0 && !sessionStorage.getItem('welcome_modal_shown')) {
-		open_about_modal();
-		sessionStorage.setItem('welcome_modal_shown', 'true');
-	}
-}
 
-// DELETED: The browse_directory function is no longer needed.
-
-// MODIFIED: This function now uses Electron's native dialog to select a project folder.
 /**
  * Opens a native dialog to select a project folder and adds it to the application.
  */
@@ -82,7 +63,7 @@ export async function open_project_modal () {
 }
 
 /**
- * NEW: Loads configuration data from the server and populates the setup form in the modal.
+ * Loads configuration data from the server and populates the setup form in the modal.
  */
 async function load_setup_data () {
 	const form = document.getElementById('setup-form');
@@ -113,7 +94,7 @@ async function load_setup_data () {
 }
 
 /**
- * NEW: Opens the setup modal and loads the current configuration.
+ * Opens the setup modal and loads the current configuration.
  */
 export function open_setup_modal () {
 	if (setup_modal) {
@@ -122,10 +103,7 @@ export function open_setup_modal () {
 	}
 }
 
-/**
- * Handles the click on the LLM Log button in the status bar.
- * Fetches log data and displays the modal.
- */
+
 export async function handle_log_button_click () {
 	const modal_body = document.getElementById('log_modal_body');
 	modal_body.innerHTML = '<div class="text-center p-4"><span class="loading loading-lg"></span></div>';
@@ -175,16 +153,6 @@ export async function handle_log_button_click () {
 }
 
 /**
- * Handles the click event on a folder's search icon.
- */
-export function handle_search_icon_click (target) {
-	current_search_folder_path = target.closest('.folder').dataset.path;
-	document.getElementById('search_modal_folder_path').textContent = current_search_folder_path || 'Root';
-	search_modal.showModal();
-}
-
-/**
- * MODIFIED: Handles the click event on a file's analysis icon.
  * This now opens a modal and displays the analysis content in a textarea.
  * @param {HTMLElement} target - The analysis icon element that was clicked.
  */
@@ -237,7 +205,6 @@ export async function handle_analysis_icon_click (target) {
 }
 
 /**
- * NEW: Handles the click event on a file's name in the tree.
  * Opens a modal to display the file's content in a textarea.
  * @param {HTMLElement} target - The file-entry element that was clicked.
  */
@@ -275,7 +242,6 @@ export async function perform_smart_prompt (user_prompt) {
 		alert('Please enter a prompt.');
 		return;
 	}
-	// MODIFIED: Use the dedicated Smart Prompt LLM dropdown.
 	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	if (!llm_id) {
 		alert('Please select an LLM for Smart Prompts from the dropdown.');
@@ -324,62 +290,221 @@ export async function perform_smart_prompt (user_prompt) {
 	}
 }
 
+// Helper function to highlight the current match in the search preview and scroll to it.
+function highlight_current_match () {
+	if (!current_search_matches.length || current_search_match_index < 0) {
+		return;
+	}
+	
+	const content_el = document.getElementById('search-preview-content');
+	const match = current_search_matches[current_search_match_index];
+	
+
+	setTimeout(() => {
+		content_el.focus();
+		content_el.setSelectionRange(match.start, match.end);
+	}, 0);
+	
+	document.getElementById('search-preview-matches').textContent = `${current_search_match_index + 1} of ${current_search_matches.length}`;
+}
+
+async function show_search_preview (file_path, search_term) {
+	const title_el = document.getElementById('search-preview-title');
+	const content_el = document.getElementById('search-preview-content');
+	const nav_el = document.getElementById('search-preview-nav');
+	
+	// Reset state for the new file preview.
+	title_el.textContent = `Loading ${file_path}...`;
+	content_el.value = 'Loading...'; // Use .value for textarea
+	nav_el.classList.add('hidden');
+	current_search_matches = [];
+	current_search_match_index = -1;
+	
+	try {
+		const current_project = get_current_project();
+		const data = await post_data({
+			action: 'get_file_content',
+			project_path: current_project.path,
+			path: file_path
+		});
+		
+		const file_content = data.content || '';
+		content_el.value = file_content; // Set the full content in the textarea
+		
+		// Create a regex to find all occurrences of the search term, case-insensitively.
+		const search_regex = new RegExp(search_term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+		
+		let match;
+		while ((match = search_regex.exec(file_content)) !== null) {
+			current_search_matches.push({
+				start: match.index,
+				end: match.index + match[0].length
+			});
+		}
+		
+		title_el.textContent = file_path;
+		
+		// Set up navigation if matches were found.
+		if (current_search_matches.length > 0) {
+			nav_el.classList.remove('hidden');
+			current_search_match_index = 0;
+			highlight_current_match();
+		} else {
+			document.getElementById('search-preview-matches').textContent = '0 matches';
+		}
+		
+	} catch (error) {
+		title_el.textContent = `Error loading ${file_path}`;
+		content_el.value = `Error: ${error.message}`;
+	}
+}
+
 /**
  * Sets up event listeners for modal-related controls.
  */
 export function setup_modal_event_listeners () {
-	// Search Modal Listeners
-	document.getElementById('search_term_input').addEventListener('keypress', e => {
-		if (e.key === 'Enter') {
-			document.getElementById('perform_search_button').click();
-		}
+	// Listener for the project-wide search modal button.
+	document.getElementById('project-search-button').addEventListener('click', (e) => {
+		e.preventDefault();
+		// Reset the entire search UI when opening the modal.
+		document.getElementById('search_term_input').value = '';
+		document.getElementById('search-results-list').innerHTML = '<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>';
+		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
+		document.getElementById('search-preview-content').value = ''; // Use .value for textarea
+		document.getElementById('search-preview-nav').classList.add('hidden');
+		document.getElementById('check_matching_files_button').disabled = true;
+		current_project_search_results = [];
+		current_search_matches = [];
+		current_search_match_index = -1;
+		search_modal.showModal();
+		document.getElementById('search_term_input').focus();
 	});
 	
-	document.getElementById('perform_search_button').addEventListener('click', async function () {
+	// Async function to perform the project-wide search.
+	const perform_search = async () => {
 		const search_term = document.getElementById('search_term_input').value.trim();
-		search_modal.close();
-		if (!search_term || !current_search_folder_path) return;
+		const results_list = document.getElementById('search-results-list');
+		const check_button = document.getElementById('check_matching_files_button');
 		
-		show_loading('Searching files...');
+		// Reset preview pane on new search.
+		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
+		document.getElementById('search-preview-content').value = ''; // Use .value for textarea
+		document.getElementById('search-preview-nav').classList.add('hidden');
+		
+		if (!search_term) {
+			results_list.innerHTML = '<p class="text-error text-center">Please enter a search term.</p>';
+			check_button.disabled = true;
+			return;
+		}
+		
+		results_list.innerHTML = '<div class="text-center"><span class="loading loading-spinner"></span> Searching...</div>';
+		check_button.disabled = true;
+		
 		try {
 			const current_project = get_current_project();
 			const response = await post_data({
 				action: 'search_files',
-				folder_path: current_search_folder_path,
+				folder_path: '.', // Search from the project root.
 				search_term: search_term,
 				project_path: current_project.path
 			});
 			
-			if (response.matching_files && response.matching_files.length > 0) {
-				let successful_checks = 0;
-				for (const file_path of response.matching_files) {
-					const is_visible = await ensure_file_is_visible(file_path);
-					if (is_visible) {
-						const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${file_path}"]`);
-						if (checkbox && !checkbox.checked) {
-							checkbox.checked = true;
-							successful_checks++;
-						}
-					}
-				}
-				if (successful_checks > 0) {
-					update_selected_content();
-					save_current_project_state();
-					alert(`Selected ${successful_checks} new file(s) containing "${search_term}".`);
-				} else {
-					alert(`Found files containing "${search_term}", but no *new* files were selected.`);
-				}
+			current_project_search_results = response.matching_files || [];
+			
+			if (current_project_search_results.length > 0) {
+				// Populate the list with clickable items showing file path and match count.
+				results_list.innerHTML = current_project_search_results.map(file => `
+                    <div class="p-1.5 hover:bg-base-300 rounded cursor-pointer search-result-item" data-path="${file.path}" title="${file.path}">
+                        <span class="badge badge-neutral badge-sm mr-2">${file.match_count}</span>
+                        <span class="truncate">${file.path}</span>
+                    </div>
+                `).join('');
+				check_button.disabled = false;
 			} else {
-				alert(`No files found containing "${search_term}" in "${current_search_folder_path}".`);
+				results_list.innerHTML = `<p class="text-base-content/80 text-center">No files found containing "${search_term}".</p>`;
 			}
 		} catch (error) {
-			alert(`Search failed: ${error.message || 'Unknown error'}`);
+			results_list.innerHTML = `<p class="text-error text-center">Search failed: ${error.message || 'Unknown error'}</p>`;
+		}
+	};
+	
+	// Trigger search on Enter key in the input field.
+	document.getElementById('search_term_input').addEventListener('keypress', e => {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			perform_search();
+		}
+	});
+	
+	// Trigger search on "Find" button click.
+	document.getElementById('perform_search_button').addEventListener('click', perform_search);
+	
+	// Delegated listener for clicking on a file in the search results list.
+	document.getElementById('search-results-list').addEventListener('click', e => {
+		const item = e.target.closest('.search-result-item');
+		if (item) {
+			const file_path = item.dataset.path;
+			const search_term = document.getElementById('search_term_input').value.trim();
+			
+			// Visually mark the selected item in the list.
+			document.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('bg-primary/50'));
+			item.classList.add('bg-primary/50');
+			
+			if (file_path && search_term) {
+				show_search_preview(file_path, search_term);
+			}
+		}
+	});
+	
+	// Listeners for match navigation buttons.
+	document.getElementById('search-next-match-btn').addEventListener('click', () => {
+		if (current_search_matches.length > 0) {
+			current_search_match_index = (current_search_match_index + 1) % current_search_matches.length;
+			highlight_current_match();
+		}
+	});
+	
+	document.getElementById('search-prev-match-btn').addEventListener('click', () => {
+		if (current_search_matches.length > 0) {
+			current_search_match_index = (current_search_match_index - 1 + current_search_matches.length) % current_search_matches.length;
+			highlight_current_match();
+		}
+	});
+	
+	// Listener for the "Check Matching Files" button now handles the new results format.
+	document.getElementById('check_matching_files_button').addEventListener('click', async function () {
+		if (current_project_search_results.length === 0) return;
+		
+		search_modal.close();
+		show_loading(`Selecting ${current_project_search_results.length} file(s)...`);
+		
+		// Map the array of result objects to an array of file paths.
+		const files_to_check = current_project_search_results.map(f => f.path);
+		
+		try {
+			let successful_checks = 0;
+			for (const file_path of files_to_check) {
+				const is_visible = await ensure_file_is_visible(file_path);
+				if (is_visible) {
+					const checkbox = document.querySelector(`#file-tree input[type="checkbox"][data-path="${file_path}"]`);
+					if (checkbox && !checkbox.checked) {
+						checkbox.checked = true;
+						successful_checks++;
+					}
+				}
+			}
+			if (successful_checks > 0) {
+				await update_selected_content();
+				save_current_project_state();
+			}
+			alert(`Selected ${successful_checks} new file(s) from search results.`);
+		} catch (error) {
+			alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`);
 		} finally {
 			hide_loading();
 		}
 	});
 	
-	// LLM Log Modal Listeners
 	document.getElementById('log-modal-button').addEventListener('click', handle_log_button_click);
 	
 	document.getElementById('reset-log-button').addEventListener('click', async () => {
@@ -398,8 +523,7 @@ export function setup_modal_event_listeners () {
 		}
 	});
 	
-	// MODIFIED: Project button now calls the new open_project_modal function.
-	// The old project browser modal listeners are removed.
+
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
 	
 	// Setup Modal Listeners
@@ -448,8 +572,7 @@ export function setup_modal_event_listeners () {
 		}
 	});
 	
-	// NEW: About Modal Listener
-	// Note: This requires the main logo link in index.html to have id="about-modal-button"
+	// About Modal Listener
 	const about_button = document.getElementById('about-modal-button');
 	if (about_button) {
 		about_button.addEventListener('click', (e) => {

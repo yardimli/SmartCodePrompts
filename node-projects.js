@@ -1,5 +1,4 @@
 // SmartCodePrompts/node-projects.js
-// MODIFIED: Removed unused imports.
 const {db} = require('./node-config');
 
 /**

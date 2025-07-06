@@ -4,9 +4,6 @@ import { post_data, simple_markdown_to_html } from './utils.js';
 let direct_prompt_modal = null;
 let direct_prompt_response = null;
 
-/**
- * Initializes references to the Direct Prompt modal and its elements.
- */
 export function initialize_direct_prompt_modal() {
 	direct_prompt_modal = document.getElementById('direct_prompt_modal');
 	direct_prompt_response = document.getElementById('direct-prompt-response');
@@ -23,7 +20,6 @@ async function handle_direct_prompt() {
 		return;
 	}
 	
-	// MODIFIED: Use the dedicated Direct Prompt LLM dropdown.
 	const llm_id = document.getElementById('llm-dropdown-direct-prompt').value;
 	const temperature = document.getElementById('temperature-slider').value;
 	
@@ -32,7 +28,6 @@ async function handle_direct_prompt() {
 		return;
 	}
 	
-	// Show modal and loading state
 	direct_prompt_modal.showModal();
 	direct_prompt_response.innerHTML = '<div class="flex justify-center items-center h-full"><span class="loading loading-dots loading-lg"></span></div>';
 	
@@ -44,7 +39,6 @@ async function handle_direct_prompt() {
 			temperature: parseFloat(temperature)
 		});
 		
-		// Render the markdown response to HTML using the shared utility function
 		direct_prompt_response.innerHTML = simple_markdown_to_html(response.answer);
 		
 	} catch (error) {
@@ -53,10 +47,6 @@ async function handle_direct_prompt() {
 	}
 }
 
-/**
- * Sets up the event listener for the direct prompt trigger button in the sidebar
- * and adds event delegation for copy buttons in the response modal.
- */
 export function setup_direct_prompt_listeners() {
 	const button = document.getElementById('direct-prompt-button');
 	if (button) {
@@ -66,7 +56,6 @@ export function setup_direct_prompt_listeners() {
 		});
 	}
 	
-	// NEW: Event delegation for copy-to-clipboard buttons on code blocks.
 	if (direct_prompt_response) {
 		direct_prompt_response.addEventListener('click', (e) => {
 			const copy_button = e.target.closest('.copy-code-button');

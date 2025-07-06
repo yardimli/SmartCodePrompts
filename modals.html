@@ -3,21 +3,49 @@
 
 <!-- Search Modal -->
 <dialog id="search_modal" class="modal">
-	<div class="modal-box">
-		<h3 class="font-bold text-lg" id="search_modal_label">Search in Folder</h3>
-		<p class="py-4">Searching within: <strong id="search_modal_folder_path"></strong></p>
-		<div class="form-control">
-			<label class="label" for="search_term_input">
-				<span class="label-text">Search Term (case-insensitive):</span>
-			</label>
-			<input type="text" class="input input-bordered" id="search_term_input"
-			       placeholder="Enter text to search for...">
+	<div class="modal-box w-11/12 max-w-5xl h-5/6 flex flex-col">
+		<h3 class="font-bold text-lg flex-shrink-0" id="search_modal_label">Search Project Files</h3>
+		<p class="py-2 text-sm text-base-content/70 flex-shrink-0">Search for text within all files in the current project.</p>
+		<div class="form-control flex-shrink-0">
+			<div class="join w-full">
+				<input type="text" class="input input-bordered join-item w-full" id="search_term_input"
+				       placeholder="Enter text to search for...">
+				<button class="btn btn-primary join-item" id="perform_search_button">Find</button>
+			</div>
 		</div>
-		<div class="modal-action">
+		
+		<!-- NEW: Two-pane layout for results and preview -->
+		<div class="flex-grow flex mt-4 gap-4 overflow-hidden">
+			<!-- Left Pane: Search Results List -->
+			<div id="search-results-list-container" class="w-1/3 flex flex-col">
+				<h4 class="font-bold text-sm flex-shrink-0 mb-2">Matching Files</h4>
+				<div id="search-results-list" class="flex-grow p-2 bg-base-200 rounded-md overflow-y-auto font-mono text-xs">
+					<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>
+				</div>
+			</div>
+			
+			<!-- Right Pane: File Content Preview -->
+			<div id="search-preview-container" class="w-2/3 flex flex-col">
+				<div class="flex-shrink-0 flex justify-between items-center mb-2">
+					<h4 id="search-preview-title" class="font-bold text-sm truncate">Select a file to preview</h4>
+					<!-- NEW: Navigation for matches -->
+					<div id="search-preview-nav" class="hidden">
+						<span id="search-preview-matches" class="text-sm mr-2"></span>
+						<div class="join">
+							<button id="search-prev-match-btn" class="btn btn-xs join-item">Prev</button>
+							<button id="search-next-match-btn" class="btn btn-xs join-item">Next</button>
+						</div>
+					</div>
+				</div>
+				<textarea id="search-preview-content" class="textarea textarea-bordered w-full flex-grow bg-base-200 font-mono text-xs" readonly></textarea>
+			</div>
+		</div>
+		
+		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">
 			<form method="dialog">
 				<button class="btn">Close</button>
 			</form>
-			<button class="btn btn-primary" id="perform_search_button">Search Files</button>
+			<button class="btn btn-success" id="check_matching_files_button" disabled>Check Matching Files</button>
 		</div>
 	</div>
 </dialog>

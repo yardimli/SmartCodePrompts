@@ -1,8 +1,7 @@
 // SmartCodePrompts/js/file_tree.js
 import {show_loading, hide_loading, get_parent_path, post_data} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
-// MODIFIED: Import handle_file_name_click to open the file view modal.
-import {handle_analysis_icon_click, handle_search_icon_click, handle_file_name_click} from './modals.js';
+import {handle_analysis_icon_click, handle_file_name_click} from './modals.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -83,7 +82,7 @@ export function load_folders (path, element) {
 			});
 			const file_tree = document.getElementById('file-tree');
 			if (element) {
-				const next_ul = element.closest('li').nextElementSibling; // MODIFIED: Look for sibling of <li>
+				const next_ul = element.closest('li').nextElementSibling;
 				if (next_ul && next_ul.tagName === 'UL') {
 					next_ul.remove();
 				}
@@ -101,15 +100,15 @@ export function load_folders (path, element) {
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
-				const full_path = `${path}/${folder}`;
-				// MODIFIED: Wrapped folder name in a span for text-overflow ellipsis.
+				// MODIFIED: Make folder path construction consistent with file paths.
+				// This avoids a leading './' if the base path is '.', fixing the toggle-select bug.
+				const full_path = (path === '.') ? folder : `${path}/${folder}`;
 				content += `
                     <li>
                         <span class="folder" data-path="${full_path}">
                             <span class="folder-name" title="${full_path}">${folder}</span>
                             <span class="folder-controls inline-block align-middle ml-2">
-                                <i class="bi bi-search folder-search-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Search in this folder"></i>
-                                <i class="bi bi-eraser folder-clear-icon text-base-content/40 hover:text-base-content/80 cursor-pointer ml-1" title="Clear selection in this folder"></i>
+                                <i class="bi bi-check2-square folder-toggle-select-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Toggle selection in this folder"></i>
                             </span>
                         </span>
                     </li>`;
@@ -119,7 +118,6 @@ export function load_folders (path, element) {
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
 				const modified_icon = file_info.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
 				
-				// MODIFIED: Add file size to the title attribute if available.
 				let title_attr = file_info.path;
 				if (typeof file_info.size === 'number') {
 					const size_kb = (file_info.size / 1024).toFixed(1);
@@ -141,8 +139,6 @@ export function load_folders (path, element) {
 			});
 			ul.innerHTML = content;
 			if (element) {
-				// MODIFIED: Insert the new <ul> after the parent <li>, not inside it.
-				// This is the key fix for the column layout issue.
 				element.closest('li').after(ul);
 			} else {
 				file_tree.appendChild(ul);
@@ -223,7 +219,7 @@ export async function restore_state (state) {
 	const paths_to_ensure_open = new Set(state.open_folders || []);
 	(state.selected_files || []).forEach(file_path => {
 		let parent_path = get_parent_path(file_path);
-		while (parent_path && parent_path !== '.') { // MODIFIED: Project path is now the root, represented as '.' in file tree
+		while (parent_path && parent_path !== '.') {
 			paths_to_ensure_open.add(parent_path);
 			parent_path = get_parent_path(parent_path);
 		}
@@ -266,8 +262,6 @@ export async function ensure_file_is_visible (file_path) {
 }
 
 /**
- * MODIFIED: Replaced the old DOM-diffing function with a simpler one that only handles
- * modification status icons based on data for all analyzed files in the project.
  * This function is called by the polling mechanism.
  * @param {object} updates - An object with `modified`, `unmodified`, and `deleted` file path arrays.
  */
@@ -340,11 +334,9 @@ export function stop_file_tree_polling () {
 
 /**
  * Starts the periodic polling for file tree updates.
- * MODIFIED: This now polls for the modification status of all analyzed files in the project,
- * rather than syncing the contents of open folders.
  */
 export function start_file_tree_polling () {
-	stop_file_tree_polling(); // Ensure no multiple intervals are running
+	stop_file_tree_polling();
 	
 	const poll_interval = 10000; // Poll every 10 seconds.
 	
@@ -379,10 +371,9 @@ export function setup_file_tree_listeners () {
 	// Delegated event listener for clicks within the file tree
 	file_tree.addEventListener('click', async (e) => {
 		const folder = e.target.closest('.folder');
-		const search_icon = e.target.closest('.folder-search-icon');
-		const clear_icon = e.target.closest('.folder-clear-icon');
+		const toggle_select_icon = e.target.closest('.folder-toggle-select-icon');
 		const analysis_icon = e.target.closest('.analysis-icon');
-		const file_entry = e.target.closest('.file-entry'); // NEW: Get the file entry element.
+		const file_entry = e.target.closest('.file-entry');
 		
 		if (analysis_icon) {
 			e.stopPropagation();
@@ -390,32 +381,36 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
-		// NEW: Handle click on a file entry to view its content in a modal.
 		if (file_entry) {
 			e.stopPropagation();
 			handle_file_name_click(file_entry);
 			return;
 		}
 		
-		if (search_icon) {
+		if (toggle_select_icon) {
 			e.stopPropagation();
-			handle_search_icon_click(search_icon);
-			return;
-		}
-		
-		if (clear_icon) {
-			e.stopPropagation();
-			const folder_path = clear_icon.closest('.folder').dataset.path;
+			const folder_path = toggle_select_icon.closest('.folder').dataset.path;
 			if (!folder_path) return;
+			
+			// This selector correctly targets files directly within the folder and in any sub-folders.
 			const selector = `input[type="checkbox"][data-path^="${folder_path}/"]`;
-			let uncheck_count = 0;
-			document.querySelectorAll(selector).forEach(cb => {
-				if (cb.checked) {
-					cb.checked = false;
-					uncheck_count++;
+			const checkboxes = document.querySelectorAll(selector);
+			
+			if (checkboxes.length === 0) return; // No files to toggle.
+			
+			// Determine the new state: if all are checked, uncheck all. Otherwise, check all.
+			const all_currently_checked = Array.from(checkboxes).every(cb => cb.checked);
+			const new_checked_state = !all_currently_checked;
+			let changed_count = 0;
+			
+			checkboxes.forEach(cb => {
+				if (cb.checked !== new_checked_state) {
+					cb.checked = new_checked_state;
+					changed_count++;
 				}
 			});
-			if (uncheck_count > 0) {
+			
+			if (changed_count > 0) {
 				update_selected_content();
 				save_current_project_state();
 			}
@@ -424,17 +419,14 @@ export function setup_file_tree_listeners () {
 		
 		if (folder) {
 			e.stopPropagation();
-			// MODIFIED: Find the <ul> that is the next sibling of the folder's parent <li>.
 			const li = folder.closest('li');
 			const ul = li.nextElementSibling;
 			
 			if (folder.classList.contains('open')) {
 				folder.classList.remove('open');
-				// MODIFIED: Check if the sibling is a UL before trying to hide it.
 				if (ul && ul.tagName === 'UL') ul.style.display = 'none';
 				save_current_project_state();
 			} else {
-				// MODIFIED: Check if the sibling is a UL before trying to show it.
 				if (ul && ul.tagName === 'UL') {
 					folder.classList.add('open');
 					ul.style.display = 'block';
@@ -464,14 +456,12 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
-	// Event listener for the "Unselect All" button
 	document.getElementById('unselect-all').addEventListener('click', function () {
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => (cb.checked = false));
 		update_selected_content();
 		save_current_project_state();
 	});
 	
-	// NEW: Event listener for the "Select Unanalyzed" button
 	document.getElementById('select-unanalyzed').addEventListener('click', function () {
 		let checked_count = 0;
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {

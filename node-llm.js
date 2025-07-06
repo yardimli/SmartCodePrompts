@@ -20,7 +20,6 @@ let reanalysis_progress = {total: 0, current: 0, running: false, message: ''};
  * @param {boolean} [is_error=false] - Flag to indicate if the log entry is an error.
  */
 function log_llm_interaction(prompt, response, is_error = false) {
-	// MODIFIED: Use the determined appDataPath to store the log file in the correct location.
 	const log_file_path = path.join(appDataPath, 'llm-log.txt');
 	const timestamp = new Date().toISOString();
 	const log_header = is_error ? '--- LLM ERROR ---' : '--- LLM INTERACTION ---';

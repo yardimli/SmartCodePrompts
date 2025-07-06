@@ -12,9 +12,6 @@ export function show_loading (message = 'Loading...') {
 	}
 }
 
-/**
- * Hides the main loading indicator.
- */
 export function hide_loading () {
 	const indicator = document.getElementById('loading-indicator');
 	if (indicator) {
@@ -32,8 +29,6 @@ export function get_parent_path (file_path) {
 	return file_path.substring(0, file_path.lastIndexOf('/'));
 }
 
-// MODIFIED: The post_data function is now a wrapper for the Electron IPC bridge.
-// It sends data to the main process and returns the result.
 /**
  * A reusable async function to handle IPC requests to the main process.
  * @param {object} data - The data to send, must include an 'action' property.
@@ -86,9 +81,6 @@ export function simple_markdown_to_html (text) {
 				.replace(/</g, '&lt;')
 				.replace(/>/g, '&gt;');
 			
-			// MODIFIED: Wrap in a div with a copy button.
-			// The button is initially hidden and appears on hover of the container (`group`).
-			// It uses event delegation, so the click handler is attached in the respective modules (qa.js, direct_prompt.js).
 			return `<div class="relative group my-2">
                         <button class="copy-code-button btn btn-xs btn-ghost absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Copy code">
                             <i class="bi bi-clipboard"></i> Copy

@@ -3,34 +3,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* MODIFIED: Apply pointer cursor to the folder and the new file-entry container */
 .folder, .file-entry {
     cursor: pointer;
 }
 
-/* MODIFIED: Grouped common properties for Bootstrap Icons */
 .folder::before, .file::before {
     font-family: "bootstrap-icons";
     margin-right: 5px;
-    /* font-weight is not needed for bootstrap icons font */
 }
 
-/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'folder' */
 .folder::before {
     content: "\F3D9";
 }
 
-/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'folder2-open' */
 .folder.open::before {
     content: "\F3D8";
 }
 
-/* MODIFIED: Updated content to use Bootstrap Icon unicode for 'file-earmark' as a default */
 .file::before {
     content: "\F392";
 }
 
-/* NEW: Filetype-specific icons using Bootstrap Icons */
+/* Filetype-specific icons using Bootstrap Icons */
 .file.filetype-js::before,
 .file.filetype-mjs::before {
     content: "\F74C"; /* filetype-js */
@@ -93,8 +87,6 @@
     vertical-align: middle;
 }
 
-/* DELETED: Custom styles for the integrated analysis view are no longer needed */
-
 /* Custom styles for the LLM log modal table */
 #log_modal_body table {
     font-size: 14px;
@@ -117,56 +109,53 @@
 /* Styles for the resizable pane handles */
 #vertical-resizer,
 #horizontal-resizer {
-    background-color: #EEE; /* Default color for resizers */
-    border: 1px solid #CCC; /* Default border color */
+    background-color: #EEE;
+    border: 1px solid #CCC;
     transition: background-color 0.2s ease;
 }
 
 #vertical-resizer:hover,
 #horizontal-resizer:hover {
-    background-color: #b3b3b3; /* Lighter shade for hover effect */
-    border-color: #CCC; /* Lighter border on hover */
+    background-color: #b3b3b3;
+    border-color: #CCC;
 }
 
-/* NEW: Add a subtle border to resizers for visibility in dark mode */
+/* Add a subtle border to resizers for visibility in dark mode */
 [data-theme="dark"] #vertical-resizer,
 [data-theme="dark"] #horizontal-resizer {
-    background-color: #333; /* Darker background for contrast */
-    border: 1px solid #444; /* A slightly lighter border for contrast */
+    background-color: #333;
+    border: 1px solid #444;
 }
 
 [data-theme="dark"] #vertical-resizer:hover,
 [data-theme="dark"] #horizontal-resizer:hover {
-    background-color: #444; /* Slightly lighter on hover */
-    border-color: #555; /* Lighter border on hover */
+    background-color: #444;
+    border-color: #555;
 }
 
 
 #vertical-resizer {
     cursor: col-resize;
-    width: 4px; /* A bit wider for easier grabbing */
+    width: 4px;
 }
 
 #horizontal-resizer {
     cursor: row-resize;
-    height: 4px; /* A bit wider for easier grabbing */
+    height: 4px;
 }
 
 /* Styles for the auto-expanding prompt textarea */
 #prompt-input {
     resize: none;
-    /* Add max-height and overflow for auto-expansion */
     max-height: 150px;
     overflow-y: auto;
-    max-width: calc(100% - 75px); /* Account for padding */
+    max-width: calc(100% - 75px);
 }
 
-/* NEW: Styles for collapsible right sidebar */
 #app-container.right-sidebar-collapsed #right-sidebar {
     display: none;
 }
 
-/* NEW: Styles for file tree item layout to prevent wrapping and add ellipsis */
 #file-tree li {
     display: flex;
     align-items: center;
@@ -176,16 +165,14 @@
     padding-bottom: 1px;
 }
 
-/* NEW: Container for file icon/name and folder icon/name/controls */
 #file-tree .folder,
 #file-tree .file-entry {
     display: flex;
     align-items: center;
     flex-grow: 1;
-    min-width: 0; /* Crucial for child text-overflow to work */
+    min-width: 0;
 }
 
-/* NEW: Target both file and folder names for truncation */
 #file-tree .file-name,
 #file-tree .folder-name {
     white-space: nowrap;
@@ -196,10 +183,9 @@
 }
 
 #file-tree .file-name:hover {
-    text-decoration: underline; /* Underline on hover for better UX */
+    text-decoration: underline;
 }
 
-/* NEW: Ensure icons and controls do not shrink */
 #file-tree .file, /* The file icon container */
 #file-tree .checkbox-wrapper,
 #file-tree .analysis-icon,
@@ -208,40 +194,34 @@
     flex-shrink: 0;
 }
 
-/* NEW: Styles for the bottom icons in the left sidebar */
 .bottom-icons {
     margin-top: auto; /* Pushes the div to the bottom */
     display: flex;
     flex-direction: column;
     gap: 20px; /* Spacing between icons */
-    width: 100%; /* Ensure it takes full width of its parent for alignment */
-    align-items: center; /* Center icons horizontally */
+    width: 100%;
+    align-items: center;
 }
 
-/* NEW: Styles for the prominent icons */
 .prominent-icon {
-    color: hsl(var(--p)); /* Primary color for prominence */
+    color: hsl(var(--p));
 }
 
-/* NEW: Hover effect for prominent icons */
 .prominent-icon:hover {
-    color: hsl(var(--pf)); /* Primary focus color on hover */
+    color: hsl(var(--pf))
 }
 
-/* NEW: Remove resize handle from selected-content textarea */
 #selected-content {
     resize: none;
 }
 
-/* MODIFIED: Adjust margin for direct prompt modal action to reduce space */
 #direct_prompt_modal .modal-action {
-    margin-top: 0.5rem; /* Reduced margin-top */
+    margin-top: 0.5rem;
 }
 
-/* NEW: Make direct_prompt_modal larger */
 #direct_prompt_modal .modal-box {
-    width: 95vw; /* Occupy 95% of viewport width */
-    max-width: 95vw; /* Ensure it doesn't exceed 95vw */
-    height: 95vh; /* Occupy 95% of viewport height */
-    max-height: 95vh; /* Ensure it doesn't exceed 95vh */
+    width: 95vw;
+    max-width: 95vw;
+    height: 95vh;
+    max-height: 95vh;
 }

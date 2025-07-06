@@ -70,7 +70,6 @@ async function handle_question_submit() {
 	if (!user_question) return;
 	
 	const current_project = get_current_project();
-	// MODIFIED: Use dedicated LLMs for QA and for finding relevant files.
 	const qa_llm_id = document.getElementById('llm-dropdown-qa').value;
 	const smart_prompt_llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	const temperature = document.getElementById('temperature-slider').value;
@@ -118,7 +117,6 @@ async function handle_question_submit() {
 		});
 		
 		// Replace placeholder with the sanitized and formatted answer.
-		// The new simple_markdown_to_html function handles HTML escaping and markdown conversion.
 		thinking_placeholder.innerHTML = simple_markdown_to_html(qa_response.answer);
 		
 	} catch (error) {
@@ -158,7 +156,7 @@ export function setup_qa_listeners() {
 		}
 	});
 	
-	// NEW: Event delegation for copy-to-clipboard buttons on code blocks.
+	// Event delegation for copy-to-clipboard buttons on code blocks.
 	if (qa_chat_window) {
 		qa_chat_window.addEventListener('click', (e) => {
 			const copy_button = e.target.closest('.copy-code-button');

@@ -2,9 +2,6 @@
 import {post_data} from './utils.js';
 import {update_selected_content} from './file_tree.js';
 
-/**
- * Updates the text of the compress extensions dropdown button based on the number of selected extensions.
- */
 function update_compress_extensions_button() {
 	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
 	const button_label = document.getElementById('compress-extensions-button');
@@ -124,9 +121,6 @@ export function initialize_resizers() {
 	}
 }
 
-/**
- * Initializes the temperature slider to display its current value.
- */
 export function initialize_temperature_slider() {
 	const slider = document.getElementById('temperature-slider');
 	const value_display = document.getElementById('temperature-value');
@@ -242,7 +236,7 @@ export function setup_ui_event_listeners() {
 		post_data({action: 'set_dark_mode', is_dark_mode: !is_dark_mode});
 	});
 	
-	// NEW: Right sidebar toggle listener.
+	// Right sidebar toggle listener.
 	document.getElementById('toggle-right-sidebar').addEventListener('click', function () {
 		const app_container = document.getElementById('app-container');
 		const is_collapsed = app_container.classList.toggle('right-sidebar-collapsed');

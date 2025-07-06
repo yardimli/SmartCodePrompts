@@ -7,7 +7,7 @@ import {post_data} from './utils.js';
  * @param {object} stats.tokens - Token usage { prompt, completion }.
  * @param {object} stats.reanalysis - Reanalysis progress { running, current, total, message }.
  */
-export function update_status_bar(stats) { // MODIFIED: Added export
+export function update_status_bar(stats) {
 	const prompt_tokens_el = document.getElementById('prompt-tokens');
 	const completion_tokens_el = document.getElementById('completion-tokens');
 	const progress_container = document.getElementById('status-bar-progress-container');

@@ -73,7 +73,6 @@ function create_tables () {
  */
 function set_default_config () {
 	const default_config = {
-		// MODIFIED: Removed root_directories and server_port
 		allowed_extensions: JSON.stringify(["js", "jsx", "json", "ts", "tsx", "php", "py", "html", "css", "swift", "xcodeproj", "xcworkspace", "storyboard", "xib", "plist", "xcassets", "playground", "cs", "csproj", "htaccess"]),
 		excluded_folders: JSON.stringify([".git", ".idea", "vendor", "storage", "node_modules"]),
 		openrouter_api_key: "YOUR_API_KEY_HERE"
@@ -96,7 +95,6 @@ function set_default_app_settings () {
 	const transaction = db.transaction(() => {
 		initSettings_stmt.run('dark_mode', 'false');
 		initSettings_stmt.run('last_selected_project', '');
-		// MODIFIED: Replaced single last_selected_llm with four specific ones.
 		initSettings_stmt.run('last_selected_llm_analysis', '');
 		initSettings_stmt.run('last_selected_llm_smart_prompt', '');
 		initSettings_stmt.run('last_selected_llm_qa', '');
@@ -271,10 +269,6 @@ function load_config_from_db () {
 		}
 	});
 	
-	// DELETED: server_port parsing is removed.
-	
-	// MODIFIED: Removed root_directories logic
-	
 	// Mutate the original config object by copying the new properties into it.
 	Object.assign(config, new_config_data);
 	console.log('Configuration loaded from database.');
@@ -312,20 +306,18 @@ function get_setup_data () {
 	return {config: current_config, dark_mode: current_config.dark_mode === 'true'};
 }
 
-// MODIFIED: The function now accepts a plain object instead of URLSearchParams.
 /**
  * Saves the setup configuration from the /setup page to the appropriate tables.
  * @param {object} data - The form data from the request.
  */
 function save_setup_data (data) {
-	// MODIFIED: Removed server_port from the list of keys.
 	const setup_keys = new Set(['allowed_extensions', 'excluded_folders', 'openrouter_api_key']);
 	const settings_keys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
 	const upsertSetup_stmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettings_stmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
 	const transaction = db.transaction(() => {
-		// MODIFIED: Iterate over the object's keys.
+		// Iterate over the object's keys.
 		for (const key in data) {
 			if (key === 'action') continue;
 			const value = data[key];
@@ -415,7 +407,6 @@ function save_compress_extensions (extensions_json) {
  * @returns {object} An object containing projects, settings, and LLMs.
  */
 function get_main_page_data () {
-	// MODIFIED: Select full path from projects table
 	const projects = db.prepare('SELECT path FROM projects ORDER BY path ASC').all();
 	const settings = db.prepare('SELECT key, value FROM app_settings').all();
 	const app_settings = settings.reduce((acc, row) => {
@@ -434,7 +425,6 @@ function get_main_page_data () {
 		dark_mode: app_settings.dark_mode === 'true',
 		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',
 		llms,
-		// MODIFIED: Return all four last selected LLM values.
 		last_selected_llm_analysis: app_settings.last_selected_llm_analysis || '',
 		last_selected_llm_smart_prompt: app_settings.last_selected_llm_smart_prompt || '',
 		last_selected_llm_qa: app_settings.last_selected_llm_qa || '',

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 	<meta charset="UTF-8">
-
+	
 	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
@@ -20,10 +20,12 @@
 			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
 				<i class="bi bi-sun"></i>
 			</div>
+			<!-- NEW: Added project-wide search button -->
+			<a href="#" id="project-search-button" title="Search Project" class="text-info"><i class="bi bi-search"></i></a>
 			<a href="#" id="qa-modal-button" title="Ask a Question" class=" text-success"><i class="bi bi-chat-dots"></i></i></a>
 			<a href="#" id="direct-prompt-button" title="Send Selection as Prompt" class=" text-success"><i class="bi bi-asterisk"></i></a>
 		</div>
-
+		
 		<div class="bottom-icons">
 			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
 				<i class="bi bi-file-earmark-plus"></i>
@@ -131,7 +133,7 @@
 			</div>
 			
 			<div class="divider"></div>
-
+			
 			<div class="flex justify-end -mb-2">
 				<button id="refresh-llms" class="btn btn-xs btn-ghost" title="Refresh LLM List">
 					<i class="bi bi-arrow-clockwise"></i> Refresh Models

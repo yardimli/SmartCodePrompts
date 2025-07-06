@@ -91,7 +91,7 @@ function get_folders(input_path, project_path) {
 						path: relative_file_path,
 						has_analysis: has_analysis,
 						is_modified: is_modified,
-						size: stats.size // MODIFIED: Add file size in bytes.
+						size: stats.size
 					});
 				}
 			}
@@ -142,12 +142,14 @@ function get_raw_file_content(input_path, project_path) {
  * @param {string} start_path - The directory path to start the search from, relative to the project root.
  * @param {string} search_term - The case-insensitive term to search for.
  * @param {string} project_path - The absolute path of the project.
- * @returns {object} An object containing an array of `matching_files`.
+ * @returns {object} An object containing an array of `matching_files`, where each element is an object with `path` and `match_count`.
  */
 function search_files(start_path, search_term, project_path) {
 	const absolute_start_path = resolve_path(start_path, project_path);
 	const matching_files = [];
-	const search_lower = search_term.toLowerCase();
+	// Create a case-insensitive regex for finding all occurrences.
+	// We must escape special regex characters from the user's search term to prevent errors.
+	const search_regex = new RegExp(search_term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
 	
 	function search_in_directory(current_dir) {
 		let items;
@@ -176,9 +178,12 @@ function search_files(start_path, search_term, project_path) {
 				if (config.allowed_extensions.includes(ext)) {
 					try {
 						const content = fs.readFileSync(item_full_path, 'utf8');
-						if (content.toLowerCase().includes(search_lower)) {
+						// Use regex to find all matches to get an accurate count.
+						const matches = content.match(search_regex);
+						if (matches && matches.length > 0) {
 							const relative_path = path.relative(project_path, item_full_path).replace(/\\/g, '/');
-							matching_files.push(relative_path);
+							// Push an object with the file path and the number of matches found.
+							matching_files.push({path: relative_path, match_count: matches.length});
 						}
 					} catch (err) {
 						console.warn(`Cannot read file ${item_full_path}: ${err.message}`);

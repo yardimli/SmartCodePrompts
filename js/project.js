@@ -28,7 +28,6 @@ export async function load_project(project_path) {
 		await load_folders('.', null);
 		await restore_state(saved_state || {open_folders: [], selected_files: []});
 		
-		//Start polling for file system changes now that the project is loaded.
 		start_file_tree_polling();
 	} catch (error) {
 		console.error(`Error loading project ${project_path}:`, error);

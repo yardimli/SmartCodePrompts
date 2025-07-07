@@ -57,7 +57,7 @@ async function handle_log_button_click () {
                     <td class="log-model">${entry.model_id || 'N/A'}</td>
                     <td class="log-tokens text-right">${(entry.prompt_tokens || 0).toLocaleString()}</td>
                     <td class="log-tokens text-right">${(entry.completion_tokens || 0).toLocaleString()}</td>
-                    <td class="log-cost text-right">$${cost.toFixed(7)}</td>
+                    <td class="log-cost text-right">$${cost.toFixed(3)}</td>
                 </tr>
             `;
 		}
@@ -67,7 +67,7 @@ async function handle_log_button_click () {
             <tfoot>
                 <tr class="font-bold">
                     <td colspan="5" class="text-right">Total Cost:</td>
-                    <td class="text-right">$${total_cost.toFixed(7)}</td>
+                    <td class="text-right">$${total_cost.toFixed(3)}</td>
                 </tr>
             </tfoot>
         </table></div>`;

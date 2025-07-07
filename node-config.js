@@ -419,6 +419,25 @@ function get_main_page_data () {
 	const prompt_tokens = app_settings.total_prompt_tokens || '0';
 	const completion_tokens = app_settings.total_completion_tokens || '0';
 	
+	// MODIFIED: Calculate initial total cost
+	const cost_rows = db.prepare(`
+        SELECT l.prompt_tokens,
+               l.completion_tokens,
+               m.prompt_price,
+               m.completion_price
+        FROM llm_log l
+                 LEFT JOIN llms m ON l.model_id = m.id
+    `).all();
+	
+	let total_cost = 0;
+	for (const row of cost_rows) {
+		const prompt_price = row.prompt_price || 0;
+		const completion_price = row.completion_price || 0;
+		const prompt_cost = ((row.prompt_tokens || 0) ) * prompt_price;
+		const completion_cost = ((row.completion_tokens || 0) ) * completion_price;
+		total_cost += prompt_cost + completion_cost;
+	}
+	
 	return {
 		projects,
 		last_selected_project: app_settings.last_selected_project || '',
@@ -433,7 +452,8 @@ function get_main_page_data () {
 		last_smart_prompt: app_settings.last_smart_prompt || '',
 		session_tokens: {
 			prompt: parseInt(prompt_tokens, 10),
-			completion: parseInt(completion_tokens, 10)
+			completion: parseInt(completion_tokens, 10),
+			cost: total_cost
 		},
 		allowed_extensions: allowed_extensions_row ? allowed_extensions_row.value : '[]',
 		compress_extensions: app_settings.compress_extensions || '[]'

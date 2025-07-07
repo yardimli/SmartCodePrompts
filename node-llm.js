@@ -10,8 +10,8 @@ const {get_file_content, get_raw_file_content, get_file_analysis, calculate_chec
 const isElectron = !!process.env.ELECTRON_RUN;
 const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
 
-// Session-specific state is now only for re-analysis progress.
-let reanalysis_progress = {total: 0, current: 0, running: false, message: ''};
+// MODIFIED: Session-specific state now holds progress for the background re-analysis task.
+let reanalysis_progress = {total: 0, current: 0, running: false, message: '', cancelled: false, summary: null};
 
 /**
  * Logs an interaction with the LLM to a file.
@@ -29,6 +29,15 @@ function log_llm_interaction(prompt, response, is_error = false) {
 	} catch (err) {
 		console.error('Failed to write to LLM log file:', err);
 	}
+}
+
+// NEW: A function to signal that the current re-analysis task should be cancelled.
+function cancel_analysis () {
+	if (reanalysis_progress && reanalysis_progress.running) {
+		console.log('Cancellation signal received for re-analysis.');
+		reanalysis_progress.cancelled = true;
+	}
+	return {success: true};
 }
 
 /**
@@ -242,63 +251,73 @@ async function analyze_file({project_path, file_path, llm_id, force = false, tem
 }
 
 /**
- * Scans all analyzed files in a project and re-analyzes any that have been modified.
- * Can also be forced to re-analyze all files regardless of modification status.
- * Now reports progress via the module-level `reanalysis_progress` state.
- * If a previously analyzed file is no longer found on the filesystem, its entry
- * is removed from the `file_metadata` table.
+ * MODIFIED: This function now runs as a background task. It scans all analyzed files in a project,
+ * re-analyzes any that have been modified (or all if forced), and reports progress via the
+ * module-level `reanalysis_progress` state object for the frontend to poll.
  * @param {object} params - The parameters for the operation.
  * @param {string} params.project_path - The path of the project.
  * @param {string} params.llm_id - The ID of the LLM to use for analysis.
  * @param {boolean} [params.force=false] - If true, re-analyzes all files, ignoring checksums.
  * @param {number} [params.temperature] - The temperature for the LLM call.
- * @returns {Promise<object>} A summary of the operation.
  */
 async function reanalyze_modified_files({project_path, llm_id, force = false, temperature}) {
+	// This function is now fire-and-forget from the frontend's perspective.
+	// It should not be awaited for its final result.
 	if (!llm_id) {
-		throw new Error('No LLM selected for analysis.');
+		console.error('No LLM selected for re-analysis.');
+		return;
 	}
+	
 	const analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
 	
-	// Initialize progress tracking state.
+	// NEW: Initialize progress tracking state.
 	reanalysis_progress = {
 		total: analyzed_files.length,
 		current: 0,
 		running: true,
-		message: 'Initializing re-analysis...'
+		message: 'Initializing re-analysis...',
+		cancelled: false,
+		summary: null
 	};
+	
 	let analyzed_count = 0;
 	let skipped_count = 0;
-	let deleted_count = 0; // Counter for deleted files
+	let deleted_count = 0;
 	const errors = [];
 	
 	const delete_stmt = db.prepare('DELETE FROM file_metadata WHERE project_path = ? AND file_path = ?');
 	
 	try {
 		for (const file of analyzed_files) {
-			// Update progress before processing each file.
+			// NEW: Check for cancellation signal on each iteration.
+			if (reanalysis_progress.cancelled) {
+				reanalysis_progress.message = 'Re-analysis cancelled by user.';
+				console.log('Re-analysis loop cancelled.');
+				errors.push('Operation cancelled by user.');
+				break;
+			}
+			
+			// NEW: Update progress before processing each file.
 			reanalysis_progress.current++;
-			reanalysis_progress.message = `Processing ${file.file_path}`;
+			reanalysis_progress.message = `Processing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
+			
 			try {
-				// Resolve the full path to check for existence
 				const full_path = path.join(project_path, file.file_path);
 				
 				if (!fs.existsSync(full_path)) {
-					// If the file no longer exists, remove its metadata from the database
 					console.log(`File not found, removing metadata: ${file.file_path}`);
 					delete_stmt.run(project_path, file.file_path);
 					deleted_count++;
-					continue; // Skip to the next file
+					continue;
 				}
 				
 				const raw_file_content = get_raw_file_content(file.file_path, project_path);
 				const current_checksum = calculate_checksum(raw_file_content);
 				
 				if (force || current_checksum !== file.last_checksum) {
-					reanalysis_progress.message = `Analyzing ${file.file_path}`; // More specific message
+					reanalysis_progress.message = `Analyzing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
 					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-					// Pass `force: true` to analyze_file to ensure it runs without its own redundant check, and pass temperature.
 					await analyze_file({project_path, file_path: file.file_path, llm_id, force: true, temperature});
 					analyzed_count++;
 				} else {
@@ -309,10 +328,12 @@ async function reanalyze_modified_files({project_path, llm_id, force = false, te
 				errors.push(`${file.file_path}: ${error.message}`);
 			}
 		}
-		return {success: true, analyzed: analyzed_count, skipped: skipped_count, deleted: deleted_count, errors: errors};
 	} finally {
-		// Reset progress state regardless of success or failure to clean up the UI.
-		reanalysis_progress = {total: 0, current: 0, running: false, message: ''};
+		// NEW: Store the final summary and reset the progress state.
+		const summary = {success: true, analyzed: analyzed_count, skipped: skipped_count, deleted: deleted_count, errors: errors};
+		reanalysis_progress.summary = summary;
+		reanalysis_progress.running = false;
+		console.log('Re-analysis process finished.', summary);
 	}
 }
 
@@ -438,11 +459,31 @@ function get_session_stats() {
 	const prompt_tokens_row = db.prepare("SELECT value FROM app_settings WHERE key = 'total_prompt_tokens'").get();
 	const completionTokens_row = db.prepare("SELECT value FROM app_settings WHERE key = 'total_completion_tokens'").get();
 	
+	// MODIFIED: Calculate total cost from the log
+	const cost_rows = db.prepare(`
+        SELECT l.prompt_tokens,
+               l.completion_tokens,
+               m.prompt_price,
+               m.completion_price
+        FROM llm_log l
+                 LEFT JOIN llms m ON l.model_id = m.id
+    `).all();
+	
+	let total_cost = 0;
+	for (const row of cost_rows) {
+		const prompt_price = row.prompt_price || 0;
+		const completion_price = row.completion_price || 0;
+		const prompt_cost = ((row.prompt_tokens || 0) ) * prompt_price;
+		const completion_cost = ((row.completion_tokens || 0) ) * completion_price;
+		total_cost += prompt_cost + completion_cost;
+	}
+	
 	return {
 		tokens: {
 			prompt: prompt_tokens_row ? parseInt(prompt_tokens_row.value, 10) : 0,
 			completion: completionTokens_row ? parseInt(completionTokens_row.value, 10) : 0
 		},
+		cost: total_cost,
 		reanalysis: reanalysis_progress
 	};
 }
@@ -466,12 +507,12 @@ function get_llm_log() {
         ORDER BY l.timestamp DESC
     `).all();
 	
-	// Calculate cost for each entry. Prices are per 1M tokens.
+	// MODIFIED: Calculate cost for each entry. Prices are per 1M tokens.
 	return log_entries.map(entry => {
 		const prompt_price = entry.prompt_price || 0;
 		const completion_price = entry.completion_price || 0;
-		const prompt_cost = (entry.prompt_tokens ) * prompt_price;
-		const completion_cost = (entry.completion_tokens ) * completion_price;
+		const prompt_cost = ((entry.prompt_tokens || 0) ) * prompt_price;
+		const completion_cost = ((entry.completion_tokens || 0) ) * completion_price;
 		entry.cost = prompt_cost + completion_cost;
 		return entry;
 	});
@@ -485,5 +526,6 @@ module.exports = {
 	get_session_stats,
 	get_llm_log,
 	ask_question_about_code,
-	handle_direct_prompt // NEW: Export the Direct Prompt function
+	handle_direct_prompt,
+	cancel_analysis // NEW: Export the cancellation function.
 };

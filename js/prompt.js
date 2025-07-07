@@ -4,6 +4,8 @@ import {show_loading, hide_loading, post_data} from './utils.js';
 import {get_current_project, set_last_smart_prompt, save_current_project_state} from './state.js';
 // MODIFIED: No longer importing from modals.js. Importing necessary functions from file_tree.js instead.
 import {refresh_prompt_display, ensure_file_is_visible, update_selected_content} from './file_tree.js';
+// NEW: Import the refactored re-analysis function.
+import {perform_reanalysis} from './analysis.js';
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -100,7 +102,6 @@ async function handle_smart_prompt_submission(prompt_text) {
 	
 	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	const current_project = get_current_project();
-	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!current_project) {
 		alert('Please select a project.');
@@ -143,32 +144,19 @@ async function handle_smart_prompt_submission(prompt_text) {
 				await perform_smart_prompt(prompt_text);
 			}, {once: true});
 			
-			// Add a one-time listener to re-analyze then run
+			// MODIFIED: Add a one-time listener to re-analyze then run, using the new polling-based function.
 			new_reanalyze_and_run_btn.addEventListener('click', async () => {
 				modal.close();
-				show_loading('Re-analyzing modified files...');
 				try {
-					// Use the dedicated Analysis LLM for re-analysis.
-					const analysis_llm_id = document.getElementById('llm-dropdown-analysis').value;
-					if (!analysis_llm_id) {
-						alert('Please select an LLM for Analysis to proceed.');
-						hide_loading();
-						return;
-					}
-					await post_data({
-						action: 'reanalyze_modified_files',
-						project_path: current_project.path,
-						llm_id: analysis_llm_id,
-						force: false, // Only re-analyze modified files
-						temperature: parseFloat(temperature)
-					});
-					// After re-analysis is complete, perform the smart prompt
+					// This will show the progress modal and wait for the backend process to complete.
+					await perform_reanalysis(false);
+					
+					// After successful re-analysis, perform the smart prompt.
 					await perform_smart_prompt(prompt_text);
 				} catch (error) {
+					// This catches failures or cancellations from perform_reanalysis.
 					console.error('Failed to re-analyze and run:', error);
-					alert(`An error occurred during the process: ${error.message}`);
-				} finally {
-					hide_loading();
+					alert(`The process could not be completed: ${error.message}`);
 				}
 			}, {once: true});
 			

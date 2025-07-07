@@ -126,12 +126,18 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				break;
 			case 'reanalyze_modified_files':
-				result = await llm_manager.reanalyze_modified_files({
+				// MODIFIED: This is now a fire-and-forget call that starts a background task.
+				llm_manager.reanalyze_modified_files({
 					project_path: data.project_path,
 					llm_id: data.llm_id,
 					force: data.force,
 					temperature: parseFloat(data.temperature)
 				});
+				result = {success: true, message: 'Re-analysis process started.'};
+				break;
+			// NEW: Handle cancellation requests from the frontend.
+			case 'cancel_analysis':
+				result = llm_manager.cancel_analysis();
 				break;
 			case 'get_relevant_files_from_prompt':
 				result = await llm_manager.get_relevant_files_from_prompt({

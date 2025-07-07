@@ -3,6 +3,7 @@ import {post_data} from './utils.js'; // MODIFIED: Removed show_loading, hide_lo
 import {get_current_project} from './state.js';
 // NEW: Import progress modal functions
 import {show_progress_modal, hide_progress_modal, update_progress} from './modal-progress.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 // NEW: A flag to handle cancellation for the frontend analysis loop.
 let is_selection_analysis_cancelled = false;
@@ -17,11 +18,11 @@ async function perform_selection_analysis () {
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (checked_boxes.length === 0) {
-		alert('Please select at least one file to analyze.');
+		show_alert('Please select at least one file to analyze.'); // MODIFIED: Use custom alert
 		return;
 	}
 	if (!llm_id) {
-		alert('Please select an LLM for Analysis to perform the analysis.');
+		show_alert('Please select an LLM for Analysis to perform the analysis.'); // MODIFIED: Use custom alert
 		return;
 	}
 	
@@ -92,7 +93,7 @@ async function perform_selection_analysis () {
 	if (errors.length > 0) {
 		summary_message += `\n\nErrors occurred for ${errors.length} file(s):\n- ${errors.join('\n- ')}\n\nCheck the console for more details.`;
 	}
-	alert(summary_message);
+	show_alert(summary_message, `Analysis ${is_selection_analysis_cancelled ? 'Cancelled' : 'Complete'}`); // MODIFIED: Use custom alert
 }
 
 /**
@@ -110,7 +111,7 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		if (!llm_id || !current_project) {
 			const error_msg = 'Please select a project and an LLM for Analysis.';
-			alert(error_msg);
+			show_alert(error_msg); // MODIFIED: Use custom alert
 			return reject(new Error(error_msg));
 		}
 		
@@ -196,10 +197,10 @@ export function setup_analysis_actions_listener () {
 				let summary_message = `Re-analysis complete.\n` +
 					`- Files re-analyzed: ${summary.analyzed}\n` +
 					`- Files skipped (up-to-date): ${summary.skipped}`;
-				alert(summary_message);
+				show_alert(summary_message, 'Re-analysis Complete'); // MODIFIED: Use custom alert
 			} catch (error) {
 				// Errors (including cancellation) are caught here.
-				alert(error.message);
+				show_alert(error.message, 'Re-analysis Failed'); // MODIFIED: Use custom alert
 			}
 		});
 	}

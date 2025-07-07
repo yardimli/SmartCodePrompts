@@ -2,6 +2,7 @@
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {get_current_project, save_current_project_state} from './state.js';
 import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 let search_modal = null;
 let current_project_search_results = [];
@@ -21,7 +22,8 @@ function escape_html (str) {
 	if (typeof str !== 'string') {
 		return '';
 	}
-	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	return str.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
 }
 
 // MODIFIED: This function is completely overhauled to work with a <pre><code> block
@@ -289,9 +291,9 @@ export function setup_search_modal_listeners () {
 				await update_selected_content();
 				save_current_project_state();
 			}
-			alert(`Selected ${successful_checks} new file(s) from search results.`);
+			show_alert(`Selected ${successful_checks} new file(s) from search results.`); // MODIFIED: Use custom alert
 		} catch (error) {
-			alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`);
+			show_alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`, 'Error'); // MODIFIED: Use custom alert
 		} finally {
 			hide_loading();
 		}

@@ -88,7 +88,6 @@ export function simple_markdown_to_html (text) {
 			
 			// Escape HTML entities inside the code block to display them as text.
 			const escaped_code = code_content
-				.replace(/&/g, '&amp;')
 				.replace(/</g, '&lt;')
 				.replace(/>/g, '&gt;');
 			
@@ -103,7 +102,6 @@ export function simple_markdown_to_html (text) {
 			// An even index (0, 2, 4...) indicates regular text.
 			// Escape it first to prevent rendering of any raw HTML.
 			let regular_text = part
-				.replace(/&/g, '&amp;')
 				.replace(/</g, '&lt;')
 				.replace(/>/g, '&gt;');
 			

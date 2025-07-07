@@ -22,7 +22,7 @@ function escape_html (str) {
 	if (typeof str !== 'string') {
 		return '';
 	}
-	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // NEW: Highlights the current search match and scrolls it into view.

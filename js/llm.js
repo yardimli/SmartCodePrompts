@@ -2,6 +2,7 @@
 
 // Import required functions from utils.js.
 import {show_loading, hide_loading, post_data} from './utils.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 /**
  * Populates a single LLM dropdown with a list of models.
@@ -100,13 +101,13 @@ export function setup_llm_listeners() {
 				llm_dropdown_configs.forEach(config => {
 					populate_llm_dropdown(config.id, response.llms, current_selections[config.id]);
 				});
-				alert('LLM list updated successfully.');
+				show_alert('LLM list updated successfully.'); // MODIFIED: Use custom alert
 			} else {
 				throw new Error(response.error || 'Unknown error during refresh.');
 			}
 		} catch (error) {
 			console.error('Failed to refresh LLM list:', error);
-			alert(`Error refreshing LLMs: ${error.message}`);
+			show_alert(`Error refreshing LLMs: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 		} finally {
 			refresh_button.disabled = false;
 			hide_loading();

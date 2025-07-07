@@ -6,6 +6,7 @@ import {get_current_project, set_last_smart_prompt, save_current_project_state} 
 import {refresh_prompt_display, ensure_file_is_visible, update_selected_content} from './file_tree.js';
 // NEW: Import the refactored re-analysis function.
 import {perform_reanalysis} from './analysis.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -38,12 +39,12 @@ export function initialize_auto_expand_textarea() {
 async function perform_smart_prompt (user_prompt) {
 	const trimmed_prompt = user_prompt.trim();
 	if (!trimmed_prompt) {
-		alert('Please enter a prompt.');
+		show_alert('Please enter a prompt.'); // MODIFIED: Use custom alert
 		return;
 	}
 	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	if (!llm_id) {
-		alert('Please select an LLM for Smart Prompts from the dropdown.');
+		show_alert('Please select an LLM for Smart Prompts from the dropdown.'); // MODIFIED: Use custom alert
 		return;
 	}
 	
@@ -77,13 +78,13 @@ async function perform_smart_prompt (user_prompt) {
 			
 			await update_selected_content();
 			save_current_project_state();
-			alert(`LLM selected ${checked_count} relevant file(s). Prompt has been built.`);
+			show_alert(`LLM selected ${checked_count} relevant file(s). Prompt has been built.`); // MODIFIED: Use custom alert
 		} else {
-			alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
+			show_alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made."); // MODIFIED: Use custom alert
 		}
 	} catch (error) {
 		console.error('Failed to get relevant files from prompt:', error);
-		alert(`An error occurred: ${error.message}`);
+		show_alert(`An error occurred: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 	} finally {
 		hide_loading();
 	}
@@ -96,7 +97,7 @@ async function perform_smart_prompt (user_prompt) {
  */
 async function handle_smart_prompt_submission(prompt_text) {
 	if (!prompt_text) {
-		alert('Please enter a prompt first.');
+		show_alert('Please enter a prompt first.'); // MODIFIED: Use custom alert
 		return;
 	}
 	
@@ -104,11 +105,11 @@ async function handle_smart_prompt_submission(prompt_text) {
 	const current_project = get_current_project();
 	
 	if (!current_project) {
-		alert('Please select a project.');
+		show_alert('Please select a project.'); // MODIFIED: Use custom alert
 		return;
 	}
 	if (!llm_id) {
-		alert('Please select an LLM for Smart Prompts.');
+		show_alert('Please select an LLM for Smart Prompts.'); // MODIFIED: Use custom alert
 		return;
 	}
 	
@@ -156,7 +157,7 @@ async function handle_smart_prompt_submission(prompt_text) {
 				} catch (error) {
 					// This catches failures or cancellations from perform_reanalysis.
 					console.error('Failed to re-analyze and run:', error);
-					alert(`The process could not be completed: ${error.message}`);
+					show_alert(`The process could not be completed: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 				}
 			}, {once: true});
 			

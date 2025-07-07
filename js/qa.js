@@ -1,6 +1,7 @@
 // SmartCodePrompts/js/qa.js
 import {show_loading, hide_loading, post_data, simple_markdown_to_html} from './utils.js';
 import {get_current_project} from './state.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 let qa_modal = null;
 let qa_chat_window = null;
@@ -37,7 +38,6 @@ function add_message_to_chat(role, content, is_placeholder = false) {
 	if (role === 'user') {
 		// Escape HTML entities in user messages to display them as text
 		const escaped_content = content
-			.replace(/&/g, '&amp;')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;')
 			.replace(/\n/g, '<br>');
@@ -75,7 +75,7 @@ async function handle_question_submit() {
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!current_project || !qa_llm_id || !smart_prompt_llm_id) {
-		alert('Please select a project and LLMs for both Q&A and Smart Prompt File Selection before asking a question.');
+		show_alert('Please select a project and LLMs for both Q&A and Smart Prompt File Selection before asking a question.'); // MODIFIED: Use custom alert
 		return;
 	}
 	
@@ -176,7 +176,7 @@ export function setup_qa_listeners() {
 						}, 2000);
 					}).catch(err => {
 						console.error('Failed to copy code: ', err);
-						alert('Failed to copy code to clipboard.');
+						show_alert('Failed to copy code to clipboard.'); // MODIFIED: Use custom alert
 					});
 				}
 			}

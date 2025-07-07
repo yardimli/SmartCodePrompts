@@ -1,6 +1,7 @@
 // SmartCodePrompts/js/ui_components.js
 import {post_data} from './utils.js';
 import {update_selected_content} from './file_tree.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 function update_compress_extensions_button() {
 	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
@@ -163,7 +164,7 @@ export function setup_ui_event_listeners() {
 			update_selected_content();
 		}).catch(err => {
 			console.error("Failed to save compress extensions setting:", err);
-			alert("Could not save compression setting. See console for details.");
+			show_alert("Could not save compression setting. See console for details.", "Error"); // MODIFIED: Use custom alert
 		});
 	});
 	
@@ -206,7 +207,7 @@ export function setup_ui_event_listeners() {
 				}, 2000);
 			}).catch(err => {
 				console.error('Failed to copy text: ', err);
-				alert('Failed to copy text to clipboard.');
+				show_alert('Failed to copy text to clipboard.', 'Error'); // MODIFIED: Use custom alert
 			});
 		} else {
 			try {
@@ -222,7 +223,7 @@ export function setup_ui_event_listeners() {
 				}, 2000);
 			} catch (err) {
 				console.error('Fallback copy failed: ', err);
-				alert('Failed to copy text to clipboard.');
+				show_alert('Failed to copy text to clipboard.', 'Error'); // MODIFIED: Use custom alert
 			}
 		}
 	});

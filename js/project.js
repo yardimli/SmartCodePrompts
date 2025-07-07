@@ -2,6 +2,7 @@
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {set_current_project} from './state.js';
 import {load_folders, restore_state, start_file_tree_polling, stop_file_tree_polling} from './file_tree.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 // DELETED: No longer need to import from modals.js
 
 /**
@@ -21,14 +22,14 @@ export async function open_project_modal () {
 				window.location.reload();
 			} catch (error) {
 				console.error('Failed to add project:', error);
-				alert(`Failed to add project: ${error.message}`);
+				show_alert(`Failed to add project: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 			} finally {
 				hide_loading();
 			}
 		}
 	} catch (error) {
 		console.error('Error opening directory dialog:', error);
-		alert(`Could not open directory selector: ${error.message}`);
+		show_alert(`Could not open directory selector: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 	}
 }
 
@@ -59,7 +60,7 @@ export async function load_project(project_path) {
 		start_file_tree_polling();
 	} catch (error) {
 		console.error(`Error loading project ${project_path}:`, error);
-		alert(`Error loading project. Check console for details.`);
+		show_alert(`Error loading project. Check console for details.`, 'Error'); // MODIFIED: Use custom alert
 	} finally {
 		hide_loading();
 	}

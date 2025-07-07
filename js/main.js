@@ -27,6 +27,7 @@ import {initialize_qa_modal, setup_qa_listeners} from './qa.js';
 import {initialize_direct_prompt_modal, setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 import {initialize_progress_modal} from './modal-progress.js';
+import {initialize_alert_modal, show_alert} from './modal-alert.js'; // NEW: Import alert modal
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -34,7 +35,7 @@ async function load_all_modals_html () {
 		'modal-about.html', 'modal-analysis.html', 'modal-direct-prompt.html',
 		'modal-file-view.html', 'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html',
-		'modal-progress.html'
+		'modal-progress.html', 'modal-alert.html' // NEW: Add alert modal to the list
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -140,7 +141,7 @@ async function initialize_app() {
 		}
 	} catch (error) {
 		console.error('Failed to initialize app:', error);
-		alert('Could not load application data from the server. Please ensure the server is running and check the console.');
+		show_alert('Could not load application data from the server. Please ensure the server is running and check the console.', 'Initialization Error'); // MODIFIED: Use custom alert
 	}
 }
 
@@ -159,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_qa_modal();
 	initialize_direct_prompt_modal();
 	initialize_progress_modal();
+	initialize_alert_modal(); // NEW: Initialize the alert modal
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();

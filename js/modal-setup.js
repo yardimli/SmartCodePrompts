@@ -1,5 +1,6 @@
 // SmartCodePrompts/js/modal-setup.js
 import {show_loading, hide_loading, post_data} from './utils.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 let setup_modal = null;
 
@@ -73,10 +74,10 @@ export function setup_setup_modal_listeners () {
 				prompt_smart_prompt: document.getElementById('prompt-smart-prompt-input').value
 			};
 			await post_data(save_data);
-			alert('Configuration saved successfully!\n\nApplication will now reload.');
+			show_alert('Configuration saved successfully!\n\nApplication will now reload.'); // MODIFIED: Use custom alert
 			window.location.reload();
 		} catch (error) {
-			alert(`Failed to save configuration: ${error.message}`);
+			show_alert(`Failed to save configuration: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 			save_button.disabled = false;
 			save_button.innerHTML = original_text;
 		}
@@ -89,10 +90,10 @@ export function setup_setup_modal_listeners () {
 				await post_data({action: 'reset_prompts'});
 				await load_setup_data(); // Reload data in the modal
 				hide_loading();
-				alert('Prompts have been reset to their default values.');
+				show_alert('Prompts have been reset to their default values.'); // MODIFIED: Use custom alert
 			} catch (error) {
 				hide_loading();
-				alert(`Failed to reset prompts: ${error.message}`);
+				show_alert(`Failed to reset prompts: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 			}
 		}
 	});

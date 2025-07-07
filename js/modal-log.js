@@ -1,6 +1,7 @@
 // SmartCodePrompts/js/modal-log.js
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {update_status_bar} from './status_bar.js';
+import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
 
 let log_modal = null;
 
@@ -93,7 +94,7 @@ export function setup_log_modal_listeners () {
 				update_status_bar({prompt: 0, completion: 0});
 			} catch (error) {
 				console.error('Failed to reset log:', error);
-				alert(`Failed to reset log: ${error.message}`);
+				show_alert(`Failed to reset log: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
 			} finally {
 				hide_loading();
 			}

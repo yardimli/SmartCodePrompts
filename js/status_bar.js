@@ -2,12 +2,23 @@
 import {post_data} from './utils.js';
 
 /**
+ * NEW: Updates the estimated token count for the current prompt in the status bar.
+ * @param {number} token_count - The estimated number of tokens.
+ */
+export function update_estimated_prompt_tokens (token_count) {
+	const el = document.getElementById('estimated-prompt-tokens');
+	if (el) {
+		el.textContent = token_count.toLocaleString();
+	}
+}
+
+/**
  * Updates the status bar with the latest session and progress data.
  * @param {object} stats - The stats object from the server.
  * @param {object} stats.tokens - Token usage { prompt, completion }.
  * @param {object} stats.reanalysis - Reanalysis progress { running, current, total, message }.
  */
-export function update_status_bar(stats) {
+export function update_status_bar (stats) {
 	const prompt_tokens_el = document.getElementById('prompt-tokens');
 	const completion_tokens_el = document.getElementById('completion-tokens');
 	const progress_container = document.getElementById('status-bar-progress-container');
@@ -39,7 +50,7 @@ export function update_status_bar(stats) {
 /**
  * Periodically fetches session stats from the server and updates the UI.
  */
-function poll_session_stats() {
+function poll_session_stats () {
 	setInterval(async () => {
 		try {
 			const stats = await post_data({action: 'get_session_stats'});
@@ -58,7 +69,7 @@ function poll_session_stats() {
  * Initializes the status bar with initial data and starts polling for updates.
  * @param {object} initial_tokens - The initial session token object from the server page load.
  */
-export function initialize_status_bar(initial_tokens) {
+export function initialize_status_bar (initial_tokens) {
 	if (initial_tokens) {
 		update_status_bar({tokens: initial_tokens, reanalysis: {running: false}});
 	}

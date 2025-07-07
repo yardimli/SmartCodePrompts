@@ -448,20 +448,33 @@ function get_session_stats() {
 }
 
 /**
- * Returns the in-memory log of LLM calls for the current session.
- * @returns {Array<object>} The array of log entries.
+ * Returns the log of LLM calls, including calculated cost for each.
+ * @returns {Array<object>} The array of log entries with cost.
  */
 function get_llm_log() {
-	// Fetch the log from the database instead of in-memory.
-	return db.prepare(`
-        SELECT timestamp,
-               reason,
-               model_id          as model_id,
-               prompt_tokens     as prompt_tokens,
-               completion_tokens as completion_tokens
-        FROM llm_log
-        ORDER BY timestamp DESC
+	// Fetch the log from the database and join with the llms table to get pricing.
+	const log_entries = db.prepare(`
+        SELECT l.timestamp,
+               l.reason,
+               l.model_id,
+               l.prompt_tokens,
+               l.completion_tokens,
+               m.prompt_price,
+               m.completion_price
+        FROM llm_log l
+                 LEFT JOIN llms m ON l.model_id = m.id
+        ORDER BY l.timestamp DESC
     `).all();
+	
+	// Calculate cost for each entry. Prices are per 1M tokens.
+	return log_entries.map(entry => {
+		const prompt_price = entry.prompt_price || 0;
+		const completion_price = entry.completion_price || 0;
+		const prompt_cost = (entry.prompt_tokens ) * prompt_price;
+		const completion_cost = (entry.completion_tokens ) * completion_price;
+		entry.cost = prompt_cost + completion_cost;
+		return entry;
+	});
 }
 
 module.exports = {

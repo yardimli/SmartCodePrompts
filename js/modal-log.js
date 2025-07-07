@@ -27,6 +27,8 @@ async function handle_log_button_click () {
 			return;
 		}
 		
+		let total_cost = 0;
+		
 		let table_html = `
             <div class="overflow-x-auto">
                 <table class="table table-sm">
@@ -37,6 +39,7 @@ async function handle_log_button_click () {
                             <th>Model</th>
                             <th class="text-right">Prompt Tokens</th>
                             <th class="text-right">Completion Tokens</th>
+                            <th class="text-right">Cost (USD)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -44,6 +47,9 @@ async function handle_log_button_click () {
 		
 		for (const entry of log_data) {
 			const timestamp = new Date(entry.timestamp).toLocaleString();
+			const cost = entry.cost || 0;
+			total_cost += cost;
+			
 			table_html += `
                 <tr class="hover">
                     <td class="log-timestamp">${timestamp}</td>
@@ -51,11 +57,20 @@ async function handle_log_button_click () {
                     <td class="log-model">${entry.model_id || 'N/A'}</td>
                     <td class="log-tokens text-right">${(entry.prompt_tokens || 0).toLocaleString()}</td>
                     <td class="log-tokens text-right">${(entry.completion_tokens || 0).toLocaleString()}</td>
+                    <td class="log-cost text-right">$${cost.toFixed(7)}</td>
                 </tr>
             `;
 		}
 		
-		table_html += '</tbody></table></div>';
+		table_html += `
+            </tbody>
+            <tfoot>
+                <tr class="font-bold">
+                    <td colspan="5" class="text-right">Total Cost:</td>
+                    <td class="text-right">$${total_cost.toFixed(7)}</td>
+                </tr>
+            </tfoot>
+        </table></div>`;
 		modal_body.innerHTML = table_html;
 	} catch (error) {
 		console.error('Failed to fetch LLM log:', error);

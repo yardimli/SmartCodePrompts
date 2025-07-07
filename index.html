@@ -95,15 +95,20 @@
 					<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
 						<span class="loading loading-spinner loading-xs"></span> Loading...
 					</button>
-					<div id="status-bar-tokens" class="flex items-center gap-4">
-						<button id="log-modal-button" class="btn btn-sm btn-ghost" title="View LLM Call Log">
+					<!-- MODIFIED: Replaced DaisyUI stats with simpler divs for better alignment and added estimated tokens -->
+					<div id="status-bar-tokens" class="flex items-center gap-4 text-sm">
+						<button id="log-modal-button" class="btn btn-xs btn-ghost" title="View LLM Call Log">
 							<i class="bi bi-card-list"></i>
 						</button>
-						<div class="flex items-center gap-1 text-sm" title="Prompt Tokens this Session">
+						<div class="flex items-center gap-1" title="Estimated tokens for the current prompt">
+							<i class="bi bi-calculator text-secondary"></i>
+							<span id="estimated-prompt-tokens">0</span>
+						</div>
+						<div class="flex items-center gap-1" title="Total Prompt Tokens this Session">
 							<i class="bi bi-arrow-up-circle text-success"></i>
 							<span id="prompt-tokens">0</span>
 						</div>
-						<div class="flex items-center gap-1 text-sm" title="Completion Tokens this Session">
+						<div class="flex items-center gap-1" title="Total Completion Tokens this Session">
 							<i class="bi bi-arrow-down-circle text-info"></i>
 							<span id="completion-tokens">0</span>
 						</div>

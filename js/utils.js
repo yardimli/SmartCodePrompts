@@ -49,6 +49,17 @@ export async function post_data (data) {
 }
 
 /**
+ * NEW: Estimates the number of tokens in a string.
+ * A common approximation is 1 token per 4 characters.
+ * @param {string} text - The text to estimate.
+ * @returns {number} The estimated token count.
+ */
+export function estimate_tokens (text) {
+	if (!text) return 0;
+	return Math.ceil(text.length / 3.5);
+}
+
+/**
  * A simple markdown to HTML converter that also escapes any raw HTML in the source text.
  * This function is moved here to be shared between the QA and Direct Prompt features.
  * It supports fenced code blocks, inline code, bold, and italics.

@@ -1,9 +1,12 @@
 // SmartCodePrompts/js/file_tree.js
-import {show_loading, hide_loading, get_parent_path, post_data} from './utils.js';
+// MODIFIED: Import estimate_tokens
+import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 // MODIFIED: Import from new, specific modal files instead of the old generic modals.js.
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {handle_file_name_click} from './modal-file-view.js';
+// NEW: Import from status_bar.js to update the estimated token count.
+import {update_estimated_prompt_tokens} from './status_bar.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -64,6 +67,10 @@ function _updateTextareaWithCachedContent () {
 			user_prompt +
 			selected_content_el.value.substring(last_index + search_str.length);
 	}
+	
+	// NEW: Calculate and display the estimated token count for the generated prompt.
+	const estimated_tokens = estimate_tokens(selected_content_el.value);
+	update_estimated_prompt_tokens(estimated_tokens);
 }
 
 /**
@@ -166,6 +173,8 @@ export async function update_selected_content () {
 	if (checked_boxes.length === 0) {
 		cached_file_content_string = '';
 		selected_content_el.value = '';
+		// NEW: Reset the estimated token count when no files are selected.
+		update_estimated_prompt_tokens(0);
 		return;
 	}
 	
@@ -185,6 +194,9 @@ export async function update_selected_content () {
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selected_content_el.value = '/* --- An unexpected error occurred while loading file contents. --- */';
+		// NEW: Update token count even on error.
+		const estimated_tokens = estimate_tokens(selected_content_el.value);
+		update_estimated_prompt_tokens(estimated_tokens);
 		cached_file_content_string = '';
 	} finally {
 		hide_loading();

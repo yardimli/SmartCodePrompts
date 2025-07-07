@@ -67,7 +67,7 @@ async function initialize_app() {
 	try {
 		const data = await post_data({action: 'get_main_page_data'});
 		
-		// 1. Apply UI States (Dark Mode, Sidebar)
+		// 1. Apply UI States (Dark Mode, Sidebar, Panel Widths)
 		// Also set the correct highlight.js theme on initial load.
 		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		if (data.dark_mode) {
@@ -88,6 +88,14 @@ async function initialize_app() {
 			document.getElementById('app-container').classList.add('right-sidebar-collapsed');
 		} else {
 			document.getElementById('app-container').classList.remove('right-sidebar-collapsed');
+		}
+		
+		// Apply saved file tree width
+		if (data.file_tree_width) {
+			const main_split_pane = document.getElementById('main-split-pane');
+			if (main_split_pane) {
+				main_split_pane.style.gridTemplateColumns = `${data.file_tree_width}px auto 1fr`;
+			}
 		}
 		
 		// 2. Set global prompts from state

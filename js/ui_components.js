@@ -86,6 +86,11 @@ export function initialize_resizers() {
 				document.body.style.userSelect = 'auto';
 				document.removeEventListener('mousemove', do_drag);
 				document.removeEventListener('mouseup', stop_drag);
+				
+				// Save the final width to the backend
+				const final_width = file_tree_pane.offsetWidth;
+				post_data({action: 'save_file_tree_width', width: final_width})
+					.catch(err => console.error('Failed to save file tree width:', err));
 			};
 			
 			document.addEventListener('mousemove', do_drag);
@@ -253,5 +258,15 @@ export function setup_ui_event_listeners() {
 		// Persist the state to the server
 		post_data({action: 'set_right_sidebar_collapsed', is_collapsed: is_collapsed})
 			.catch(err => console.error('Failed to save sidebar state:', err));
+	});
+	
+	// Global keyboard shortcuts
+	document.addEventListener('keydown', (e) => {
+		// Ctrl+F to open project search
+		if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+			e.preventDefault();
+			// This button's click handler is in modal-search.js and handles all setup.
+			document.getElementById('project-search-button').click();
+		}
 	});
 }

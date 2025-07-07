@@ -105,6 +105,10 @@ ipcMain.handle('post-data', async (event, data) => {
 				config_manager.save_compress_extensions(data.extensions);
 				result = {success: true};
 				break;
+			case 'save_file_tree_width':
+				config_manager.save_file_tree_width(data.width);
+				result = {success: true};
+				break;
 			case 'get_main_page_data':
 				result = config_manager.get_main_page_data();
 				break;

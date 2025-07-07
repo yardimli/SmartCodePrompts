@@ -103,6 +103,7 @@ function set_default_app_settings () {
 		initSettings_stmt.run('total_prompt_tokens', '0');
 		initSettings_stmt.run('total_completion_tokens', '0');
 		initSettings_stmt.run('right_sidebar_collapsed', 'false');
+		initSettings_stmt.run('file_tree_width', '300');
 		
 		const default_overview_prompt = `Analyze the following file content and provide a response in a single, JSON object format.
 		Do not include any text outside of the JSON object.
@@ -401,6 +402,13 @@ function save_compress_extensions (extensions_json) {
 }
 
 /**
+ * @param {string|number} width - The width in pixels to save.
+ */
+function save_file_tree_width (width) {
+	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(String(width), 'file_tree_width');
+}
+
+/**
  * Retrieves all data needed for the main page (index.html).
  * @returns {object} An object containing projects, settings, and LLMs.
  */
@@ -440,6 +448,7 @@ function get_main_page_data () {
 		last_selected_project: app_settings.last_selected_project || '',
 		dark_mode: app_settings.dark_mode === 'true',
 		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',
+		file_tree_width: app_settings.file_tree_width || '300',
 		llms,
 		last_selected_llm_analysis: app_settings.last_selected_llm_analysis || '',
 		last_selected_llm_smart_prompt: app_settings.last_selected_llm_smart_prompt || '',
@@ -467,6 +476,7 @@ module.exports = {
 	setright_sidebar_collapsed,
 	save_last_smart_prompt,
 	save_compress_extensions,
+	save_file_tree_width,
 	get_main_page_data,
 	reset_prompts_to_default,
 	reset_llm_log

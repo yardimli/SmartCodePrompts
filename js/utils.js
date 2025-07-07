@@ -49,7 +49,7 @@ export async function post_data (data) {
 }
 
 /**
- * NEW: Estimates the number of tokens in a string.
+ * Estimates the number of tokens in a string.
  * A common approximation is 1 token per 4 characters.
  * @param {string} text - The text to estimate.
  * @returns {number} The estimated token count.

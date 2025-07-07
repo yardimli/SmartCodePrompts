@@ -2,11 +2,10 @@
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {set_current_project} from './state.js';
 import {load_folders, restore_state, start_file_tree_polling, stop_file_tree_polling} from './file_tree.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
-// DELETED: No longer need to import from modals.js
+import {show_alert} from './modal-alert.js';
 
 /**
- * NEW: Opens a native dialog to select a project folder and adds it to the application.
+ * Opens a native dialog to select a project folder and adds it to the application.
  * This function was moved from the old modals.js.
  */
 export async function open_project_modal () {
@@ -22,14 +21,14 @@ export async function open_project_modal () {
 				window.location.reload();
 			} catch (error) {
 				console.error('Failed to add project:', error);
-				show_alert(`Failed to add project: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+				show_alert(`Failed to add project: ${error.message}`, 'Error');
 			} finally {
 				hide_loading();
 			}
 		}
 	} catch (error) {
 		console.error('Error opening directory dialog:', error);
-		show_alert(`Could not open directory selector: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+		show_alert(`Could not open directory selector: ${error.message}`, 'Error');
 	}
 }
 
@@ -60,7 +59,7 @@ export async function load_project(project_path) {
 		start_file_tree_polling();
 	} catch (error) {
 		console.error(`Error loading project ${project_path}:`, error);
-		show_alert(`Error loading project. Check console for details.`, 'Error'); // MODIFIED: Use custom alert
+		show_alert(`Error loading project. Check console for details.`, 'Error');
 	} finally {
 		hide_loading();
 	}
@@ -78,6 +77,5 @@ export function setup_project_listeners() {
 		}
 	});
 	
-	// NEW: Listener for the dedicated "Add Project" button, its logic moved from the old modals.js.
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
 }

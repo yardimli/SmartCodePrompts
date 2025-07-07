@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	openDirectoryDialog: () => ipcRenderer.invoke('dialog:openDirectory'),
 	
 	/**
-	 * NEW: A generic function to send data to the main process and get a response.
+	 * A generic function to send data to the main process and get a response.
 	 * This replaces all HTTP POST requests.
 	 * @param {object} data - The data payload, must include an 'action' property.
 	 * @returns {Promise<any>} A promise that resolves with the result from the main process.

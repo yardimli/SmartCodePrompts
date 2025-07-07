@@ -2,11 +2,10 @@
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {get_current_project, save_current_project_state} from './state.js';
 import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
 
 let search_modal = null;
 let current_project_search_results = [];
-// MODIFIED: This will now store the full match object from regex.exec().
 let current_search_matches = [];
 let current_search_match_index = -1;
 
@@ -17,7 +16,6 @@ export function initialize_search_modal () {
 	search_modal = document.getElementById('search_modal');
 };
 
-// MODIFIED: Corrected the implementation to actually escape HTML special characters.
 function escape_html (str) {
 	if (typeof str !== 'string') {
 		return '';
@@ -26,8 +24,6 @@ function escape_html (str) {
 		.replace(/>/g, '&gt;');
 }
 
-// MODIFIED: This function is completely overhauled to work with a <pre><code> block
-// instead of a <textarea>. It now scrolls the highlighted <mark> element into view.
 function highlight_current_match () {
 	const preview_el = document.getElementById('search-preview-content');
 	// The search matches are the <mark> tags we inserted.
@@ -59,8 +55,7 @@ function highlight_current_match () {
 	document.getElementById('search-preview-matches').textContent = `${current_search_match_index + 1} of ${matches.length}`;
 }
 
-// MODIFIED: This function is completely overhauled to correctly layer search-term
-// highlighting on top of syntax highlighting from highlight.js.
+
 async function show_search_preview (file_path, search_term) {
 	const title_el = document.getElementById('search-preview-title');
 	const content_el = document.getElementById('search-preview-content');
@@ -172,7 +167,6 @@ export function setup_search_modal_listeners () {
 		document.getElementById('search_term_input').value = '';
 		document.getElementById('search-results-list').innerHTML = '<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>';
 		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
-		// MODIFIED: Use textContent to clear the <code> block.
 		document.getElementById('search-preview-content').textContent = '';
 		document.getElementById('search-preview-nav').classList.add('hidden');
 		document.getElementById('check_matching_files_button').disabled = true;
@@ -189,7 +183,6 @@ export function setup_search_modal_listeners () {
 		const check_button = document.getElementById('check_matching_files_button');
 		
 		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
-		// MODIFIED: Use textContent to clear the <code> block.
 		document.getElementById('search-preview-content').textContent = '';
 		document.getElementById('search-preview-nav').classList.add('hidden');
 		
@@ -291,9 +284,9 @@ export function setup_search_modal_listeners () {
 				await update_selected_content();
 				save_current_project_state();
 			}
-			show_alert(`Selected ${successful_checks} new file(s) from search results.`); // MODIFIED: Use custom alert
+			show_alert(`Selected ${successful_checks} new file(s) from search results.`);
 		} catch (error) {
-			show_alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`, 'Error'); // MODIFIED: Use custom alert
+			show_alert(`An error occurred while selecting files: ${error.message || 'Unknown error'}`, 'Error');
 		} finally {
 			hide_loading();
 		}

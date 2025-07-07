@@ -1,11 +1,8 @@
 // SmartCodePrompts/js/file_tree.js
-// MODIFIED: Import estimate_tokens
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
-// MODIFIED: Import from new, specific modal files instead of the old generic modals.js.
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {handle_file_name_click} from './modal-file-view.js';
-// NEW: Import from status_bar.js to update the estimated token count.
 import {update_estimated_prompt_tokens} from './status_bar.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
@@ -14,7 +11,7 @@ let cached_file_content_string = '';
 let file_tree_update_interval = null;
 
 /**
- * NEW: Gets a specific filetype class for styling based on the filename's extension.
+ * Gets a specific filetype class for styling based on the filename's extension.
  * @param {string} filename - The name of the file.
  * @returns {string} The CSS class for the filetype, or an empty string if no specific icon is found.
  */
@@ -68,7 +65,6 @@ function _updateTextareaWithCachedContent () {
 			selected_content_el.value.substring(last_index + search_str.length);
 	}
 	
-	// NEW: Calculate and display the estimated token count for the generated prompt.
 	const estimated_tokens = estimate_tokens(selected_content_el.value);
 	update_estimated_prompt_tokens(estimated_tokens);
 }
@@ -109,7 +105,7 @@ export function load_folders (path, element) {
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
-				// MODIFIED: Make folder path construction consistent with file paths.
+				// Make folder path construction consistent with file paths.
 				// This avoids a leading './' if the base path is '.', fixing the toggle-select bug.
 				const full_path = (path === '.') ? folder : `${path}/${folder}`;
 				content += `
@@ -173,7 +169,6 @@ export async function update_selected_content () {
 	if (checked_boxes.length === 0) {
 		cached_file_content_string = '';
 		selected_content_el.value = '';
-		// NEW: Reset the estimated token count when no files are selected.
 		update_estimated_prompt_tokens(0);
 		return;
 	}
@@ -194,7 +189,6 @@ export async function update_selected_content () {
 	} catch (error) {
 		console.error('Error updating content:', error);
 		selected_content_el.value = '/* --- An unexpected error occurred while loading file contents. --- */';
-		// NEW: Update token count even on error.
 		const estimated_tokens = estimate_tokens(selected_content_el.value);
 		update_estimated_prompt_tokens(estimated_tokens);
 		cached_file_content_string = '';

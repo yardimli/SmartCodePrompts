@@ -55,7 +55,7 @@ function create_tables () {
             value TEXT
         );
 
-        /* NEW: Table for persistent LLM call logs */
+        /* Table for persistent LLM call logs */
         CREATE TABLE IF NOT EXISTS llm_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
@@ -100,10 +100,8 @@ function set_default_app_settings () {
 		initSettings_stmt.run('last_selected_llm_qa', '');
 		initSettings_stmt.run('last_selected_llm_direct_prompt', '');
 		initSettings_stmt.run('last_smart_prompt', '');
-		// NEW: Persistent token counters
 		initSettings_stmt.run('total_prompt_tokens', '0');
 		initSettings_stmt.run('total_completion_tokens', '0');
-		// NEW: Default for right sidebar collapsed state
 		initSettings_stmt.run('right_sidebar_collapsed', 'false');
 		
 		const default_overview_prompt = `Analyze the following file content and provide a response in a single, JSON object format.
@@ -209,7 +207,7 @@ Add comments to new lines and modified sections.
 		AVAILABLE FILES AND THEIR ANALYSIS:
 		\${analysis_data_string}`;
 		
-		// NEW: Default prompt for the QA feature
+		// Default prompt for the QA feature
 		const default_qa_prompt = `You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
 
 CONTEXT:
@@ -356,7 +354,7 @@ function reset_prompts_to_default () {
 }
 
 /**
- * NEW: Resets the LLM log and token counters in the database.
+ * Resets the LLM log and token counters in the database.
  * @returns {{success: boolean}}
  */
 function reset_llm_log () {
@@ -379,7 +377,7 @@ function set_dark_mode (is_dark_mode) {
 }
 
 /**
- * NEW: Sets the right sidebar collapsed preference in the database.
+ * Sets the right sidebar collapsed preference in the database.
  * @param {boolean} is_collapsed - The new collapsed state.
  */
 function setright_sidebar_collapsed (is_collapsed) {
@@ -419,7 +417,6 @@ function get_main_page_data () {
 	const prompt_tokens = app_settings.total_prompt_tokens || '0';
 	const completion_tokens = app_settings.total_completion_tokens || '0';
 	
-	// MODIFIED: Calculate initial total cost
 	const cost_rows = db.prepare(`
         SELECT l.prompt_tokens,
                l.completion_tokens,

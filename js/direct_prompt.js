@@ -1,6 +1,6 @@
 // SmartCodePrompts/js/direct_prompt.js
 import { post_data, simple_markdown_to_html } from './utils.js';
-import { show_alert } from './modal-alert.js'; // NEW: Import custom alert modal
+import { show_alert } from './modal-alert.js';
 
 let direct_prompt_modal = null;
 let direct_prompt_response = null;
@@ -17,7 +17,7 @@ export function initialize_direct_prompt_modal() {
 async function handle_direct_prompt() {
 	const prompt_content = document.getElementById('selected-content').value.trim();
 	if (!prompt_content) {
-		show_alert('The selected content is empty. Please select files to generate a prompt.'); // MODIFIED: Use custom alert
+		show_alert('The selected content is empty. Please select files to generate a prompt.');
 		return;
 	}
 	
@@ -25,7 +25,7 @@ async function handle_direct_prompt() {
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (!llm_id) {
-		show_alert('Please select an LLM for Direct Prompts before sending a prompt.'); // MODIFIED: Use custom alert
+		show_alert('Please select an LLM for Direct Prompts before sending a prompt.');
 		return;
 	}
 	
@@ -77,7 +77,7 @@ export function setup_direct_prompt_listeners() {
 						}, 2000);
 					}).catch(err => {
 						console.error('Failed to copy code: ', err);
-						show_alert('Failed to copy code to clipboard.'); // MODIFIED: Use custom alert
+						show_alert('Failed to copy code to clipboard.');
 					});
 				}
 			}

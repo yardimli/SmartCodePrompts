@@ -1,12 +1,10 @@
 // SmartCodePrompts/js/prompt.js
 import {show_loading, hide_loading, post_data} from './utils.js';
-// MODIFIED: Added save_current_project_state for use in the smart prompt action.
 import {get_current_project, set_last_smart_prompt, save_current_project_state} from './state.js';
-// MODIFIED: No longer importing from modals.js. Importing necessary functions from file_tree.js instead.
 import {refresh_prompt_display, ensure_file_is_visible, update_selected_content} from './file_tree.js';
-// NEW: Import the refactored re-analysis function.
 import {perform_reanalysis} from './analysis.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
+import {show_confirm} from './modal-confirm.js';
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -32,19 +30,19 @@ export function initialize_auto_expand_textarea() {
 }
 
 /**
- * NEW: Performs the "smart prompt" action to select relevant files using an LLM.
+ * Performs the "smart prompt" action to select relevant files using an LLM.
  * This function was moved from the old modals.js to centralize prompt logic.
  * @param {string} user_prompt - The user's high-level request.
  */
 async function perform_smart_prompt (user_prompt) {
 	const trimmed_prompt = user_prompt.trim();
 	if (!trimmed_prompt) {
-		show_alert('Please enter a prompt.'); // MODIFIED: Use custom alert
+		show_alert('Please enter a prompt.');
 		return;
 	}
 	const llm_id = document.getElementById('llm-dropdown-smart-prompt').value;
 	if (!llm_id) {
-		show_alert('Please select an LLM for Smart Prompts from the dropdown.'); // MODIFIED: Use custom alert
+		show_alert('Please select an LLM for Smart Prompts from the dropdown.');
 		return;
 	}
 	
@@ -78,13 +76,13 @@ async function perform_smart_prompt (user_prompt) {
 			
 			await update_selected_content();
 			save_current_project_state();
-			show_alert(`LLM selected ${checked_count} relevant file(s). Prompt has been built.`); // MODIFIED: Use custom alert
+			show_alert(`LLM selected ${checked_count} relevant file(s). Prompt has been built.`);
 		} else {
-			show_alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made."); // MODIFIED: Use custom alert
+			show_alert("The LLM did not identify any relevant files from the project's analyzed files. No changes were made.");
 		}
 	} catch (error) {
 		console.error('Failed to get relevant files from prompt:', error);
-		show_alert(`An error occurred: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+		show_alert(`An error occurred: ${error.message}`, 'Error');
 	} finally {
 		hide_loading();
 	}
@@ -97,7 +95,7 @@ async function perform_smart_prompt (user_prompt) {
  */
 async function handle_smart_prompt_submission(prompt_text) {
 	if (!prompt_text) {
-		show_alert('Please enter a prompt first.'); // MODIFIED: Use custom alert
+		show_alert('Please enter a prompt first.');
 		return;
 	}
 	
@@ -105,11 +103,11 @@ async function handle_smart_prompt_submission(prompt_text) {
 	const current_project = get_current_project();
 	
 	if (!current_project) {
-		show_alert('Please select a project.'); // MODIFIED: Use custom alert
+		show_alert('Please select a project.');
 		return;
 	}
 	if (!llm_id) {
-		show_alert('Please select an LLM for Smart Prompts.'); // MODIFIED: Use custom alert
+		show_alert('Please select an LLM for Smart Prompts.');
 		return;
 	}
 	
@@ -157,7 +155,7 @@ async function handle_smart_prompt_submission(prompt_text) {
 				} catch (error) {
 					// This catches failures or cancellations from perform_reanalysis.
 					console.error('Failed to re-analyze and run:', error);
-					show_alert(`The process could not be completed: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+					show_alert(`The process could not be completed: ${error.message}`, 'Error');
 				}
 			}, {once: true});
 			
@@ -169,8 +167,9 @@ async function handle_smart_prompt_submission(prompt_text) {
 	} catch (error) {
 		hide_loading();
 		console.error('Failed to check for modified files:', error);
-		// Inform the user, but suggest they can still run the prompt
-		if (confirm(`Could not check for modified files: ${error.message}\n\nDo you want to run the prompt anyway?`)) {
+		// MODIFIED: Use custom confirm modal instead of native confirm().
+		const confirmed = await show_confirm(`Could not check for modified files: ${error.message}\n\nDo you want to run the prompt anyway?`, 'Error Checking Files');
+		if (confirmed) {
 			await perform_smart_prompt(prompt_text);
 		}
 	}

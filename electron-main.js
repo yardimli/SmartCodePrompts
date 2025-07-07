@@ -59,7 +59,7 @@ ipcMain.handle('dialog:openDirectory', async () => {
 	return null;
 });
 
-// NEW: Central IPC handler for all data requests from the renderer process.
+// Central IPC handler for all data requests from the renderer process.
 // This replaces the entire HTTP POST request handling from the old node-server.js.
 ipcMain.handle('post-data', async (event, data) => {
 	const action = data.action;
@@ -135,7 +135,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				result = {success: true, message: 'Re-analysis process started.'};
 				break;
-			// NEW: Handle cancellation requests from the frontend.
 			case 'cancel_analysis':
 				result = llm_manager.cancel_analysis();
 				break;

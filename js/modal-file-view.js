@@ -2,7 +2,6 @@
 import {post_data} from './utils.js';
 import {get_current_project} from './state.js';
 
-// MODIFIED: Add more variables for modal elements and search state.
 let file_view_modal = null;
 let file_view_content_el = null;
 let file_view_search_input = null;
@@ -12,12 +11,11 @@ let file_view_matches_el = null;
 let file_view_prev_btn = null;
 let file_view_next_btn = null;
 
-// NEW: State for the search within the file view modal.
+// State for the search within the file view modal.
 let current_file_content = ''; // Store raw content for re-searching.
 let current_matches = [];
 let current_match_index = -1;
 
-// NEW: Helper function to escape HTML, similar to the one in modal-search.js.
 function escape_html (str) {
 	if (typeof str !== 'string') {
 		return '';
@@ -25,7 +23,6 @@ function escape_html (str) {
 	return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// NEW: Highlights the current search match and scrolls it into view.
 function highlight_current_match () {
 	// The search matches are the <mark> tags we inserted.
 	const matches = file_view_content_el.getElementsByClassName('search-match');
@@ -55,7 +52,6 @@ function highlight_current_match () {
 	file_view_matches_el.textContent = `${current_match_index + 1} of ${matches.length}`;
 }
 
-// NEW: Performs the search and applies highlighting.
 function perform_search () {
 	const search_term = file_view_search_input.value;
 	
@@ -144,7 +140,6 @@ function perform_search () {
  */
 export function initialize_file_view_modal () {
 	file_view_modal = document.getElementById('file_view_modal');
-	// NEW: Get all the new elements.
 	file_view_content_el = document.getElementById('file-view-modal-content');
 	file_view_search_input = document.getElementById('file-view-search-input');
 	file_view_search_btn = document.getElementById('file-view-search-btn');
@@ -153,7 +148,6 @@ export function initialize_file_view_modal () {
 	file_view_prev_btn = document.getElementById('file-view-prev-match-btn');
 	file_view_next_btn = document.getElementById('file-view-next-match-btn');
 	
-	// NEW: Setup event listeners for the search functionality.
 	if (file_view_search_btn) {
 		file_view_search_btn.addEventListener('click', perform_search);
 	}
@@ -192,7 +186,7 @@ export async function handle_file_name_click (target) {
 	const file_path = target.dataset.path;
 	const title_el = document.getElementById('file-view-modal-title');
 	
-	// MODIFIED: Reset search state and UI when opening a new file.
+	// Reset search state and UI when opening a new file.
 	title_el.textContent = `Content of ${file_path}`;
 	file_view_content_el.textContent = 'Loading file content...';
 	file_view_search_input.value = '';
@@ -211,7 +205,7 @@ export async function handle_file_name_click (target) {
 			path: file_path
 		});
 		
-		// MODIFIED: Store raw content and display it with syntax highlighting.
+		// Store raw content and display it with syntax highlighting.
 		current_file_content = data.content || 'File is empty or could not be loaded.';
 		file_view_content_el.textContent = current_file_content;
 		

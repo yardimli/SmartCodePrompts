@@ -2,7 +2,7 @@
 import {post_data} from './utils.js';
 
 /**
- * NEW: Updates the estimated token count for the current prompt in the status bar.
+ * Updates the estimated token count for the current prompt in the status bar.
  * @param {number} token_count - The estimated number of tokens.
  */
 export function update_estimated_prompt_tokens (token_count) {
@@ -69,7 +69,6 @@ function poll_session_stats () {
  */
 export function initialize_status_bar (initial_session_data) {
 	if (initial_session_data) {
-		// MODIFIED: Construct the full stats object for the initial update.
 		update_status_bar({
 			tokens: {
 				prompt: initial_session_data.prompt,

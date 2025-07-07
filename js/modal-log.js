@@ -1,7 +1,8 @@
 // SmartCodePrompts/js/modal-log.js
 import {show_loading, hide_loading, post_data} from './utils.js';
 import {update_status_bar} from './status_bar.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
+import {show_confirm} from './modal-confirm.js';
 
 let log_modal = null;
 
@@ -86,7 +87,8 @@ export function setup_log_modal_listeners () {
 	document.getElementById('log-modal-button').addEventListener('click', handle_log_button_click);
 	
 	document.getElementById('reset-log-button').addEventListener('click', async () => {
-		if (confirm('Are you sure you want to permanently delete the LLM call log and reset all token counters? This cannot be undone.')) {
+		const confirmed = await show_confirm('Are you sure you want to permanently delete the LLM call log and reset all token counters? This cannot be undone.', 'Confirm Deletion');
+		if (confirmed) {
 			show_loading('Resetting log...');
 			try {
 				await post_data({action: 'reset_llm_log'});
@@ -94,7 +96,7 @@ export function setup_log_modal_listeners () {
 				update_status_bar({prompt: 0, completion: 0});
 			} catch (error) {
 				console.error('Failed to reset log:', error);
-				show_alert(`Failed to reset log: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+				show_alert(`Failed to reset log: ${error.message}`, 'Error');
 			} finally {
 				hide_loading();
 			}

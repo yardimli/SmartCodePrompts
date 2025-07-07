@@ -1,6 +1,7 @@
 // SmartCodePrompts/js/modal-setup.js
 import {show_loading, hide_loading, post_data} from './utils.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
+import {show_confirm} from './modal-confirm.js';
 
 let setup_modal = null;
 
@@ -74,26 +75,27 @@ export function setup_setup_modal_listeners () {
 				prompt_smart_prompt: document.getElementById('prompt-smart-prompt-input').value
 			};
 			await post_data(save_data);
-			show_alert('Configuration saved successfully!\n\nApplication will now reload.'); // MODIFIED: Use custom alert
+			show_alert('Configuration saved successfully!\n\nApplication will now reload.');
 			window.location.reload();
 		} catch (error) {
-			show_alert(`Failed to save configuration: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+			show_alert(`Failed to save configuration: ${error.message}`, 'Error');
 			save_button.disabled = false;
 			save_button.innerHTML = original_text;
 		}
 	});
 	
 	document.getElementById('reset-prompts-btn').addEventListener('click', async () => {
-		if (confirm('Are you sure you want to reset all prompts to their default values? This cannot be undone.')) {
+		const confirmed = await show_confirm('Are you sure you want to reset all prompts to their default values? This cannot be undone.', 'Confirm Reset');
+		if (confirmed) {
 			try {
 				show_loading('Resetting prompts...');
 				await post_data({action: 'reset_prompts'});
 				await load_setup_data(); // Reload data in the modal
 				hide_loading();
-				show_alert('Prompts have been reset to their default values.'); // MODIFIED: Use custom alert
+				show_alert('Prompts have been reset to their default values.');
 			} catch (error) {
 				hide_loading();
-				show_alert(`Failed to reset prompts: ${error.message}`, 'Error'); // MODIFIED: Use custom alert
+				show_alert(`Failed to reset prompts: ${error.message}`, 'Error');
 			}
 		}
 	});

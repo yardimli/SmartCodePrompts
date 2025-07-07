@@ -6,11 +6,10 @@ const path = require('path');
 const {db, config} = require('./node-config');
 const {get_file_content, get_raw_file_content, get_file_analysis, calculate_checksum} = require('./node-files');
 
-// NEW: Determine the application data path from environment variables for consistency with node-config.js.
+// Determine the application data path from environment variables for consistency with node-config.js.
 const isElectron = !!process.env.ELECTRON_RUN;
 const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
 
-// MODIFIED: Session-specific state now holds progress for the background re-analysis task.
 let reanalysis_progress = {total: 0, current: 0, running: false, message: '', cancelled: false, summary: null};
 
 /**
@@ -31,7 +30,6 @@ function log_llm_interaction(prompt, response, is_error = false) {
 	}
 }
 
-// NEW: A function to signal that the current re-analysis task should be cancelled.
 function cancel_analysis () {
 	if (reanalysis_progress && reanalysis_progress.running) {
 		console.log('Cancellation signal received for re-analysis.');
@@ -271,7 +269,7 @@ async function reanalyze_modified_files({project_path, llm_id, force = false, te
 	const analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
 	
-	// NEW: Initialize progress tracking state.
+	// Initialize progress tracking state.
 	reanalysis_progress = {
 		total: analyzed_files.length,
 		current: 0,
@@ -290,7 +288,7 @@ async function reanalyze_modified_files({project_path, llm_id, force = false, te
 	
 	try {
 		for (const file of analyzed_files) {
-			// NEW: Check for cancellation signal on each iteration.
+			// Check for cancellation signal on each iteration.
 			if (reanalysis_progress.cancelled) {
 				reanalysis_progress.message = 'Re-analysis cancelled by user.';
 				console.log('Re-analysis loop cancelled.');
@@ -298,7 +296,7 @@ async function reanalyze_modified_files({project_path, llm_id, force = false, te
 				break;
 			}
 			
-			// NEW: Update progress before processing each file.
+			// Update progress before processing each file.
 			reanalysis_progress.current++;
 			reanalysis_progress.message = `Processing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
 			
@@ -329,7 +327,6 @@ async function reanalyze_modified_files({project_path, llm_id, force = false, te
 			}
 		}
 	} finally {
-		// NEW: Store the final summary and reset the progress state.
 		const summary = {success: true, analyzed: analyzed_count, skipped: skipped_count, deleted: deleted_count, errors: errors};
 		reanalysis_progress.summary = summary;
 		reanalysis_progress.running = false;
@@ -429,7 +426,7 @@ async function ask_question_about_code({project_path, question, relevant_files, 
 }
 
 /**
- * NEW: Handles a direct prompt from the user, sending it to the LLM.
+ * Handles a direct prompt from the user, sending it to the LLM.
  * @param {object} params - The parameters for the operation.
  * @param {string} params.prompt - The user-provided prompt.
  * @param {string} params.llm_id - The ID of the LLM to use.
@@ -459,7 +456,6 @@ function get_session_stats() {
 	const prompt_tokens_row = db.prepare("SELECT value FROM app_settings WHERE key = 'total_prompt_tokens'").get();
 	const completionTokens_row = db.prepare("SELECT value FROM app_settings WHERE key = 'total_completion_tokens'").get();
 	
-	// MODIFIED: Calculate total cost from the log
 	const cost_rows = db.prepare(`
         SELECT l.prompt_tokens,
                l.completion_tokens,
@@ -507,7 +503,6 @@ function get_llm_log() {
         ORDER BY l.timestamp DESC
     `).all();
 	
-	// MODIFIED: Calculate cost for each entry. Prices are per 1M tokens.
 	return log_entries.map(entry => {
 		const prompt_price = entry.prompt_price || 0;
 		const completion_price = entry.completion_price || 0;
@@ -527,5 +522,5 @@ module.exports = {
 	get_llm_log,
 	ask_question_about_code,
 	handle_direct_prompt,
-	cancel_analysis // NEW: Export the cancellation function.
+	cancel_analysis
 };

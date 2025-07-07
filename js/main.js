@@ -5,7 +5,6 @@ import {post_data} from './utils.js';
 import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
 
 // --- MODULE IMPORTS ---
-// MODIFIED: Import individual modal setup functions instead of a generic one.
 import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
 import {initialize_analysis_modal} from './modal-analysis.js';
 import {initialize_file_view_modal} from './modal-file-view.js';
@@ -27,7 +26,8 @@ import {initialize_qa_modal, setup_qa_listeners} from './qa.js';
 import {initialize_direct_prompt_modal, setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 import {initialize_progress_modal} from './modal-progress.js';
-import {initialize_alert_modal, show_alert} from './modal-alert.js'; // NEW: Import alert modal
+import {initialize_alert_modal, show_alert} from './modal-alert.js';
+import {initialize_confirm_modal} from './modal-confirm.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -35,7 +35,7 @@ async function load_all_modals_html () {
 		'modal-about.html', 'modal-analysis.html', 'modal-direct-prompt.html',
 		'modal-file-view.html', 'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html',
-		'modal-progress.html', 'modal-alert.html' // NEW: Add alert modal to the list
+		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html'
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -68,7 +68,7 @@ async function initialize_app() {
 		const data = await post_data({action: 'get_main_page_data'});
 		
 		// 1. Apply UI States (Dark Mode, Sidebar)
-		// MODIFIED: Also set the correct highlight.js theme on initial load.
+		// Also set the correct highlight.js theme on initial load.
 		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		if (data.dark_mode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
@@ -141,16 +141,14 @@ async function initialize_app() {
 		}
 	} catch (error) {
 		console.error('Failed to initialize app:', error);
-		show_alert('Could not load application data from the server. Please ensure the server is running and check the console.', 'Initialization Error'); // MODIFIED: Use custom alert
+		show_alert('Could not load application data from the server. Please ensure the server is running and check the console.', 'Initialization Error');
 	}
 }
 
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', async function () {
-	// MODIFIED: Load all individual modal HTML files instead of one.
 	await load_all_modals_html();
 	
-	// MODIFIED: Initialize UI elements first, calling individual modal initializers.
 	initialize_about_modal();
 	initialize_analysis_modal();
 	initialize_file_view_modal();
@@ -160,14 +158,14 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_qa_modal();
 	initialize_direct_prompt_modal();
 	initialize_progress_modal();
-	initialize_alert_modal(); // NEW: Initialize the alert modal
+	initialize_alert_modal();
+	initialize_confirm_modal();
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
 	
 	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {
-		// MODIFIED: Use the imported function to open the modal.
 		open_about_modal();
 		sessionStorage.setItem('aboutModalShown', 'true');
 	}
@@ -175,7 +173,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 	// Load main application data and state
 	await initialize_app();
 	
-	// MODIFIED: Setup all event listeners from the various modules, including new modal listener setups.
 	setup_about_modal_listeners();
 	setup_log_modal_listeners();
 	setup_search_modal_listeners();

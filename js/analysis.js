@@ -1,11 +1,9 @@
 // SmartCodePrompts/js/analysis.js
-import {post_data} from './utils.js'; // MODIFIED: Removed show_loading, hide_loading
+import {post_data} from './utils.js';
 import {get_current_project} from './state.js';
-// NEW: Import progress modal functions
 import {show_progress_modal, hide_progress_modal, update_progress} from './modal-progress.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
 
-// NEW: A flag to handle cancellation for the frontend analysis loop.
 let is_selection_analysis_cancelled = false;
 
 /**
@@ -18,11 +16,11 @@ async function perform_selection_analysis () {
 	const temperature = document.getElementById('temperature-slider').value;
 	
 	if (checked_boxes.length === 0) {
-		show_alert('Please select at least one file to analyze.'); // MODIFIED: Use custom alert
+		show_alert('Please select at least one file to analyze.');
 		return;
 	}
 	if (!llm_id) {
-		show_alert('Please select an LLM for Analysis to perform the analysis.'); // MODIFIED: Use custom alert
+		show_alert('Please select an LLM for Analysis to perform the analysis.');
 		return;
 	}
 	
@@ -32,7 +30,7 @@ async function perform_selection_analysis () {
 	let errors = [];
 	const current_project = get_current_project();
 	
-	// NEW: Setup for progress modal and cancellation
+	// Setup for progress modal and cancellation
 	is_selection_analysis_cancelled = false; // Reset flag
 	const stop_callback = () => {
 		is_selection_analysis_cancelled = true;
@@ -41,7 +39,7 @@ async function perform_selection_analysis () {
 	show_progress_modal('Analyzing Selected Files', stop_callback);
 	
 	for (let i = 0; i < total_files; i++) {
-		// NEW: Check for cancellation on each iteration
+		// Check for cancellation on each iteration
 		if (is_selection_analysis_cancelled) {
 			errors.push('Operation cancelled by user.');
 			break;
@@ -50,7 +48,7 @@ async function perform_selection_analysis () {
 		const checkbox = checked_boxes[i];
 		const file_path = checkbox.dataset.path;
 		const file_name = file_path.split('/').pop();
-		// MODIFIED: Update progress modal instead of using show_loading
+
 		update_progress(i, total_files, `Analyzing ${i + 1}/${total_files}: ${file_name}`);
 		
 		try {
@@ -85,25 +83,22 @@ async function perform_selection_analysis () {
 		}
 	}
 	
-	// MODIFIED: Hide progress modal instead of hide_loading
 	hide_progress_modal();
 	
-	// MODIFIED: Adjust summary message to account for cancellation
 	let summary_message = `Analysis ${is_selection_analysis_cancelled ? 'cancelled' : 'complete'}.\n- Total files selected: ${total_files}\n- Successfully analyzed: ${files_analyzed}\n- Skipped (up-to-date): ${files_skipped}`;
 	if (errors.length > 0) {
 		summary_message += `\n\nErrors occurred for ${errors.length} file(s):\n- ${errors.join('\n- ')}\n\nCheck the console for more details.`;
 	}
-	show_alert(summary_message, `Analysis ${is_selection_analysis_cancelled ? 'Cancelled' : 'Complete'}`); // MODIFIED: Use custom alert
+	show_alert(summary_message, `Analysis ${is_selection_analysis_cancelled ? 'Cancelled' : 'Complete'}`);
 }
 
 /**
- * MODIFIED: Performs the re-analysis by starting a backend process and polling for progress,
+ * Performs the re-analysis by starting a backend process and polling for progress,
  * displaying it in a modal.
  * @param {boolean} force_reanalysis - Whether to force re-analysis of all files.
  * @returns {Promise<object>} A promise that resolves with the summary of the operation or rejects on failure/cancellation.
  */
 export function perform_reanalysis (force_reanalysis) {
-	// NEW: This function now returns a promise to allow chaining, e.g., in the smart prompt workflow.
 	return new Promise((resolve, reject) => {
 		const llm_id = document.getElementById('llm-dropdown-analysis').value;
 		const current_project = get_current_project();
@@ -111,11 +106,10 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		if (!llm_id || !current_project) {
 			const error_msg = 'Please select a project and an LLM for Analysis.';
-			show_alert(error_msg); // MODIFIED: Use custom alert
+			show_alert(error_msg);
 			return reject(new Error(error_msg));
 		}
 		
-		// NEW: Setup stop callback to signal the backend to cancel the operation.
 		const stop_callback = () => {
 			console.log('Requesting re-analysis cancellation.');
 			post_data({action: 'cancel_analysis'}).catch(err => console.error('Failed to send cancel signal:', err));
@@ -124,7 +118,6 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		show_progress_modal('Re-analyzing Project', stop_callback);
 		
-		// NEW: Fire off the re-analysis request without awaiting it.
 		post_data({
 			action: 'reanalyze_modified_files',
 			project_path: current_project.path,
@@ -138,7 +131,6 @@ export function perform_reanalysis (force_reanalysis) {
 			reject(error);
 		});
 		
-		// NEW: Start polling for progress.
 		const poll_interval = setInterval(async () => {
 			try {
 				const stats = await post_data({action: 'get_session_stats'});
@@ -189,18 +181,17 @@ export function setup_analysis_actions_listener () {
 	}
 	
 	if (reanalyze_modified_btn) {
-		// MODIFIED: The event listener is now async to handle the promise returned by perform_reanalysis.
+		//The event listener is now async to handle the promise returned by perform_reanalysis.
 		reanalyze_modified_btn.addEventListener('click', async () => {
 			try {
 				const summary = await perform_reanalysis(false);
-				// NEW: The function now returns a summary, so we display the alert here.
 				let summary_message = `Re-analysis complete.\n` +
 					`- Files re-analyzed: ${summary.analyzed}\n` +
 					`- Files skipped (up-to-date): ${summary.skipped}`;
-				show_alert(summary_message, 'Re-analysis Complete'); // MODIFIED: Use custom alert
+				show_alert(summary_message, 'Re-analysis Complete');
 			} catch (error) {
 				// Errors (including cancellation) are caught here.
-				show_alert(error.message, 'Re-analysis Failed'); // MODIFIED: Use custom alert
+				show_alert(error.message, 'Re-analysis Failed');
 			}
 		});
 	}

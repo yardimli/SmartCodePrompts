@@ -1,7 +1,7 @@
 // SmartCodePrompts/js/ui_components.js
 import {post_data} from './utils.js';
 import {update_selected_content} from './file_tree.js';
-import {show_alert} from './modal-alert.js'; // NEW: Import custom alert modal
+import {show_alert} from './modal-alert.js';
 
 function update_compress_extensions_button() {
 	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
@@ -69,24 +69,20 @@ export function initialize_resizers() {
 		vertical_resizer.addEventListener('mousedown', (e) => {
 			e.preventDefault();
 			document.body.style.cursor = 'col-resize';
-			// MODIFIED: Use camelCase for CSS properties in JS.
 			document.body.style.userSelect = 'none';
 			
 			const start_x = e.clientX;
-			// MODIFIED: Use correct camelCase property 'offsetWidth'.
 			const start_width = file_tree_pane.offsetWidth;
 			
 			const do_drag = (e) => {
 				const new_width = start_width + e.clientX - start_x;
 				if (new_width >= 200 && new_width <= 600) {
-					// MODIFIED: Use camelCase for CSS properties in JS.
 					main_split_pane.style.gridTemplateColumns = `${new_width}px auto 1fr`;
 				}
 			};
 			
 			const stop_drag = () => {
 				document.body.style.cursor = 'default';
-				// MODIFIED: Use camelCase for CSS properties in JS.
 				document.body.style.userSelect = 'auto';
 				document.removeEventListener('mousemove', do_drag);
 				document.removeEventListener('mouseup', stop_drag);
@@ -101,11 +97,9 @@ export function initialize_resizers() {
 		horizontal_resizer.addEventListener('mousedown', (e) => {
 			e.preventDefault();
 			document.body.style.cursor = 'row-resize';
-			// MODIFIED: Use camelCase for CSS properties in JS.
 			document.body.style.userSelect = 'none';
 			
 			const start_y = e.clientY;
-			// MODIFIED: Use correct camelCase property 'offsetHeight'.
 			const start_height = bottom_panel.offsetHeight;
 			
 			const do_drag = (e) => {
@@ -117,7 +111,6 @@ export function initialize_resizers() {
 			
 			const stop_drag = () => {
 				document.body.style.cursor = 'default';
-				// MODIFIED: Use camelCase for CSS properties in JS.
 				document.body.style.userSelect = 'auto';
 				document.removeEventListener('mousemove', do_drag);
 				document.removeEventListener('mouseup', stop_drag);
@@ -164,7 +157,7 @@ export function setup_ui_event_listeners() {
 			update_selected_content();
 		}).catch(err => {
 			console.error("Failed to save compress extensions setting:", err);
-			show_alert("Could not save compression setting. See console for details.", "Error"); // MODIFIED: Use custom alert
+			show_alert("Could not save compression setting. See console for details.", "Error");
 		});
 	});
 	
@@ -207,7 +200,7 @@ export function setup_ui_event_listeners() {
 				}, 2000);
 			}).catch(err => {
 				console.error('Failed to copy text: ', err);
-				show_alert('Failed to copy text to clipboard.', 'Error'); // MODIFIED: Use custom alert
+				show_alert('Failed to copy text to clipboard.', 'Error');
 			});
 		} else {
 			try {
@@ -223,7 +216,7 @@ export function setup_ui_event_listeners() {
 				}, 2000);
 			} catch (err) {
 				console.error('Fallback copy failed: ', err);
-				show_alert('Failed to copy text to clipboard.', 'Error'); // MODIFIED: Use custom alert
+				show_alert('Failed to copy text to clipboard.', 'Error');
 			}
 		}
 	});
@@ -235,7 +228,6 @@ export function setup_ui_event_listeners() {
 		const new_theme = is_dark_mode ? 'light' : 'dark';
 		html.setAttribute('data-theme', new_theme);
 		
-		// MODIFIED: Also switch the highlight.js theme stylesheet.
 		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		
 		if (new_theme === 'dark') {

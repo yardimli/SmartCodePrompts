@@ -155,7 +155,7 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
  * @param {string} content - The content of the file.
  */
 export function openFileInTab(filePath, content) { // NEW: Function to handle opening files.
-                                                   // Check if a tab for this file already exists
+	// Check if a tab for this file already exists
 	const existingTab = tabs.find(t => t.filePath === filePath);
 	if (existingTab) {
 		switchToTab(existingTab.id);
@@ -302,6 +302,16 @@ export function getTabs() { // NEW
  */
 export function getActiveTabId() { // NEW
 	return activeTabId;
+}
+
+/**
+ * Gets the ID of the "Prompt" tab.
+ * @returns {string|null} The prompt tab's ID, or null if not found.
+ */
+export function getPromptTabId() { // NEW
+                                   // The prompt tab is uniquely identified by its title and non-closeable status.
+	const promptTab = tabs.find(t => t.title === 'Prompt' && t.isCloseable === false);
+	return promptTab ? promptTab.id : null;
 }
 
 /**

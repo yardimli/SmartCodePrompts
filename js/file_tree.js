@@ -3,10 +3,9 @@ import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens}
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
 // REMOVED: The modal-file-view is no longer used.
-// import {handle_file_name_click} from './modal-file-view.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
-// MODIFIED: Import `openFileInTab` in addition to `set_editor_content`.
-import { set_editor_content, openFileInTab } from './editor.js';
+// MODIFIED: Import functions to specifically target the prompt tab.
+import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -46,7 +45,7 @@ function get_filetype_class (filename) {
 
 /**
  * An internal helper to update the main editor from the cache and current prompts.
- * MODIFIED: This function now updates the Monaco Editor instead of a textarea.
+ * MODIFIED: This function now specifically updates the "Prompt" tab, not the active tab.
  */
 function _updateEditorWithCachedContent () {
 	const content_footer_prompt = get_content_footer_prompt();
@@ -66,8 +65,14 @@ function _updateEditorWithCachedContent () {
 			final_content.substring(last_index + search_str.length);
 	}
 	
-	// Update the editor
-	set_editor_content(final_content);
+	// MODIFIED: Update the 'Prompt' tab specifically, not the active tab.
+	const promptTabId = getPromptTabId();
+	if (promptTabId) {
+		setTabContent(promptTabId, final_content);
+	} else {
+		// This can happen if the prompt tab was somehow closed or not created.
+		console.error("Could not find the 'Prompt' tab to update.");
+	}
 	
 	const estimated_tokens = estimate_tokens(final_content);
 	update_estimated_prompt_tokens(estimated_tokens);
@@ -169,14 +174,21 @@ export function load_folders (path, element) {
 /**
  * Gathers content from all selected files and displays it in the main editor.
  * This function now caches file content and uses a helper to render the editor content.
- * MODIFIED: Targets the Monaco Editor.
+ * MODIFIED: Targets the Monaco Editor's "Prompt" tab specifically.
  */
 export async function update_selected_content () {
 	const checked_boxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
 	
+	// MODIFIED: Get the prompt tab ID to update it specifically.
+	const promptTabId = getPromptTabId();
+	
 	if (checked_boxes.length === 0) {
 		cached_file_content_string = '';
-		set_editor_content(''); // Clear the editor
+		// MODIFIED: Clear the 'Prompt' tab specifically.
+		if (promptTabId) {
+			// Reset to the initial prompt message.
+			setTabContent(promptTabId, '// Select files from the left to build a prompt.');
+		}
 		update_estimated_prompt_tokens(0);
 		return;
 	}
@@ -186,18 +198,31 @@ export async function update_selected_content () {
 	const request_promises = Array.from(checked_boxes).map(box => {
 		const path = box.dataset.path;
 		return post_data({action: 'get_file_content', project_path: get_current_project().path, path: path})
-			.then(response => `${path}:\n\n${response.content}\n\n`)
+			.then(response => {
+				// Check if the first line contains the prompt (assuming 'prompt' variable exists)
+				const firstLine = response.content.split('\n')[0];
+				if (firstLine && firstLine.includes(path)) {
+					// Don't include the path comment
+					return `${response.content}\n\n`;
+				} else {
+					// Include the path comment as before
+					return `// ${path}:\n\n${response.content}\n\n`;
+				}
+			})
 			.catch(error => `/* --- ERROR loading ${path}: ${error.message || 'Unknown error'} --- */\n\n`);
 	});
 	
 	try {
 		const results = await Promise.all(request_promises);
 		cached_file_content_string = results.join(''); // Update the cache.
-		_updateEditorWithCachedContent(); // Use the new helper
+		_updateEditorWithCachedContent(); // Use the new helper which now targets the prompt tab.
 	} catch (error) {
 		console.error('Error updating content:', error);
 		const error_message = '/* --- An unexpected error occurred while loading file contents. --- */';
-		set_editor_content(error_message);
+		// MODIFIED: Update the 'Prompt' tab specifically with the error.
+		if (promptTabId) {
+			setTabContent(promptTabId, error_message);
+		}
 		const estimated_tokens = estimate_tokens(error_message);
 		update_estimated_prompt_tokens(estimated_tokens);
 		cached_file_content_string = '';

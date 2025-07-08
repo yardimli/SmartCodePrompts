@@ -1,6 +1,8 @@
 // SmartCodePrompts/js/direct_prompt.js
 import { post_data, simple_markdown_to_html } from './utils.js';
 import { show_alert } from './modal-alert.js';
+// NEW: Import editor function
+import { get_editor_content } from './editor.js';
 
 let direct_prompt_modal = null;
 let direct_prompt_response = null;
@@ -12,10 +14,11 @@ export function initialize_direct_prompt_modal() {
 
 /**
  * Handles the direct prompt submission by taking content from the main
- * textarea, sending it to the LLM, and displaying the streamed response in a modal.
+ * editor, sending it to the LLM, and displaying the streamed response in a modal.
+ * MODIFIED: Gets content from the Monaco Editor.
  */
 async function handle_direct_prompt() {
-	const prompt_content = document.getElementById('selected-content').value.trim();
+	const prompt_content = get_editor_content().trim(); // Get content from editor
 	if (!prompt_content) {
 		show_alert('The selected content is empty. Please select files to generate a prompt.');
 		return;

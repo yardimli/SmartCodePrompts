@@ -2,6 +2,8 @@
 import {post_data} from './utils.js';
 import {update_selected_content} from './file_tree.js';
 import {show_alert} from './modal-alert.js';
+// NEW: Import editor functions
+import { get_editor_content, set_editor_theme } from './editor.js';
 
 function update_compress_extensions_button() {
 	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
@@ -185,53 +187,40 @@ export function setup_ui_event_listeners() {
 	});
 	
 	// Listener for the copy prompt button.
+	// MODIFIED: Updated to get content from the Monaco Editor.
 	document.getElementById('copy-prompt-button').addEventListener('click', function () {
-		const content_textarea = document.getElementById('selected-content');
-		const text_to_copy = content_textarea.value;
+		const text_to_copy = get_editor_content();
 		
 		if (!text_to_copy) {
 			return;
 		}
 		
-		if (navigator.clipboard && window.isSecureContext) {
-			navigator.clipboard.writeText(text_to_copy).then(() => {
-				const button = this;
-				const original_html = button.innerHTML;
-				button.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-				button.disabled = true;
-				setTimeout(() => {
-					button.innerHTML = original_html;
-					button.disabled = false;
-				}, 2000);
-			}).catch(err => {
-				console.error('Failed to copy text: ', err);
-				show_alert('Failed to copy text to clipboard.', 'Error');
-			});
-		} else {
-			try {
-				content_textarea.select();
-				document.execCommand('copy');
-				const button = this;
-				const original_html = button.innerHTML;
-				button.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-				button.disabled = true;
-				setTimeout(() => {
-					button.innerHTML = original_html;
-					button.disabled = false;
-				}, 2000);
-			} catch (err) {
-				console.error('Fallback copy failed: ', err);
-				show_alert('Failed to copy text to clipboard.', 'Error');
-			}
-		}
+		// The navigator.clipboard API is secure in Electron and is the preferred method.
+		navigator.clipboard.writeText(text_to_copy).then(() => {
+			const button = this;
+			const original_html = button.innerHTML;
+			button.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+			button.disabled = true;
+			setTimeout(() => {
+				button.innerHTML = original_html;
+				button.disabled = false;
+			}, 2000);
+		}).catch(err => {
+			console.error('Failed to copy text: ', err);
+			show_alert('Failed to copy text to clipboard.', 'Error');
+		});
 	});
 	
 	// Dark mode toggle listener.
+	// MODIFIED: Also toggles the Monaco Editor theme.
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		const html = document.documentElement;
 		const is_dark_mode = html.getAttribute('data-theme') === 'dark';
 		const new_theme = is_dark_mode ? 'light' : 'dark';
 		html.setAttribute('data-theme', new_theme);
+		
+		// NEW: Update editor theme
+		set_editor_theme(!is_dark_mode);
 		
 		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		

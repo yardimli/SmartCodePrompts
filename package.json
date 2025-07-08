@@ -14,7 +14,8 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^12.2.0",
-    "bootstrap-icons": "^1.11.3"
+    "bootstrap-icons": "^1.11.3",
+    "monaco-editor": "^0.52.2"
   },
   "devDependencies": {
     "daisyui": "^4.10.2",

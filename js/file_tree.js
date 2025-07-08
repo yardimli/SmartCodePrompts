@@ -4,6 +4,8 @@ import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, s
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {handle_file_name_click} from './modal-file-view.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
+// NEW: Import editor functions
+import { set_editor_content } from './editor.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -42,30 +44,31 @@ function get_filetype_class (filename) {
 }
 
 /**
- * An internal helper to update the main textarea from the cache and current prompts.
+ * An internal helper to update the main editor from the cache and current prompts.
+ * MODIFIED: This function now updates the Monaco Editor instead of a textarea.
  */
-function _updateTextareaWithCachedContent () {
-	const selected_content_el = document.getElementById('selected-content');
-	if (!selected_content_el) return;
-	
+function _updateEditorWithCachedContent () {
 	const content_footer_prompt = get_content_footer_prompt();
 	const user_prompt = get_last_smart_prompt();
 	
 	// Combine cached file content with the footer.
-	selected_content_el.value = cached_file_content_string + content_footer_prompt;
+	let final_content = cached_file_content_string + content_footer_prompt;
 	
 	// The placeholder replacement logic.
 	const search_str = '${user_prompt}';
-	const last_index = selected_content_el.value.lastIndexOf(search_str);
+	const last_index = final_content.lastIndexOf(search_str);
 	
 	if (last_index !== -1) {
-		selected_content_el.value =
-			selected_content_el.value.substring(0, last_index) +
+		final_content =
+			final_content.substring(0, last_index) +
 			user_prompt +
-			selected_content_el.value.substring(last_index + search_str.length);
+			final_content.substring(last_index + search_str.length);
 	}
 	
-	const estimated_tokens = estimate_tokens(selected_content_el.value);
+	// Update the editor
+	set_editor_content(final_content);
+	
+	const estimated_tokens = estimate_tokens(final_content);
 	update_estimated_prompt_tokens(estimated_tokens);
 }
 
@@ -163,16 +166,16 @@ export function load_folders (path, element) {
 }
 
 /**
- * Gathers content from all selected files and displays it in the main textarea.
- * This function now caches file content and uses a helper to render the textarea.
+ * Gathers content from all selected files and displays it in the main editor.
+ * This function now caches file content and uses a helper to render the editor content.
+ * MODIFIED: Targets the Monaco Editor.
  */
 export async function update_selected_content () {
 	const checked_boxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
-	const selected_content_el = document.getElementById('selected-content');
 	
 	if (checked_boxes.length === 0) {
 		cached_file_content_string = '';
-		selected_content_el.value = '';
+		set_editor_content(''); // Clear the editor
 		update_estimated_prompt_tokens(0);
 		return;
 	}
@@ -189,11 +192,12 @@ export async function update_selected_content () {
 	try {
 		const results = await Promise.all(request_promises);
 		cached_file_content_string = results.join(''); // Update the cache.
-		_updateTextareaWithCachedContent();
+		_updateEditorWithCachedContent(); // Use the new helper
 	} catch (error) {
 		console.error('Error updating content:', error);
-		selected_content_el.value = '/* --- An unexpected error occurred while loading file contents. --- */';
-		const estimated_tokens = estimate_tokens(selected_content_el.value);
+		const error_message = '/* --- An unexpected error occurred while loading file contents. --- */';
+		set_editor_content(error_message);
+		const estimated_tokens = estimate_tokens(error_message);
 		update_estimated_prompt_tokens(estimated_tokens);
 		cached_file_content_string = '';
 	} finally {
@@ -202,11 +206,11 @@ export async function update_selected_content () {
 }
 
 /**
- * Updates only the prompt portion of the main textarea using cached file content.
+ * Updates only the prompt portion of the main editor using cached file content.
  * This avoids re-fetching all file contents, making prompt updates fast.
  */
 export function refresh_prompt_display () {
-	_updateTextareaWithCachedContent();
+	_updateEditorWithCachedContent();
 }
 
 function restore_checked_states (selected_files) {

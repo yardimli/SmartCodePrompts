@@ -29,6 +29,8 @@ import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
 import {initialize_confirm_modal} from './modal-confirm.js';
 import {setup_auto_select_listeners} from './auto_select.js';
+// NEW: Import the Monaco Editor module
+import { initialize_editor } from './editor.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -84,6 +86,9 @@ async function initialize_app() {
 				highlight_theme_link.href = './vendor/highlight.js/styles/atom-one-light.min.css';
 			}
 		}
+		
+		// NEW: Initialize the editor with the correct theme
+		await initialize_editor(data.dark_mode);
 		
 		if (data.right_sidebar_collapsed) {
 			document.getElementById('app-container').classList.add('right-sidebar-collapsed');
@@ -157,6 +162,9 @@ async function initialize_app() {
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', async function () {
 	await load_all_modals_html();
+	
+	// MODIFIED: Editor initialization is now handled inside initialize_app
+	// to ensure it gets the correct initial theme.
 	
 	initialize_about_modal();
 	initialize_analysis_modal();

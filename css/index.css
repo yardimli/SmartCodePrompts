@@ -211,9 +211,11 @@
     color: hsl(var(--pf))
 }
 
-#selected-content {
-    resize: none;
+/* NEW: Ensure the Monaco editor container is ready for the editor */
+#monaco-editor-container {
+    overflow: hidden; /* Monaco manages its own scrollbars */
 }
+
 
 #direct_prompt_modal .modal-action {
     margin-top: 0.5rem;
@@ -227,7 +229,7 @@
 }
 
 /* Style for all search matches found in the preview */
-mark.search-match {
+mark.search-match, .search-match {
     background-color: #ff0; /* A standard bright yellow */
     color: #000; /* Black text for readability on yellow */
     padding: 1px 0;
@@ -235,7 +237,7 @@ mark.search-match {
 }
 
 /* A distinct style for the currently selected search match */
-mark.current-search-match {
+mark.current-search-match, .current-search-match {
     background-color: #f7a000; /* A bright orange */
     box-shadow: 0 0 0 2px #f7a000; /* A subtle glow effect */
     outline: 1px solid #fff3; /* A faint white outline to stand out */

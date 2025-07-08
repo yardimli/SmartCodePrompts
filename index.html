@@ -3,14 +3,20 @@
 <head>
 	<meta charset="UTF-8">
 	
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'">
+	<!-- MODIFIED: Added worker-src 'self' blob: for Monaco Editor -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'  'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
 	
 	<link href="./node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 	<!-- MODIFIED: Added an ID to the highlight.js theme stylesheet for dynamic switching. -->
 	<link id="highlight-js-theme" rel="stylesheet" href="./vendor/highlight.js/styles/atom-one-dark.min.css">
+	<!-- NEW: Added Monaco Editor base CSS -->
+	<link rel="stylesheet" data-name="vs/editor/editor.main" href="./node_modules/monaco-editor/min/vs/editor/editor.main.css">
 	<link rel="stylesheet" href="./dist/output.css">
+	<!-- NEW: Added Monaco Editor loader script -->
+	<script>var require = { paths: { 'vs': './node_modules/monaco-editor/min/vs' } };</script>
+	<script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
 	<script type="module" src="js/main.js"></script>
 	<script src="./vendor/highlight.js/highlight.min.js"></script>
 </head>
@@ -59,8 +65,8 @@
 			
 			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
 				<div id="workspace" class="relative flex flex-col h-full">
-					<textarea id="selected-content"
-					          class="textarea textarea-bordered w-full flex-grow font-mono text-xs rounded-none border-0 p-4"></textarea>
+					<!-- MODIFIED: Replaced textarea with a div for the Monaco Editor -->
+					<div id="monaco-editor-container" class="flex-grow w-full h-full"></div>
 					
 					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10"
 					        title="Copy to Clipboard">

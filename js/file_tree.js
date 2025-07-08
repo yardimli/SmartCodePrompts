@@ -3,7 +3,6 @@ import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens}
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
-// MODIFIED: Import functions to specifically target the prompt tab and open file tabs.
 import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
@@ -44,16 +43,13 @@ function get_filetype_class (filename) {
 
 /**
  * An internal helper to update the main editor from the cache and current prompts.
- * MODIFIED: This function now specifically updates the "Prompt" tab, not the active tab.
  */
 function _updateEditorWithCachedContent () {
 	const content_footer_prompt = get_content_footer_prompt();
 	const user_prompt = get_last_smart_prompt();
 	
-	// Combine cached file content with the footer.
 	let final_content = cached_file_content_string + content_footer_prompt;
 	
-	// The placeholder replacement logic.
 	const search_str = '${user_prompt}';
 	const last_index = final_content.lastIndexOf(search_str);
 	
@@ -124,8 +120,12 @@ export function load_folders (path, element) {
 			response.files.forEach(file_info => {
 				const filetype_class = get_filetype_class(file_info.name);
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
-				// MODIFIED: Use a 'diff' icon for modified files, which will trigger the diff view.
-				const modified_icon = file_info.is_modified ? `<i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_info.path}" title="View Changes (Diff)"></i>` : '';
+				
+				// NEW: Icon for files needing re-analysis (stale analysis)
+				const reanalysis_icon = file_info.needs_reanalysis ? `<i class="bi bi-exclamation-triangle-fill reanalysis-alert-icon align-middle" title="File has been modified since last analysis"></i>` : '';
+				
+				// NEW: Icon for files with git changes, which opens the diff view
+				const diff_icon = file_info.has_git_diff ? `<i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_info.path}" title="View Changes (Diff)"></i>` : '';
 				
 				let title_attr = file_info.path;
 				if (typeof file_info.size === 'number') {
@@ -143,7 +143,8 @@ export function load_folders (path, element) {
                             <span class="file ${filetype_class}"></span>
                             <span class="file-name" title="${title_attr}">${file_info.name}</span>
                         </div>
-                        ${modified_icon}
+                        ${reanalysis_icon}
+                        ${diff_icon}
                     </li>`;
 			});
 			ul.innerHTML = content;
@@ -164,8 +165,6 @@ export function load_folders (path, element) {
 
 /**
  * Gathers content from all selected files and displays it in the main editor.
- * This function now caches file content and uses a helper to render the editor content.
- * MODIFIED: Targets the Monaco Editor's "Prompt" tab specifically.
  */
 export async function update_selected_content () {
 	const checked_boxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
@@ -200,7 +199,7 @@ export async function update_selected_content () {
 	try {
 		const results = await Promise.all(request_promises);
 		cached_file_content_string = results.join(''); // Update the cache.
-		_updateEditorWithCachedContent(); // Use the new helper which now targets the prompt tab.
+		_updateEditorWithCachedContent();
 	} catch (error) {
 		console.error('Error updating content:', error);
 		const error_message = '/* --- An unexpected error occurred while loading file contents. --- */';
@@ -217,7 +216,6 @@ export async function update_selected_content () {
 
 /**
  * Updates only the prompt portion of the main editor using cached file content.
- * This avoids re-fetching all file contents, making prompt updates fast.
  */
 export function refresh_prompt_display () {
 	_updateEditorWithCachedContent();
@@ -287,8 +285,8 @@ export async function ensure_file_is_visible (file_path) {
 }
 
 /**
- * This function is called by the polling mechanism.
- * @param {object} updates - An object with `modified`, `unmodified`, and `deleted` file path arrays.
+ * This function is called by the polling mechanism and updates icons based on file status.
+ * @param {object} updates - An object with `updates` and `deleted` file path arrays.
  */
 function handle_modification_status_updates (updates) {
 	const file_tree = document.getElementById('file-tree');
@@ -296,34 +294,37 @@ function handle_modification_status_updates (updates) {
 	
 	let has_changes = false;
 	
-	updates.modified.forEach(file_path => {
-		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
+	// Handle files that were updated (modified or not)
+	updates.updates.forEach(file_update => {
+		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_update.file_path}"]`)?.closest('li');
 		if (!file_li) return;
 		
-		// MODIFIED: Look for the specific diff icon class.
-		const existing_icon = file_li.querySelector('.diff-icon');
-		if (!existing_icon) {
-			const file_span = file_li.querySelector('.file-entry');
-			if (file_span) {
-				// MODIFIED: Add the new diff icon.
-				file_span.insertAdjacentHTML ('afterend', ` <i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_path}" title="View Changes (Diff)"></i>`);
-				has_changes = true;
-			}
+		// --- Handle Reanalysis Icon (stale analysis) ---
+		const existing_reanalysis_icon = file_li.querySelector('.reanalysis-alert-icon');
+		if (file_update.needs_reanalysis && !existing_reanalysis_icon) {
+			// Add reanalysis icon
+			file_li.querySelector('.file-entry')?.insertAdjacentHTML('afterend', ' <i class="bi bi-exclamation-triangle-fill reanalysis-alert-icon align-middle" title="File has been modified since last analysis"></i>');
+			has_changes = true;
+		} else if (!file_update.needs_reanalysis && existing_reanalysis_icon) {
+			// Remove reanalysis icon
+			existing_reanalysis_icon.remove();
+			has_changes = true;
 		}
-	});
-	
-	updates.unmodified.forEach(file_path => {
-		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
-		if (!file_li) return;
 		
-		// MODIFIED: Look for the specific diff icon class to remove.
-		const existing_icon = file_li.querySelector('.diff-icon');
-		if (existing_icon) {
-			existing_icon.remove();
+		// --- Handle Git Diff Icon ---
+		const existing_diff_icon = file_li.querySelector('.diff-icon');
+		if (file_update.has_git_diff && !existing_diff_icon) {
+			// Add diff icon to the end of the li
+			file_li.insertAdjacentHTML('beforeend', ` <i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_update.file_path}" title="View Changes (Diff)"></i>`);
+			has_changes = true;
+		} else if (!file_update.has_git_diff && existing_diff_icon) {
+			// Remove diff icon
+			existing_diff_icon.remove();
 			has_changes = true;
 		}
 	});
 	
+	// Handle files that were deleted
 	updates.deleted.forEach(file_path => {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (file_li) {
@@ -384,7 +385,7 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
-// NEW: Handler for clicking the diff icon to open a file in diff view.
+// Handler for clicking the diff icon to open a file in diff view.
 async function handle_diff_icon_click(filePath) {
 	show_loading(`Opening diff for ${filePath}...`);
 	try {
@@ -400,8 +401,9 @@ async function handle_diff_icon_click(filePath) {
 		
 		// For a diff view, we need both original and current content.
 		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
-		const originalContent = data.originalContent; // Can be null if file is new, editor handles this.
+		const originalContent = data.originalContent;
 		
+		// A diff view requires original content. If it's null (e.g., new file), open normally.
 		openFileInTab(filePath, currentContent, originalContent);
 		
 	} catch (error) {
@@ -412,7 +414,7 @@ async function handle_diff_icon_click(filePath) {
 }
 
 
-// MODIFIED: Handler for clicking a file name to open it in a normal (non-diff) view.
+// Handler for clicking a file name to open it in a normal (non-diff) view.
 async function handle_file_click(filePath) {
 	show_loading(`Opening ${filePath}...`);
 	try {
@@ -440,18 +442,16 @@ async function handle_file_click(filePath) {
 
 /**
  * Sets up delegated event listeners for the file tree container and its controls.
- * This function was created by moving logic out of main.js.
  */
 export function setup_file_tree_listeners () {
 	const file_tree = document.getElementById('file-tree');
 	
-	// Delegated event listener for clicks within the file tree
 	file_tree.addEventListener('click', async (e) => {
 		const folder = e.target.closest('.folder');
 		const toggle_select_icon = e.target.closest('.folder-toggle-select-icon');
 		const analysis_icon = e.target.closest('.analysis-icon');
 		const file_entry = e.target.closest('.file-entry');
-		const diff_icon = e.target.closest('.diff-icon'); // NEW: Listener for the diff icon.
+		const diff_icon = e.target.closest('.diff-icon');
 		
 		if (analysis_icon) {
 			e.stopPropagation();
@@ -459,14 +459,14 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
-		// NEW: If the diff icon is clicked, open the diff view and stop.
+		// If the diff icon is clicked, open the diff view and stop.
 		if (diff_icon) {
 			e.stopPropagation();
 			await handle_diff_icon_click(diff_icon.dataset.path);
 			return;
 		}
 		
-		// MODIFIED: This block now handles opening files in a normal tab.
+		// This block handles opening files in a normal tab.
 		if (file_entry) {
 			e.stopPropagation();
 			await handle_file_click(file_entry.dataset.path);
@@ -531,7 +531,6 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
-	// Delegated listener for checkbox changes
 	file_tree.addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
 			e.stopPropagation();
@@ -549,7 +548,6 @@ export function setup_file_tree_listeners () {
 	document.getElementById('select-unanalyzed').addEventListener('click', function () {
 		let checked_count = 0;
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
-			console.log(`Checkbox for ${cb.dataset.path} has analysis: ${cb.dataset.has_analysis}`);
 			if (!cb.checked && cb.dataset.has_analysis === 'false') {
 				cb.checked = true;
 				checked_count++;

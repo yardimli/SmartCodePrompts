@@ -5,6 +5,8 @@ import {refresh_prompt_display, ensure_file_is_visible, update_selected_content}
 import {perform_reanalysis} from './analysis.js';
 import {show_alert} from './modal-alert.js';
 import {show_confirm} from './modal-confirm.js';
+// MODIFIED: Import functions to interact with the editor tabs.
+import {switchToTab, getPromptTabId, getActiveTabId} from './editor.js';
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -185,6 +187,13 @@ export function setup_prompt_bar_listeners() {
 	// Debounced listener for the prompt input to update content and save state.
 	let prompt_input_debounce_timer;
 	prompt_input.addEventListener('input', (e) => {
+		// NEW: Automatically switch to the 'Prompt' tab when the user starts typing.
+		const promptTabId = getPromptTabId();
+		if (promptTabId && getActiveTabId() !== promptTabId) {
+			switchToTab(promptTabId);
+			prompt_input.focus(); // Ensure the input is focused after switching tabs
+		}
+		
 		clearTimeout(prompt_input_debounce_timer);
 		prompt_input_debounce_timer = setTimeout(() => {
 			const prompt_text = e.target.value;

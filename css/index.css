@@ -189,9 +189,17 @@
 #file-tree .file, /* The file icon container */
 #file-tree .checkbox-wrapper,
 #file-tree .analysis-icon,
-#file-tree .diff-icon, /* MODIFIED: Renamed from .bi-exclamation-triangle-fill for clarity */
+#file-tree .reanalysis-alert-icon, /* NEW */
+#file-tree .diff-icon,
 #file-tree .folder-controls {
     flex-shrink: 0;
+}
+
+/* NEW: Style for the reanalysis icon */
+.reanalysis-alert-icon {
+    color: hsl(var(--wa)); /* DaisyUI warning color */
+    margin-left: 4px; /* Space it out from other icons */
+    cursor: help; /* Indicate it's informational */
 }
 
 .bottom-icons {

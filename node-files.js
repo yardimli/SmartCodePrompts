@@ -1,5 +1,3 @@
-// node-files.js:
-
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -47,6 +45,9 @@ function get_folders(input_path, project_path) {
 	const metadata_stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
 	const analyzed_files_map = new Map(metadata_stmt.all(project_path).map(r => [r.file_path, r.last_checksum]));
 	
+	// OPTIMIZED: Get all git-modified files in one command.
+	const modifiedGitFiles = getGitModifiedFiles(project_path);
+	
 	try {
 		const items = fs.readdirSync(full_path);
 		for (const item of items) {
@@ -72,19 +73,26 @@ function get_folders(input_path, project_path) {
 				if (config.allowed_extensions.includes(ext) || (ext === '' && config.allowed_extensions.includes(base))) {
 					const relative_file_path = path.join(input_path, item).replace(/\\/g, '/');
 					const has_analysis = analyzed_files_map.has(relative_file_path);
-					let is_modified = false;
+					let needs_reanalysis = false;
 					
+					// OPTIMIZED: Check against the pre-fetched set of modified files.
+					const has_git_diff = modifiedGitFiles.has(relative_file_path);
+					
+					let file_content_buffer;
+					try {
+						file_content_buffer = fs.readFileSync(item_full_path);
+					} catch (read_error) {
+						console.warn(`Could not read file, skipping: ${item_full_path}`, read_error);
+						continue; // Skip this file entirely if it can't be read
+					}
+					
+					// Check if re-analysis is needed by comparing checksums
 					if (has_analysis) {
 						const stored_checksum = analyzed_files_map.get(relative_file_path);
 						if (stored_checksum) {
-							try {
-								const file_content = fs.readFileSync(item_full_path);
-								const current_checksum = calculate_checksum(file_content);
-								if (current_checksum !== stored_checksum) {
-									is_modified = true;
-								}
-							} catch (read_error) {
-								console.warn(`Could not read file for checksum: ${item_full_path}`, read_error);
+							const current_checksum = calculate_checksum(file_content_buffer);
+							if (current_checksum !== stored_checksum) {
+								needs_reanalysis = true;
 							}
 						}
 					}
@@ -93,7 +101,8 @@ function get_folders(input_path, project_path) {
 						name: item,
 						path: relative_file_path,
 						has_analysis: has_analysis,
-						is_modified: is_modified,
+						needs_reanalysis: needs_reanalysis,
+						has_git_diff: has_git_diff,
 						size: stats.size
 					});
 				}
@@ -167,6 +176,31 @@ function getGitHeadContent(relative_path, project_full_path) {
 	}
 }
 
+/**
+ * NEW/OPTIMIZED: Gets a set of all file paths that have been modified compared to HEAD.
+ * Runs a single git command for efficiency.
+ * @param {string} project_full_path - The absolute path of the project on the server.
+ * @returns {Set<string>} A set of relative file paths that are modified.
+ */
+function getGitModifiedFiles(project_full_path) {
+	if (!isGitRepository(project_full_path)) {
+		return new Set();
+	}
+	try {
+		// -z uses NUL-terminated paths to handle spaces/special chars correctly.
+		const gitCommand = 'git diff --name-only HEAD -z';
+		const stdout = execSync(gitCommand, { cwd: project_full_path, encoding: 'utf8', timeout: 5000 });
+		// Split by the NUL character and filter out empty strings.
+		const modifiedFiles = stdout.split('\0').filter(p => p.length > 0);
+		return new Set(modifiedFiles);
+	} catch (error) {
+		// This can happen in a new repo with no commits yet. It's not a critical failure.
+		console.warn(`Could not get git diff for ${project_full_path}: ${error.message}`);
+		return new Set();
+	}
+}
+
+
 // Gets file content for the editor, including the original version from git if available.
 function get_file_for_editor({ project_path, file_path }) {
 	let currentContent;
@@ -183,8 +217,7 @@ function get_file_for_editor({ project_path, file_path }) {
 		originalContent = getGitHeadContent(file_path, project_path);
 	}
 	
-	// MODIFIED: Normalize both strings before comparing to handle line-ending differences (CRLF vs LF).
-	// This is the primary fix for the bug where all files appeared modified.
+	// Normalize both strings before comparing to handle line-ending differences (CRLF vs LF).
 	if (originalContent && currentContent.replace(/\r/g, '') === originalContent.replace(/\r/g, '')) {
 		originalContent = null;
 	}
@@ -273,14 +306,16 @@ function check_folder_updates(project_path) {
 	const analyzed_files = stmt.all(project_path);
 	
 	const results = {
-		modified: [],
-		unmodified: [],
+		updates: [],
 		deleted: []
 	};
 	
 	if (analyzed_files.length === 0) {
 		return results;
 	}
+	
+	// OPTIMIZED: Get all git-modified files in one command.
+	const modifiedGitFiles = getGitModifiedFiles(project_path);
 	
 	for (const file of analyzed_files) {
 		try {
@@ -294,14 +329,24 @@ function check_folder_updates(project_path) {
 			const file_content = fs.readFileSync(full_path);
 			const current_checksum = calculate_checksum(file_content);
 			
-			if (current_checksum !== file.last_checksum) {
-				results.modified.push(file.file_path);
-			} else {
-				results.unmodified.push(file.file_path);
-			}
+			const needs_reanalysis = current_checksum !== file.last_checksum;
+			// OPTIMIZED: Check against the pre-fetched set of modified files.
+			const has_git_diff = modifiedGitFiles.has(file.file_path);
+			
+			results.updates.push({
+				file_path: file.file_path,
+				needs_reanalysis: needs_reanalysis,
+				has_git_diff: has_git_diff
+			});
+			
 		} catch (error) {
 			console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
-			results.modified.push(file.file_path);
+			// If we can't check, assume it's modified to be safe
+			results.updates.push({
+				file_path: file.file_path,
+				needs_reanalysis: true,
+				has_git_diff: false // can't determine git status
+			});
 		}
 	}
 	

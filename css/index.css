@@ -332,3 +332,17 @@ mark.current-search-match, .current-search-match {
     box-shadow: 0 0 0 2px #f7a000; /* A subtle glow effect */
     outline: 1px solid #fff3; /* A faint white outline to stand out */
 }
+
+.editor-tab .modified-dot {
+    color: hsl(var(--p)); /* Uses DaisyUI primary color variable */
+    font-weight: bold;
+    font-size: 1.2em;
+    line-height: 1;
+    vertical-align: middle;
+    margin-left: 4px;
+    /* Prevents the dot from being selected with the text */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}

@@ -5,10 +5,43 @@ import { get_current_project } from './state.js';
 
 let editor = null;
 let diffEditor = null; // NEW: For side-by-side diff view
-// MODIFIED: Added originalModel, isDiff, and debounceTimer to the tab object definition.
-let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, debounceTimer }
+// MODIFIED: Added isModified property. Removed debounceTimer.
+let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified }
 let activeTabId = null;
 let tabCounter = 0;
+
+/**
+ * NEW: A utility function to update the state of the global "Save" button.
+ * It enables the button only if the active tab is a modified, editable file.
+ */
+export function updateSaveButtonState() {
+	const saveBtn = document.getElementById('save-active-file-btn');
+	if (!saveBtn) return;
+	
+	const activeTab = findTab(activeTabId);
+	const shouldBeEnabled = activeTab && activeTab.isModified && !activeTab.readOnly && !activeTab.isDiff;
+	
+	saveBtn.disabled = !shouldBeEnabled;
+}
+
+/**
+ * NEW: Saves all tabs that are currently marked as modified.
+ * Intended for use when the application loses focus.
+ */
+export function saveAllModifiedTabs() {
+	console.log('Attempting to save all modified files on blur...');
+	const modifiedTabs = tabs.filter(tab => tab.isModified && !tab.readOnly && tab.filePath);
+	
+	if (modifiedTabs.length > 0) {
+		const savePromises = modifiedTabs.map(tab => saveTabContent(tab.id));
+		Promise.all(savePromises).then(() => {
+			console.log(`${modifiedTabs.length} modified file(s) were saved.`);
+		}).catch(err => {
+			console.error('An error occurred while saving all modified files:', err);
+		});
+	}
+}
+
 
 /**
  * NEW: Saves the current list of open file tabs to the server for the current project.
@@ -33,13 +66,13 @@ function save_open_tabs_state() {
 }
 
 /**
- * NEW: Saves a tab's content to the filesystem.
+ * MODIFIED: Saves a tab's content to the filesystem. Now async and updates modification state.
  * @param {string} tabId The ID of the tab to save.
  */
-function saveTabContent(tabId) {
+export async function saveTabContent(tabId) {
 	const tab = findTab(tabId);
-	// Don't save if it's not a file, is read-only, or is a diff view
-	if (!tab || !tab.filePath || tab.readOnly || tab.isDiff) {
+	// Don't save if it's not a file, is read-only, is a diff view, or isn't modified
+	if (!tab || !tab.filePath || tab.readOnly || tab.isDiff || !tab.isModified) {
 		return;
 	}
 	
@@ -50,17 +83,24 @@ function saveTabContent(tabId) {
 	}
 	
 	const content = tab.model.getValue();
-	console.log(`Auto-saving ${tab.filePath}...`);
+	console.log(`Saving ${tab.filePath}...`);
 	
-	post_data({
-		action: 'save_file_content',
-		project_path: project.path,
-		file_path: tab.filePath,
-		content: content
-	}).catch(error => {
-		console.error(`Failed to auto-save ${tab.filePath}:`, error);
+	try {
+		await post_data({
+			action: 'save_file_content',
+			project_path: project.path,
+			file_path: tab.filePath,
+			content: content
+		});
+		// On successful save, update the tab's state and the UI
+		tab.isModified = false;
+		renderTabs();
+		updateSaveButtonState();
+		console.log(`${tab.filePath} saved successfully.`);
+	} catch (error) {
+		console.error(`Failed to save ${tab.filePath}:`, error);
 		// TODO: Show an error to the user in the UI
-	});
+	}
 }
 
 
@@ -108,6 +148,10 @@ function renderTabs() {
 			titleEl.textContent += ' (modified)';
 			titleEl.style.fontStyle = 'italic';
 		}
+		// NEW: Add a visual indicator for unsaved changes.
+		if (tab.isModified) {
+			titleEl.innerHTML += ' <span class="modified-dot" title="Unsaved changes">•</span>';
+		}
 		tabEl.appendChild(titleEl);
 		
 		if (tab.isCloseable) {
@@ -116,6 +160,7 @@ function renderTabs() {
 			closeBtn.title = 'Close Tab';
 			closeBtn.onclick = (e) => {
 				e.stopPropagation();
+				// TODO: In the future, check for unsaved changes before closing.
 				closeTab(tab.id);
 			};
 			tabEl.appendChild(closeBtn);
@@ -192,6 +237,7 @@ export function switchToTab(tabId) {
 		}
 		
 		renderTabs();
+		updateSaveButtonState(); // NEW: Update save button state on tab switch.
 	}
 }
 
@@ -206,11 +252,6 @@ export function closeTab(tabId) {
 	
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
-	
-	// NEW: Clear any pending auto-save timer before closing.
-	if (tabToClose.debounceTimer) {
-		clearTimeout(tabToClose.debounceTimer);
-	}
 	
 	// MODIFIED: Dispose of both models to free up memory if it's a diff tab
 	tabToClose.model.dispose();
@@ -231,6 +272,7 @@ export function closeTab(tabId) {
 			diffEditor.setModel({ original: null, modified: null });
 			document.getElementById('monaco-editor-container').style.display = 'block'; // Show default
 			document.getElementById('monaco-diff-editor-container').style.display = 'none';
+			updateSaveButtonState(); // NEW: Ensure button is disabled
 		}
 	}
 	
@@ -267,7 +309,7 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		viewState: null,
 		readOnly: readOnly,
 		filePath: filePath,
-		debounceTimer: null, // NEW
+		isModified: false, // NEW: Not modified initially
 	};
 	
 	tabs.push(newTab);
@@ -319,20 +361,20 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		// MODIFIED: Diff views are read-only; normal file views are editable.
 		readOnly: isDiff,
 		filePath: filePath,
-		debounceTimer: null, // NEW: initialize timer handle
+		isModified: false, // NEW: Not modified initially
 	};
 	
-	// NEW: Add auto-save listener for editable, non-diff tabs
+	// NEW: Add listener to track modifications for editable, non-diff tabs.
+	// This replaces the old auto-save logic.
 	if (!newTab.readOnly && !newTab.isDiff) {
 		newTab.model.onDidChangeContent(() => {
-			// Clear previous timer if it exists
-			if (newTab.debounceTimer) {
-				clearTimeout(newTab.debounceTimer);
+			// Use a direct reference to the tab in the array to ensure we modify the correct one.
+			const tabInArray = findTab(newTab.id);
+			if (tabInArray && !tabInArray.isModified) {
+				tabInArray.isModified = true;
+				renderTabs(); // Re-render to show the modification indicator (dot).
+				updateSaveButtonState(); // Update the global save button state.
 			}
-			// Set a new timer to save after 1.5 seconds of inactivity
-			newTab.debounceTimer = setTimeout(() => {
-				saveTabContent(newTab.id);
-			}, 1500);
 		});
 	}
 	
@@ -428,6 +470,16 @@ export function initialize_editor(is_dark_mode) {
 				originalEditable: false, // The left side is never editable.
 				readOnly: false, // This applies to the component; we control the modified editor individually.
 			});
+			
+			// NEW: Add Ctrl+S (Cmd+S) keybinding to save the active tab.
+			const saveCommand = () => {
+				if (activeTabId) {
+					saveTabContent(activeTabId);
+				}
+			};
+			editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
+			diffEditor.getModifiedEditor().addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
+			
 			
 			createNewTab(
 				'Prompt',

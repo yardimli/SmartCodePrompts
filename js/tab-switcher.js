@@ -86,7 +86,7 @@ function navigateSwitcher(direction) {
 /**
  * Sets up global event listeners for the Ctrl+Tab functionality.
  */
-function setupTabSwitcherListeners() {
+	function setupTabSwitcherListeners() {
 	document.addEventListener('keydown', (e) => {
 		// Use `e.code` for layout-independent key checks
 		if (e.ctrlKey && e.code === 'Tab') {

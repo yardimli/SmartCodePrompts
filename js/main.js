@@ -28,8 +28,9 @@ import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
 import {initialize_confirm_modal} from './modal-confirm.js';
 import {setup_auto_select_listeners} from './auto_select.js';
-import { initialize_editor } from './editor.js';
-// import { initialize_tab_switcher } from './tab-switcher.js'; // This is now handled by initialize_tab_scroller
+
+import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs } from './editor.js';
+import { initialize_tab_switcher } from './tab-switcher.js'; // This is now handled by initialize_tab_scroller
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -235,6 +236,27 @@ async function initialize_app() {
 	}
 }
 
+/**
+ * NEW: Sets up listeners related to the new save functionality.
+ */
+function setup_save_listeners() {
+	// Listener for the manual "Save" button click.
+	const saveBtn = document.getElementById('save-active-file-btn');
+	if (saveBtn) {
+		saveBtn.addEventListener('click', () => {
+			const activeId = getActiveTabId();
+			if (activeId) {
+				saveTabContent(activeId);
+			}
+		});
+	}
+	
+	// Listener to save all modified files when the application window loses focus.
+	window.addEventListener('blur', () => {
+		saveAllModifiedTabs();
+	});
+}
+
 // --- Document Ready ---
 document.addEventListener('DOMContentLoaded', async function () {
 	await load_all_modals_html();
@@ -254,7 +276,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
-	initialize_tab_scroller(); // NEW: Initialize the tab scroller.
+	initialize_tab_scroller();
+	initialize_tab_switcher();
 	
 	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {
@@ -278,4 +301,5 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_ui_event_listeners();
 	setup_prompt_bar_listeners();
 	setup_auto_select_listeners();
+	setup_save_listeners(); // NEW: Set up save-related event listeners.
 });

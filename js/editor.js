@@ -206,30 +206,27 @@ export function setTabContent(tabId, content) {
  */
 export function initialize_editor(is_dark_mode) {
 	return new Promise((resolve) => {
-		// NEW: Configure Monaco's web worker paths.
-		// This is crucial for features like language services (e.g., TypeScript, JSON) to work correctly.
-		// The paths are relative to the `index.html` file and must point to the worker scripts.
-		// This resolves the "Failed to execute 'importScripts'" error for workers.
-		window.MonacoEnvironment = {
-			getWorkerUrl: function (moduleId, label) {
-				const base = './node_modules/monaco-editor/min/vs';
-				if (label === 'json') {
-					return `${base}/language/json/json.worker.js`;
-				}
-				if (label === 'css' || label === 'scss' || label === 'less') {
-					return `${base}/language/css/css.worker.js`;
-				}
-				if (label === 'html' || label === 'handlebars' || label === 'razor') {
-					return `${base}/language/html/html.worker.js`;
-				}
-				if (label === 'typescript' || label === 'javascript') {
-					return `${base}/language/typescript/ts.worker.js`;
-				}
-				return `${base}/editor/editor.worker.js`;
-			}
-		};
-		
 		require(['vs/editor/editor.main'], () => {
+			// FIXED: Properly configure MonacoEnvironment for Electron
+			// This configuration ensures web workers load correctly in the Electron environment
+			window.MonacoEnvironment = {
+				getWorkerUrl: function (moduleId, label) {
+					// Use blob URLs to create workers from fetched scripts
+					// This is the recommended approach for Electron apps
+					return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+						self.MonacoEnvironment = {
+							baseUrl: 'http://localhost:31987/node_modules/monaco-editor/min/'
+						};
+						importScripts('http://localhost:31987/node_modules/monaco-editor/min/vs/base/worker/workerMain.js');
+					`)}`;
+				},
+				getWorker: function (moduleId, label) {
+					// Create workers using blob URLs
+					const getWorkerUrl = this.getWorkerUrl(moduleId, label);
+					return new Worker(getWorkerUrl);
+				}
+			};
+			
 			const editor_container = document.getElementById('monaco-editor-container');
 			if (!editor_container) {
 				console.error('Monaco editor container not found!');

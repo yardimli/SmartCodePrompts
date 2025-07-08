@@ -1,26 +1,8 @@
-// electron-main.js
-const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog, protocol} = require('electron');
+const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-
-// NEW: Register the 'app' protocol as privileged.
-// This must be done before the 'ready' event. It tells Chromium to treat 'app://'
-// like a standard web protocol, which is necessary to fix the error
-// "Fetch API cannot load app://... URL scheme 'app' is not supported".
-// By enabling `supportFetchAPI`, we allow the renderer process to fetch local
-// resources (like your modal HTML files) using the custom protocol.
-protocol.registerSchemesAsPrivileged([
-	{
-		scheme: 'app',
-		privileges: {
-			secure: true,          // Treat it as a secure protocol (like HTTPS)
-			standard: true,        // Ensures relative path resolution works correctly
-			corsEnabled: true,     // Allows Cross-Origin Resource Sharing
-			supportFetchAPI: true, // Explicitly enables support for the Fetch API
-		},
-	},
-]);
+const http = require('http'); // NEW: Import the Node.js http module.
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
@@ -39,6 +21,7 @@ const project_manager = require('./node-projects');
 const file_manager = require('./node-files');
 
 let mainWindow;
+const PORT = 31987; // NEW: Define a port for the local server. A non-standard port is chosen to avoid conflicts.
 
 config_manager.initialize_database_and_config();
 
@@ -58,8 +41,8 @@ function createWindow () {
 		}
 	});
 	
-	
-	mainWindow.loadURL('app://./index.html');
+	// MODIFIED: Load the URL from the local HTTP server instead of the custom protocol.
+	mainWindow.loadURL(`http://localhost:${PORT}`);
 	
 	// Create context menu
 	mainWindow.webContents.on('context-menu', (event, params) => {
@@ -86,14 +69,14 @@ function createWindow () {
 		// Add standard editor actions
 		if (params.isEditable) {
 			if (menu.items.length > 0) {
-				menu.append(new MenuItem({ type: 'separator' }));
+				menu.append(new MenuItem({type: 'separator'}));
 			}
 			
-			menu.append(new MenuItem({ label: 'Cut', role: 'cut', enabled: params.selectionText }));
-			menu.append(new MenuItem({ label: 'Copy', role: 'copy', enabled: params.selectionText }));
-			menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
-			menu.append(new MenuItem({ type: 'separator' }));
-			menu.append(new MenuItem({ label: 'Select All', role: 'selectAll' }));
+			menu.append(new MenuItem({label: 'Cut', role: 'cut', enabled: params.selectionText}));
+			menu.append(new MenuItem({label: 'Copy', role: 'copy', enabled: params.selectionText}));
+			menu.append(new MenuItem({label: 'Paste', role: 'paste'}));
+			menu.append(new MenuItem({type: 'separator'}));
+			menu.append(new MenuItem({label: 'Select All', role: 'selectAll'}));
 		}
 		
 		menu.popup();
@@ -131,12 +114,16 @@ ipcMain.handle('post-data', async (event, data) => {
 			// Don't await this; let it run in the background.
 			action_handler({
 				...data,
-				onChunk: (content) => mainWindow.webContents.send('llm-stream', { type: 'chunk', streamId, content }),
-				onEnd: (usage) => mainWindow.webContents.send('llm-stream', { type: 'end', streamId, usage }),
-				onError: (error) => mainWindow.webContents.send('llm-stream', { type: 'error', streamId, message: error.message }),
+				onChunk: (content) => mainWindow.webContents.send('llm-stream', {type: 'chunk', streamId, content}),
+				onEnd: (usage) => mainWindow.webContents.send('llm-stream', {type: 'end', streamId, usage}),
+				onError: (error) => mainWindow.webContents.send('llm-stream', {
+					type: 'error',
+					streamId,
+					message: error.message
+				}),
 			});
 			// Immediately return the streamId to the renderer.
-			return { success: true, streamId };
+			return {success: true, streamId};
 		};
 		
 		switch (action) {
@@ -303,36 +290,67 @@ ipcMain.handle('post-data', async (event, data) => {
 
 // --- App Lifecycle ---
 app.on('ready', () => {
-	// Register a custom 'app://' protocol.
-	// It treats the app's directory as the root of a virtual web server.
-	protocol.registerFileProtocol('app', (request, callback) => {
+	const server = http.createServer((req, res) => {
 		try {
-			// Create a URL object to easily parse the request.
-			// This correctly handles and separates the pathname, search (query), and hash.
-			const url = new URL(request.url);
+			// Sanitize and resolve the file path.
+			let reqPath = req.url.toString().split('?')[0];
+			if (reqPath === '/') {
+				reqPath = '/index.html';
+			}
+			const filePath = path.join(__dirname, reqPath);
 			
-			// Get just the pathname, which strips the query string and hash.
-			// e.g., for "app://./path/to/file.woff2?v=123", pathname is "/./path/to/file.woff2"
-			let pathname = decodeURIComponent(url.pathname);
-			
-			// On Windows, the pathname might start with a drive letter like /C:/...
-			// We need to remove the leading slash for path.join to work correctly.
-			if (process.platform === 'win32' && pathname.startsWith('/')) {
-				pathname = pathname.substring(1);
+			// Basic security: prevent directory traversal attacks.
+			if (!filePath.startsWith(__dirname)) {
+				res.writeHead(403);
+				res.end('Forbidden');
+				return;
 			}
 			
-			// Construct the absolute file path.
-			const filePath = path.join(__dirname, pathname);
-			callback({ path: filePath });
+			const extname = String(path.extname(filePath)).toLowerCase();
+			const mimeTypes = {
+				'.html': 'text/html',
+				'.js': 'text/javascript',
+				'.css': 'text/css',
+				'.json': 'application/json',
+				'.png': 'image/png',
+				'.jpg': 'image/jpeg',
+				'.gif': 'image/gif',
+				'.svg': 'image/svg+xml',
+				'.woff': 'font/woff',
+				'.woff2': 'font/woff2',
+				'.ttf': 'font/ttf',
+				'.eot': 'application/vnd.ms-fontobject',
+				'.otf': 'font/otf',
+			};
 			
+			const contentType = mimeTypes[extname] || 'application/octet-stream';
+			
+			fs.readFile(filePath, (error, content) => {
+				if (error) {
+					if (error.code === 'ENOENT') {
+						res.writeHead(404, {'Content-Type': 'text/html'});
+						res.end('404: File Not Found', 'utf-8');
+					} else {
+						res.writeHead(500);
+						res.end('Server Error: ' + error.code);
+					}
+				} else {
+					res.writeHead(200, {'Content-Type': contentType});
+					res.end(content, 'utf-8');
+				}
+			});
 		} catch (error) {
-			console.error(`[Protocol Handler Error] Failed to handle request for ${request.url}:`, error);
-			// Return a standard file not found error.
-			callback({ error: -6 }); // -6 is net::ERR_FILE_NOT_FOUND
+			console.error('Error in HTTP server:', error);
+			res.writeHead(500);
+			res.end('Internal Server Error');
 		}
 	});
 	
-	createWindow();
+	// Start the server and then create the main window.
+	server.listen(PORT, 'localhost', () => {
+		console.log(`[Smart Code Prompts] Server running at http://localhost:${PORT}/`);
+		createWindow();
+	});
 });
 
 app.on('window-all-closed', () => {

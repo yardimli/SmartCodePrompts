@@ -3,7 +3,9 @@
 <head>
 	<meta charset="UTF-8">
 	
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' app:; img-src 'self' data: blob:  app:; script-src 'self' 'unsafe-inline' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' data: app:; connect-src 'self' app:; worker-src 'self' blob: file: app:;">
+	<!-- 'unsafe-inline' is kept for Monaco's loader script and some UI component styles. -->
+	<!-- 'blob:' is needed for Monaco's web workers. -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob: data:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
 	

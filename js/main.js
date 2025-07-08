@@ -7,8 +7,6 @@ import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
 // --- MODULE IMPORTS ---
 import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
 import {initialize_analysis_modal} from './modal-analysis.js';
-// REMOVED: The file view modal is no longer used.
-// import {initialize_file_view_modal} from './modal-file-view.js';
 import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
 import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
 import {initialize_setup_modal, setup_setup_modal_listeners} from './modal-setup.js';
@@ -30,17 +28,17 @@ import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
 import {initialize_confirm_modal} from './modal-confirm.js';
 import {setup_auto_select_listeners} from './auto_select.js';
-// NEW: Import the Monaco Editor module
 import { initialize_editor } from './editor.js';
+import { initialize_tab_switcher } from './tab-switcher.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
-	// MODIFIED: Removed 'modal-file-view.html' from the list.
 	const modal_files = [
 		'modal-about.html', 'modal-analysis.html',
 		'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html',
-		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html'
+		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
+		'modal-tab-switcher.html'
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -89,7 +87,7 @@ async function initialize_app() {
 			}
 		}
 		
-		// NEW: Initialize the editor with the correct theme
+		// Initialize the editor with the correct theme
 		await initialize_editor(data.dark_mode);
 		
 		if (data.right_sidebar_collapsed) {
@@ -170,8 +168,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 	
 	initialize_about_modal();
 	initialize_analysis_modal();
-	// REMOVED: The file view modal is no longer initialized.
-	// initialize_file_view_modal();
 	initialize_log_modal();
 	initialize_search_modal();
 	initialize_setup_modal();
@@ -182,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
+	initialize_tab_switcher();
 	
 	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {

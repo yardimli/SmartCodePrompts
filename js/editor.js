@@ -206,6 +206,29 @@ export function setTabContent(tabId, content) {
  */
 export function initialize_editor(is_dark_mode) {
 	return new Promise((resolve) => {
+		// NEW: Configure Monaco's web worker paths.
+		// This is crucial for features like language services (e.g., TypeScript, JSON) to work correctly.
+		// The paths are relative to the `index.html` file and must point to the worker scripts.
+		// This resolves the "Failed to execute 'importScripts'" error for workers.
+		window.MonacoEnvironment = {
+			getWorkerUrl: function (moduleId, label) {
+				const base = './node_modules/monaco-editor/min/vs';
+				if (label === 'json') {
+					return `${base}/language/json/json.worker.js`;
+				}
+				if (label === 'css' || label === 'scss' || label === 'less') {
+					return `${base}/language/css/css.worker.js`;
+				}
+				if (label === 'html' || label === 'handlebars' || label === 'razor') {
+					return `${base}/language/html/html.worker.js`;
+				}
+				if (label === 'typescript' || label === 'javascript') {
+					return `${base}/language/typescript/ts.worker.js`;
+				}
+				return `${base}/editor/editor.worker.js`;
+			}
+		};
+		
 		require(['vs/editor/editor.main'], () => {
 			const editor_container = document.getElementById('monaco-editor-container');
 			if (!editor_container) {
@@ -263,6 +286,22 @@ export function get_editor_content() {
 		return activeTab.model.getValue();
 	}
 	return '';
+}
+
+/**
+ * Gets the current list of open tabs.
+ * @returns {Array<object>} A copy of the tabs array.
+ */
+export function getTabs() { // NEW
+	return [...tabs]; // Return a copy to prevent external modification
+}
+
+/**
+ * Gets the ID of the currently active tab.
+ * @returns {string|null} The active tab's ID.
+ */
+export function getActiveTabId() { // NEW
+	return activeTabId;
 }
 
 /**

@@ -245,11 +245,11 @@
 }
 
 [data-theme="light"] .editor-tab.active {
-    background-color: #ffffff; /* Match light theme editor background */
+    background-color: #bbbbbb; /* Match light theme editor background */
 }
 
 [data-theme="dark"] .editor-tab.active {
-    background-color: #1e1e1e; /* Match dark theme editor background */
+    background-color: #3e3e3e; /* Match dark theme editor background */
 }
 
 

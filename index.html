@@ -3,18 +3,16 @@
 <head>
 	<meta charset="UTF-8">
 	
-	<!-- MODIFIED: Added worker-src 'self' blob: for Monaco Editor -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'  'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:;">
+	<!-- MODIFIED: Added 'file:' to worker-src in the CSP to allow Monaco Editor's web workers to load correctly in the Electron file:// context. This resolves the "Could not create web worker" error. -->
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'  'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob: file:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
 	
 	<link href="./node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-	<!-- MODIFIED: Added an ID to the highlight.js theme stylesheet for dynamic switching. -->
 	<link id="highlight-js-theme" rel="stylesheet" href="./vendor/highlight.js/styles/atom-one-dark.min.css">
-	<!-- NEW: Added Monaco Editor base CSS -->
+	
 	<link rel="stylesheet" data-name="vs/editor/editor.main" href="./node_modules/monaco-editor/min/vs/editor/editor.main.css">
 	<link rel="stylesheet" href="./dist/output.css">
-	<!-- NEW: Added Monaco Editor loader script -->
 	<script>var require = { paths: { 'vs': './node_modules/monaco-editor/min/vs' } };</script>
 	<script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
 	<script type="module" src="js/main.js"></script>
@@ -36,7 +34,6 @@
 		
 		<div class="bottom-icons">
 			<div id="project-search-button" title="Search Project" class="cursor-pointer text-info"><i class="bi bi-search"></i></div>
-			<!-- NEW: Auto-Select Button -->
 			<div id="auto-select-project-files-btn" class="cursor-pointer" title="Auto-Select Project Files">
 				<i class="bi bi-magic"></i>
 			</div>
@@ -65,11 +62,9 @@
 			
 			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
 				<div id="workspace" class="relative flex flex-col h-full">
-					<!-- NEW: Tab container -->
 					<div id="editor-tabs" class="flex-shrink-0 bg-base-100 border-b border-base-300">
 						<!-- Tabs will be dynamically inserted here -->
 					</div>
-					<!-- MODIFIED: Replaced textarea with a div for the Monaco Editor -->
 					<div id="monaco-editor-container" class="flex-grow w-full h-full"></div>
 					
 					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10"
@@ -110,7 +105,6 @@
 					<button id="loading-indicator" class="btn btn-sm btn-ghost" style="display: none;">
 						<span class="loading loading-spinner loading-xs"></span> Loading...
 					</button>
-					<!-- MODIFIED: Replaced DaisyUI stats with simpler divs for better alignment and added estimated tokens -->
 					<div id="status-bar-tokens" class="flex items-center gap-4 text-sm">
 						<button id="log-modal-button" class="btn btn-xs btn-ghost" title="View LLM Call Log">
 							<i class="bi bi-card-list"></i>

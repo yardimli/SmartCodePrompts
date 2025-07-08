@@ -189,7 +189,7 @@
 #file-tree .file, /* The file icon container */
 #file-tree .checkbox-wrapper,
 #file-tree .analysis-icon,
-#file-tree .bi-exclamation-triangle-fill,
+#file-tree .diff-icon, /* MODIFIED: Renamed from .bi-exclamation-triangle-fill for clarity */
 #file-tree .folder-controls {
     flex-shrink: 0;
 }
@@ -211,13 +211,34 @@
     color: hsl(var(--pf))
 }
 
-/* NEW: Styles for the editor tabs */
+/* MODIFIED: Styles for the editor tabs and new scroller */
+#tabs-container-wrapper {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: hsl(var(--b2)); /* DaisyUI base-200 */
+    border-bottom: 1px solid hsl(var(--b3)); /* DaisyUI base-300 */
+}
+
 #editor-tabs {
     display: flex;
+    flex-grow: 1; /* Allow tabs to take up available space */
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow-x: hidden; /* We control scrolling with JS/buttons */
     user-select: none; /* Prevent text selection of tabs */
-    background-color: hsl(var(--b2)); /* DaisyUI base-200 */
+    scroll-behavior: smooth; /* Animate scrolling */
+    cursor: grab; /* Indicate draggable area */
+    /* Note: The background color is now on the wrapper */
+}
+
+#editor-tabs.dragging {
+    cursor: grabbing; /* Change cursor during drag-scroll */
+    scroll-behavior: auto; /* Disable smooth scroll during drag for responsiveness */
+}
+
+#scroll-tabs-left,
+#scroll-tabs-right {
+    flex-shrink: 0; /* Prevent buttons from shrinking */
 }
 
 .editor-tab {
@@ -230,7 +251,7 @@
     white-space: nowrap;
     font-size: 13px;
     transition: background-color 0.2s, color 0.2s;
-    border-bottom: 1px solid hsl(var(--b3));
+    /* The bottom border is now on the wrapper, so it's removed from here */
 }
 
 .editor-tab:hover {
@@ -241,7 +262,7 @@
 .editor-tab.active {
     background-color: hsl(var(--p) / 0.05); /* Use a subtle version of the primary color for the editor background */
     color: hsl(var(--bc));
-    border-bottom: 1px solid transparent;
+    /* The bottom border is now on the wrapper, so it's removed from here */
 }
 
 [data-theme="light"] .editor-tab.active {

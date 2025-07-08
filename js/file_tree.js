@@ -124,7 +124,8 @@ export function load_folders (path, element) {
 			response.files.forEach(file_info => {
 				const filetype_class = get_filetype_class(file_info.name);
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
-				const modified_icon = file_info.is_modified ? `<i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>` : '';
+				// MODIFIED: Use a 'diff' icon for modified files, which will trigger the diff view.
+				const modified_icon = file_info.is_modified ? `<i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_info.path}" title="View Changes (Diff)"></i>` : '';
 				
 				let title_attr = file_info.path;
 				if (typeof file_info.size === 'number') {
@@ -299,11 +300,13 @@ function handle_modification_status_updates (updates) {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (!file_li) return;
 		
-		const existing_icon = file_li.querySelector('.bi-exclamation-triangle-fill');
+		// MODIFIED: Look for the specific diff icon class.
+		const existing_icon = file_li.querySelector('.diff-icon');
 		if (!existing_icon) {
 			const file_span = file_li.querySelector('.file-entry');
 			if (file_span) {
-				file_span.insertAdjacentHTML ('afterend', ' <i class="bi bi-exclamation-triangle-fill text-warning align-middle ml-1" title="File has been modified since last analysis"></i>');
+				// MODIFIED: Add the new diff icon.
+				file_span.insertAdjacentHTML ('afterend', ` <i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_path}" title="View Changes (Diff)"></i>`);
 				has_changes = true;
 			}
 		}
@@ -313,7 +316,8 @@ function handle_modification_status_updates (updates) {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (!file_li) return;
 		
-		const existing_icon = file_li.querySelector('.bi-exclamation-triangle-fill');
+		// MODIFIED: Look for the specific diff icon class to remove.
+		const existing_icon = file_li.querySelector('.diff-icon');
 		if (existing_icon) {
 			existing_icon.remove();
 			has_changes = true;
@@ -380,7 +384,35 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
-// MODIFIED: Handler for clicking a file name to open it in a new tab with diff capabilities.
+// NEW: Handler for clicking the diff icon to open a file in diff view.
+async function handle_diff_icon_click(filePath) {
+	show_loading(`Opening diff for ${filePath}...`);
+	try {
+		const current_project = get_current_project();
+		if (!current_project) {
+			throw new Error('No project is currently selected.');
+		}
+		const data = await post_data({
+			action: 'get_file_for_editor',
+			project_path: current_project.path,
+			path: filePath
+		});
+		
+		// For a diff view, we need both original and current content.
+		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
+		const originalContent = data.originalContent; // Can be null if file is new, editor handles this.
+		
+		openFileInTab(filePath, currentContent, originalContent);
+		
+	} catch (error) {
+		console.error(`Error opening diff for file ${filePath}:`, error);
+	} finally {
+		hide_loading();
+	}
+}
+
+
+// MODIFIED: Handler for clicking a file name to open it in a normal (non-diff) view.
 async function handle_file_click(filePath) {
 	show_loading(`Opening ${filePath}...`);
 	try {
@@ -388,23 +420,19 @@ async function handle_file_click(filePath) {
 		if (!current_project) {
 			throw new Error('No project is currently selected.');
 		}
-		// MODIFIED: Call the new backend action to get both current and original content.
 		const data = await post_data({
 			action: 'get_file_for_editor',
 			project_path: current_project.path,
 			path: filePath
 		});
 		
-		// data now contains { currentContent, originalContent }
 		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
-		const originalContent = data.originalContent; // This will be null if there's no diff.
 		
-		// MODIFIED: Call the editor module to handle tab creation/switching with both contents.
-		openFileInTab(filePath, currentContent, originalContent);
+		// Pass null for originalContent to ensure a normal (non-diff) tab is opened.
+		openFileInTab(filePath, currentContent, null);
 		
 	} catch (error) {
 		console.error(`Error opening file ${filePath}:`, error);
-		// TODO: Consider showing an alert to the user here via a function from modal-alert.js
 	} finally {
 		hide_loading();
 	}
@@ -423,6 +451,7 @@ export function setup_file_tree_listeners () {
 		const toggle_select_icon = e.target.closest('.folder-toggle-select-icon');
 		const analysis_icon = e.target.closest('.analysis-icon');
 		const file_entry = e.target.closest('.file-entry');
+		const diff_icon = e.target.closest('.diff-icon'); // NEW: Listener for the diff icon.
 		
 		if (analysis_icon) {
 			e.stopPropagation();
@@ -430,7 +459,14 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
-		// MODIFIED: This block now handles opening files in a new tab (potentially with a diff).
+		// NEW: If the diff icon is clicked, open the diff view and stop.
+		if (diff_icon) {
+			e.stopPropagation();
+			await handle_diff_icon_click(diff_icon.dataset.path);
+			return;
+		}
+		
+		// MODIFIED: This block now handles opening files in a normal tab.
 		if (file_entry) {
 			e.stopPropagation();
 			await handle_file_click(file_entry.dataset.path);

@@ -23,7 +23,7 @@
 <div class="flex h-full" id="app-container">
 	<aside class="flex flex-col items-center gap-4 p-2 bg-base-200 border-r border-base-300">
 		<a href="#" id="about-modal-button" class="text-blue-500 text-2xl" title="About Smart Code Prompts">
-			<i class="bi bi-award"></i>
+			<img src="./assets/icons/png/128x128.png" alt="Smart Code Prompts Logo" style="width: 32px; height: 32px;">
 		</a>
 		<div class="flex flex-col gap-5 text-xl text-base-content/60 items-center flex-grow">
 			<div id="toggle-mode" class="cursor-pointer" title="Toggle Light/Dark Mode">
@@ -63,8 +63,13 @@
 			
 			<div id="workspace-pane" class="flex flex-col h-full bg-base-200/30 overflow-hidden">
 				<div id="workspace" class="relative flex flex-col h-full">
-					<div id="editor-tabs" class="flex-shrink-0 bg-base-100 border-b border-base-300">
-						<!-- Tabs will be dynamically inserted here -->
+					<!-- MODIFIED: Wrapper for tabs and scroller buttons -->
+					<div id="tabs-container-wrapper">
+						<button id="scroll-tabs-left" class="btn btn-xs btn-ghost rounded-none hidden" title="Scroll tabs left"><i class="bi bi-chevron-left"></i></button>
+						<div id="editor-tabs">
+							<!-- Tabs will be dynamically inserted here -->
+						</div>
+						<button id="scroll-tabs-right" class="btn btn-xs btn-ghost rounded-none hidden" title="Scroll tabs right"><i class="bi bi-chevron-right"></i></button>
 					</div>
 					<!-- MODIFIED: Wrapper for editor containers to allow absolute positioning -->
 					<div class="flex-grow w-full h-full relative">

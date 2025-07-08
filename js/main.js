@@ -29,7 +29,7 @@ import {initialize_alert_modal, show_alert} from './modal-alert.js';
 import {initialize_confirm_modal} from './modal-confirm.js';
 import {setup_auto_select_listeners} from './auto_select.js';
 import { initialize_editor } from './editor.js';
-import { initialize_tab_switcher } from './tab-switcher.js';
+// import { initialize_tab_switcher } from './tab-switcher.js'; // This is now handled by initialize_tab_scroller
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -54,6 +54,82 @@ async function load_all_modals_html () {
 		console.error(error);
 		document.body.innerHTML = `<div class="p-4"><div class="alert alert-error">Could not load essential UI components (modals). Please refresh the page or check the console.</div></div>`;
 	}
+}
+
+// NEW: Handles horizontal scrolling for editor tabs with buttons and drag-to-scroll.
+function initialize_tab_scroller() {
+	const tabsContainer = document.getElementById('editor-tabs');
+	const leftScroller = document.getElementById('scroll-tabs-left');
+	const rightScroller = document.getElementById('scroll-tabs-right');
+	
+	if (!tabsContainer || !leftScroller || !rightScroller) {
+		console.warn('Tab scroller elements not found, feature disabled.');
+		return;
+	}
+	
+	const checkScroll = () => {
+		const hasOverflow = tabsContainer.scrollWidth > tabsContainer.clientWidth;
+		leftScroller.classList.toggle('hidden', !hasOverflow);
+		rightScroller.classList.toggle('hidden', !hasOverflow);
+		
+		if (hasOverflow) {
+			// Use a small tolerance to handle sub-pixel rendering issues
+			leftScroller.disabled = tabsContainer.scrollLeft < 1;
+			rightScroller.disabled = tabsContainer.scrollLeft >= tabsContainer.scrollWidth - tabsContainer.clientWidth - 1;
+		}
+	};
+	
+	// Scroll with buttons
+	leftScroller.addEventListener('click', () => {
+		tabsContainer.scrollLeft -= 200;
+	});
+	rightScroller.addEventListener('click', () => {
+		tabsContainer.scrollLeft += 200;
+	});
+	
+	// Drag to scroll
+	let isDown = false;
+	let startX;
+	let scrollLeft;
+	
+	tabsContainer.addEventListener('mousedown', (e) => {
+		// Only activate drag with the primary mouse button
+		if (e.button !== 0) return;
+		// Prevent drag from starting on a button inside the tab (like the close button)
+		if (e.target.closest('button, i')) return;
+		
+		isDown = true;
+		tabsContainer.classList.add('dragging');
+		startX = e.pageX - tabsContainer.offsetLeft;
+		scrollLeft = tabsContainer.scrollLeft;
+	});
+	
+	const stopDragging = () => {
+		if (!isDown) return;
+		isDown = false;
+		tabsContainer.classList.remove('dragging');
+	};
+	
+	tabsContainer.addEventListener('mouseleave', stopDragging);
+	tabsContainer.addEventListener('mouseup', stopDragging);
+	
+	tabsContainer.addEventListener('mousemove', (e) => {
+		if (!isDown) return;
+		e.preventDefault();
+		const x = e.pageX - tabsContainer.offsetLeft;
+		const walk = (x - startX); // The distance the mouse has moved
+		tabsContainer.scrollLeft = scrollLeft - walk;
+	});
+	
+	// Update button states on scroll
+	tabsContainer.addEventListener('scroll', checkScroll);
+	
+	// Use a MutationObserver to detect when tabs are added or removed
+	const observer = new MutationObserver(checkScroll);
+	observer.observe(tabsContainer, { childList: true });
+	
+	// Initial check
+	checkScroll();
 }
 
 /**
@@ -178,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();
-	initialize_tab_switcher();
+	initialize_tab_scroller(); // NEW: Initialize the tab scroller.
 	
 	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {

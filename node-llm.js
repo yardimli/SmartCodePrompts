@@ -86,7 +86,8 @@ async function fetch_open_router_models() {
 }
 
 /**
- * Calls a specified LLM, tracks token usage, and logs the call for the session.
+ * Calls a specified LLM synchronously, waiting for the full response.
+ * Used for tasks that expect a single, complete JSON object.
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} model_id - The ID of the OpenRouter model to use.
  * @param {string} [call_reason='Unknown'] - A short description of why the LLM is being called.
@@ -94,7 +95,7 @@ async function fetch_open_router_models() {
  * @param {string|null} [response_format='json_object'] - The expected response format ('json_object' or 'text'). Pass null for default.
  * @returns {Promise<string>} A promise that resolves to the content of the LLM's response.
  */
-async function call_llm(prompt, model_id, call_reason = 'Unknown', temperature, response_format = 'json_object') {
+async function call_llm_sync(prompt, model_id, call_reason = 'Unknown', temperature, response_format = 'json_object') {
 	if (!config.openrouter_api_key || config.openrouter_api_key === 'YOUR_API_KEY_HERE') {
 		throw new Error('OpenRouter API key is not configured. Please add it on the Setup page.');
 	}
@@ -184,6 +185,128 @@ async function call_llm(prompt, model_id, call_reason = 'Unknown', temperature, 
 }
 
 /**
+ * Calls a specified LLM and streams the response back via callbacks.
+ * @param {string} prompt - The prompt to send to the LLM.
+ * @param {string} model_id - The ID of the OpenRouter model to use.
+ * @param {string} call_reason - A short description of why the LLM is being called.
+ * @param {number} temperature - The temperature for the LLM call.
+ * @param {string|null} response_format - The expected response format ('json_object' or 'text').
+ * @param {object} callbacks - The callback functions.
+ * @param {function(string)} callbacks.onChunk - Called for each piece of content.
+ * @param {function(object)} callbacks.onEnd - Called when the stream is finished.
+ * @param {function(Error)} callbacks.onError - Called if an error occurs.
+ */
+async function call_llm_stream(prompt, model_id, call_reason, temperature, response_format, { onChunk, onEnd, onError }) {
+	if (!config.openrouter_api_key || config.openrouter_api_key === 'YOUR_API_KEY_HERE') {
+		onError(new Error('OpenRouter API key is not configured. Please add it on the Setup page.'));
+		return;
+	}
+	
+	const request_body = {
+		model: model_id,
+		messages: [{ role: "user", content: prompt }],
+		stream: true
+	};
+	
+	if (response_format) {
+		request_body.response_format = { type: response_format };
+	}
+	if (typeof temperature === 'number' && !isNaN(temperature)) {
+		request_body.temperature = temperature;
+	}
+	
+	const post_data = JSON.stringify(request_body);
+	const options = {
+		hostname: 'openrouter.ai',
+		path: '/api/v1/chat/completions',
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'HTTP-Referer': 'https://smartcodeprompts.com',
+			'X-Title': 'Smart Code Prompts',
+			'Authorization': `Bearer ${config.openrouter_api_key}`,
+			'Content-Length': Buffer.byteLength(post_data)
+		}
+	};
+	
+	const req = https.request(options, (res) => {
+		if (res.statusCode < 200 || res.statusCode >= 300) {
+			let errorBody = '';
+			res.on('data', chunk => errorBody += chunk);
+			res.on('end', () => {
+				const error_msg = `LLM API request failed with status code: ${res.statusCode}. Response: ${errorBody}`;
+				log_llm_interaction(prompt, error_msg, true);
+				onError(new Error(error_msg));
+			});
+			return;
+		}
+		
+		let buffer = '';
+		let prompt_tokens = 0;
+		let completion_tokens = 0;
+		
+		res.on('data', (chunk) => {
+			buffer += chunk.toString();
+			let boundary;
+			while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+				const message = buffer.substring(0, boundary);
+				buffer = buffer.substring(boundary + 2);
+				if (message.startsWith('data: ')) {
+					const data = message.substring(6);
+					if (data.trim() === '[DONE]') continue;
+					try {
+						const parsed = JSON.parse(data);
+						if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+							onChunk(parsed.choices[0].delta.content);
+						}
+						if (parsed.usage) {
+							prompt_tokens = parsed.usage.prompt_tokens || 0;
+							completion_tokens = parsed.usage.completion_tokens || 0;
+						}
+					} catch (e) {
+						console.error('Failed to parse stream chunk:', data, e);
+					}
+				}
+			}
+		});
+		
+		res.on('end', () => {
+			const usageHeader = res.headers['x-openrouter-usage'];
+			if (usageHeader) {
+				try {
+					const usage = JSON.parse(usageHeader);
+					prompt_tokens = usage.prompt_tokens || prompt_tokens;
+					completion_tokens = usage.completion_tokens || completion_tokens;
+				} catch(e) {
+					console.warn('Could not parse x-openrouter-usage header', e);
+				}
+			}
+			
+			const log_stmt = db.prepare('INSERT INTO llm_log (timestamp, reason, model_id, prompt_tokens, completion_tokens) VALUES (?, ?, ?, ?, ?)');
+			const updatePromptTokens_stmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_prompt_tokens'");
+			const updateCompletionTokens_stmt = db.prepare("UPDATE app_settings SET value = CAST(value AS INTEGER) + ? WHERE key = 'total_completion_tokens'");
+			
+			db.transaction(() => {
+				log_stmt.run(new Date().toISOString(), call_reason, model_id || 'N/A', prompt_tokens, completion_tokens);
+				if (prompt_tokens > 0) updatePromptTokens_stmt.run(prompt_tokens);
+				if (completion_tokens > 0) updateCompletionTokens_stmt.run(completion_tokens);
+			})();
+			
+			onEnd({ prompt_tokens, completion_tokens });
+		});
+	});
+	
+	req.on('error', (e) => {
+		const error_msg = `Request Error: ${e.message}`;
+		log_llm_interaction(prompt, error_msg, true);
+		onError(e);
+	});
+	
+	req.write(post_data);
+	req.end();
+}
+
+/**
  * Refreshes the local list of LLMs from OpenRouter and stores them in the database.
  * @returns {Promise<object>} A promise that resolves to an object containing the new list of LLMs.
  */
@@ -241,13 +364,13 @@ async function analyze_file({project_path, file_path, llm_id, force = false, tem
 	const overview_prompt = overview_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
-	const overview_result = await call_llm(overview_prompt, llm_id, `File Overview: ${short_file_name}`, temperature);
+	const overview_result = await call_llm_sync(overview_prompt, llm_id, `File Overview: ${short_file_name}`, temperature);
 	
 	const functions_prompt_template = config.prompt_functions_logic;
 	const functions_prompt = functions_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
-	const functions_result = await call_llm(functions_prompt, llm_id, `Functions/Logic: ${short_file_name}`, temperature);
+	const functions_result = await call_llm_sync(functions_prompt, llm_id, `Functions/Logic: ${short_file_name}`, temperature);
 	
 	db.prepare(`
         INSERT OR REPLACE INTO file_metadata (project_path, file_path, file_overview, functions_overview, last_analyze_update_time, last_checksum)
@@ -382,7 +505,7 @@ async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id
 		.replace(/\$\{user_prompt\}/g, user_prompt)
 		.replace(/\$\{analysis_data_string\}/g, analysis_data_string);
 	
-	const llm_response = await call_llm(master_prompt, llm_id, 'Smart Prompt File Selection', temperature);
+	const llm_response = await call_llm_sync(master_prompt, llm_id, 'Smart Prompt File Selection', temperature);
 	
 	try {
 		const parsed_response = JSON.parse(llm_response);
@@ -400,20 +523,23 @@ async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id
 }
 
 /**
- * Asks a question about the code, using provided files as context.
- * @param {object} params - The parameters for the operation.
- * @returns {Promise<object>} A promise resolving to an object with the `answer`.
+ * Asks a question about the code, using provided files as context, and streams the answer.
+ * @param {object} params - The parameters for the operation, including callbacks.
  */
-async function ask_question_about_code({project_path, question, relevant_files, llm_id, temperature}) {
+async function ask_question_about_code_stream({project_path, question, relevant_files, llm_id, temperature, onChunk, onEnd, onError}) {
 	if (!llm_id) {
-		throw new Error('No LLM selected for the question.');
+		onError(new Error('No LLM selected for the question.'));
+		return;
 	}
-	if (!relevant_files || relevant_files.length === 0) {
-		throw new Error('No relevant files were provided to answer the question.');
+	
+	const parsed_relevant_files = JSON.parse(relevant_files);
+	if (!parsed_relevant_files || parsed_relevant_files.length === 0) {
+		onError(new Error('No relevant files were provided to answer the question.'));
+		return;
 	}
 	
 	let file_context = '';
-	for (const file_path of relevant_files) {
+	for (const file_path of parsed_relevant_files) {
 		try {
 			const content = get_raw_file_content(file_path, project_path);
 			file_context += `--- FILE: ${file_path} ---\n\n${content}\n\n`;
@@ -428,32 +554,24 @@ async function ask_question_about_code({project_path, question, relevant_files, 
 		.replace(/\$\{file_context\}/g, file_context)
 		.replace(/\$\{user_question\}/g, question);
 	
-	// Call the LLM expecting a free-text response, not JSON
-	const answer = await call_llm(final_prompt, llm_id, `QA: ${question.substring(0, 30)}...`, temperature, 'text');
-	
-	return {answer: answer};
+	await call_llm_stream(final_prompt, llm_id, `QA: ${question.substring(0, 30)}...`, temperature, 'text', { onChunk, onEnd, onError });
 }
 
 /**
- * Handles a direct prompt from the user, sending it to the LLM.
- * @param {object} params - The parameters for the operation.
- * @param {string} params.prompt - The user-provided prompt.
- * @param {string} params.llm_id - The ID of the LLM to use.
- * @param {number} params.temperature - The temperature for the LLM call.
- * @returns {Promise<object>} A promise resolving to an object with the `answer`.
+ * Handles a direct prompt from the user, streaming the response.
+ * @param {object} params - The parameters for the operation, including callbacks.
  */
-async function handle_direct_prompt({prompt, llm_id, temperature}) {
+async function handle_direct_prompt_stream({prompt, llm_id, temperature, onChunk, onEnd, onError}) {
 	if (!llm_id) {
-		throw new Error('No LLM selected for the prompt.');
+		onError(new Error('No LLM selected for the prompt.'));
+		return;
 	}
 	if (!prompt) {
-		throw new Error('Prompt content is empty.');
+		onError(new Error('Prompt content is empty.'));
+		return;
 	}
 	
-	// Call the LLM expecting a free-text response, not JSON
-	const answer = await call_llm(prompt, llm_id, `Direct Prompt`, temperature, 'text');
-	
-	return {answer: answer};
+	await call_llm_stream(prompt, llm_id, `Direct Prompt`, temperature, 'text', { onChunk, onEnd, onError });
 }
 
 /**
@@ -579,7 +697,7 @@ async function identify_project_files ({project_path, all_files, llm_id, tempera
 			const prompt = prompt_template.replace(/\$\{file_list_string\}/g, file_list_string);
 			
 			try {
-				const llm_response = await call_llm(prompt, llm_id, `Auto-Select Batch ${current_batch_num}`, temperature);
+				const llm_response = await call_llm_sync(prompt, llm_id, `Auto-Select Batch ${current_batch_num}`, temperature);
 				const parsed = JSON.parse(llm_response);
 				if (parsed && Array.isArray(parsed.project_files)) {
 					identified_files = identified_files.concat(parsed.project_files);
@@ -612,8 +730,8 @@ module.exports = {
 	reanalyze_modified_files,
 	get_session_stats,
 	get_llm_log,
-	ask_question_about_code,
-	handle_direct_prompt,
+	ask_question_about_code_stream,
+	handle_direct_prompt_stream,
 	cancel_analysis,
 	identify_project_files,
 	cancel_auto_select

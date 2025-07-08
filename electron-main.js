@@ -2,6 +2,7 @@
 const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog} = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
@@ -106,6 +107,20 @@ ipcMain.handle('post-data', async (event, data) => {
 	console.log('IPC Request Action:', action);
 	let result;
 	try {
+		// A helper function for streaming actions
+		const handle_stream_action = (action_handler) => {
+			const streamId = crypto.randomUUID();
+			// Don't await this; let it run in the background.
+			action_handler({
+				...data,
+				onChunk: (content) => mainWindow.webContents.send('llm-stream', { type: 'chunk', streamId, content }),
+				onEnd: (usage) => mainWindow.webContents.send('llm-stream', { type: 'end', streamId, usage }),
+				onError: (error) => mainWindow.webContents.send('llm-stream', { type: 'error', streamId, message: error.message }),
+			});
+			// Immediately return the streamId to the renderer.
+			return { success: true, streamId };
+		};
+		
 		switch (action) {
 			// --- Config/Setup Actions (from node-config.js) ---
 			case 'get_session_stats':
@@ -203,21 +218,11 @@ ipcMain.handle('post-data', async (event, data) => {
 					temperature: parseFloat(data.temperature)
 				});
 				break;
-			case 'ask_question_about_code':
-				result = await llm_manager.ask_question_about_code({
-					project_path: data.project_path,
-					question: data.question,
-					relevant_files: JSON.parse(data.relevant_files),
-					llm_id: data.llm_id,
-					temperature: parseFloat(data.temperature)
-				});
+			case 'ask_question_about_code_stream': // MODIFIED: Streaming action
+				result = handle_stream_action(llm_manager.ask_question_about_code_stream);
 				break;
-			case 'direct_prompt':
-				result = await llm_manager.handle_direct_prompt({
-					prompt: data.prompt,
-					llm_id: data.llm_id,
-					temperature: parseFloat(data.temperature)
-				});
+			case 'direct_prompt_stream': // MODIFIED: Streaming action
+				result = handle_stream_action(llm_manager.handle_direct_prompt_stream);
 				break;
 			
 			// --- Project Actions (from node-projects.js) ---

@@ -12,7 +12,7 @@ export function initialize_direct_prompt_modal() {
 
 /**
  * Handles the direct prompt submission by taking content from the main
- * textarea, sending it to the LLM, and displaying the response in a modal.
+ * textarea, sending it to the LLM, and displaying the streamed response in a modal.
  */
 async function handle_direct_prompt() {
 	const prompt_content = document.getElementById('selected-content').value.trim();
@@ -30,21 +30,53 @@ async function handle_direct_prompt() {
 	}
 	
 	direct_prompt_modal.showModal();
-	direct_prompt_response.innerHTML = '<div class="flex justify-center items-center h-full"><span class="loading loading-dots loading-lg"></span></div>';
+	direct_prompt_response.innerHTML = ''; // Start with an empty response area for streaming
+	
+	let fullResponse = '';
+	let cleanupListener = null;
 	
 	try {
-		const response = await post_data({
-			action: 'direct_prompt',
+		const { streamId, success } = await post_data({
+			action: 'direct_prompt_stream',
 			prompt: prompt_content,
 			llm_id: llm_id,
 			temperature: parseFloat(temperature)
 		});
 		
-		direct_prompt_response.innerHTML = simple_markdown_to_html(response.answer);
+		if (!success || !streamId) {
+			throw new Error('Failed to initiate the prompt stream from the server.');
+		}
+		
+		const streamHandler = (event) => {
+			if (event.streamId !== streamId) return; // Ensure we're handling the correct stream
+			
+			if (event.type === 'chunk') {
+				fullResponse += event.content;
+				direct_prompt_response.innerHTML = simple_markdown_to_html(fullResponse);
+				// Auto-scroll to the bottom as content is added
+				direct_prompt_response.scrollTop = direct_prompt_response.scrollHeight;
+			} else if (event.type === 'end') {
+				// Final render to catch any remaining markdown, and highlight code
+				direct_prompt_response.innerHTML = simple_markdown_to_html(fullResponse);
+				if (typeof hljs !== 'undefined') {
+					direct_prompt_response.querySelectorAll('pre code').forEach((block) => {
+						hljs.highlightElement(block);
+					});
+				}
+				if (cleanupListener) cleanupListener();
+			} else if (event.type === 'error') {
+				console.error('Error from stream:', event.message);
+				direct_prompt_response.innerHTML = `<div class="p-4 text-error"><strong>An error occurred during the stream:</strong><br>${event.message}</div>`;
+				if (cleanupListener) cleanupListener();
+			}
+		};
+		
+		cleanupListener = window.electronAPI.onLLMStream(streamHandler);
 		
 	} catch (error) {
 		console.error('Error during direct prompt:', error);
 		direct_prompt_response.innerHTML = `<div class="p-4 text-error"><strong>An error occurred:</strong><br>${error.message}</div>`;
+		if (cleanupListener) cleanupListener();
 	}
 }
 

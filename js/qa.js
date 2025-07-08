@@ -38,15 +38,12 @@ function add_message_to_chat(role, content, is_placeholder = false) {
 	if (role === 'user') {
 		// Escape HTML entities in user messages to display them as text
 		const escaped_content = content
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
+			.replace(/</g, '<')
+			.replace(/>/g, '>')
 			.replace(/\n/g, '<br>');
 		message_bubble.innerHTML = escaped_content;
-	} else if (is_placeholder) {
-		// System messages (placeholders) can contain HTML
-		message_bubble.innerHTML = content.replace(/\n/g, '<br>');
 	} else {
-		// Assistant's final answers are already processed by simple_markdown_to_html
+		// Assistant messages (placeholders or final) can contain HTML
 		message_bubble.innerHTML = content;
 	}
 	
@@ -88,6 +85,8 @@ async function handle_question_submit() {
 	// Add a placeholder for the assistant's response
 	const thinking_placeholder = add_message_to_chat('assistant', '<i>Thinking... finding relevant files...</i>', true);
 	
+	let cleanupListener = null;
+	
 	try {
 		// Step 1: Get relevant files based on the question using the Smart Prompt LLM
 		const relevant_files_response = await post_data({
@@ -101,14 +100,16 @@ async function handle_question_submit() {
 		const relevant_files = relevant_files_response.relevant_files;
 		if (!relevant_files || relevant_files.length === 0) {
 			thinking_placeholder.innerHTML = "I couldn't find any relevant files to answer your question. Please try rephrasing or analyzing more files in your project.";
+			qa_input.disabled = false;
+			qa_send_button.disabled = false;
 			return;
 		}
 		
 		thinking_placeholder.innerHTML = `<i>Found ${relevant_files.length} relevant file(s). Asking the LLM...</i>`;
 		
-		// Step 2: Ask the LLM the question with the context of the relevant files, using the Q&A LLM
-		const qa_response = await post_data({
-			action: 'ask_question_about_code',
+		// Step 2: Ask the LLM the question with the context of the relevant files, using the Q&A LLM (streaming)
+		const { streamId, success } = await post_data({
+			action: 'ask_question_about_code_stream',
 			project_path: current_project.path,
 			question: user_question,
 			relevant_files: JSON.stringify(relevant_files),
@@ -116,13 +117,46 @@ async function handle_question_submit() {
 			temperature: parseFloat(temperature)
 		});
 		
-		// Replace placeholder with the sanitized and formatted answer.
-		thinking_placeholder.innerHTML = simple_markdown_to_html(qa_response.answer);
+		if (!success || !streamId) {
+			throw new Error('Failed to initiate the Q&A stream from the server.');
+		}
+		
+		let fullResponse = '';
+		thinking_placeholder.innerHTML = ''; // Clear the "Asking..." message
+		
+		const streamHandler = (event) => {
+			if (event.streamId !== streamId) return;
+			
+			if (event.type === 'chunk') {
+				fullResponse += event.content;
+				thinking_placeholder.innerHTML = simple_markdown_to_html(fullResponse);
+				qa_chat_window.scrollTop = qa_chat_window.scrollHeight;
+			} else if (event.type === 'end') {
+				thinking_placeholder.innerHTML = simple_markdown_to_html(fullResponse);
+				if (typeof hljs !== 'undefined') {
+					thinking_placeholder.querySelectorAll('pre code').forEach((block) => {
+						hljs.highlightElement(block);
+					});
+				}
+				if (cleanupListener) cleanupListener();
+				qa_input.disabled = false;
+				qa_send_button.disabled = false;
+				qa_input.focus();
+			} else if (event.type === 'error') {
+				thinking_placeholder.innerHTML = `<span class="text-error">An error occurred: ${event.message}</span>`;
+				if (cleanupListener) cleanupListener();
+				qa_input.disabled = false;
+				qa_send_button.disabled = false;
+				qa_input.focus();
+			}
+		};
+		
+		cleanupListener = window.electronAPI.onLLMStream(streamHandler);
 		
 	} catch (error) {
 		console.error('Error during QA process:', error);
 		thinking_placeholder.innerHTML = `<span class="text-error">An error occurred: ${error.message}</span>`;
-	} finally {
+		if (cleanupListener) cleanupListener();
 		qa_input.disabled = false;
 		qa_send_button.disabled = false;
 		qa_input.focus();

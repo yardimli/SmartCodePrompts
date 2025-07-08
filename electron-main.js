@@ -1,8 +1,26 @@
 // electron-main.js
-const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog} = require('electron');
+const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog, protocol} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+
+// NEW: Register the 'app' protocol as privileged.
+// This must be done before the 'ready' event. It tells Chromium to treat 'app://'
+// like a standard web protocol, which is necessary to fix the error
+// "Fetch API cannot load app://... URL scheme 'app' is not supported".
+// By enabling `supportFetchAPI`, we allow the renderer process to fetch local
+// resources (like your modal HTML files) using the custom protocol.
+protocol.registerSchemesAsPrivileged([
+	{
+		scheme: 'app',
+		privileges: {
+			secure: true,          // Treat it as a secure protocol (like HTTPS)
+			standard: true,        // Ensures relative path resolution works correctly
+			corsEnabled: true,     // Allows Cross-Origin Resource Sharing
+			supportFetchAPI: true, // Explicitly enables support for the Fetch API
+		},
+	},
+]);
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
@@ -41,7 +59,7 @@ function createWindow () {
 	});
 	
 	
-	mainWindow.loadFile('index.html');
+	mainWindow.loadURL('app://./index.html');
 	
 	// Create context menu
 	mainWindow.webContents.on('context-menu', (event, params) => {
@@ -284,7 +302,38 @@ ipcMain.handle('post-data', async (event, data) => {
 
 
 // --- App Lifecycle ---
-app.on('ready', createWindow);
+app.on('ready', () => {
+	// Register a custom 'app://' protocol.
+	// It treats the app's directory as the root of a virtual web server.
+	protocol.registerFileProtocol('app', (request, callback) => {
+		try {
+			// Create a URL object to easily parse the request.
+			// This correctly handles and separates the pathname, search (query), and hash.
+			const url = new URL(request.url);
+			
+			// Get just the pathname, which strips the query string and hash.
+			// e.g., for "app://./path/to/file.woff2?v=123", pathname is "/./path/to/file.woff2"
+			let pathname = decodeURIComponent(url.pathname);
+			
+			// On Windows, the pathname might start with a drive letter like /C:/...
+			// We need to remove the leading slash for path.join to work correctly.
+			if (process.platform === 'win32' && pathname.startsWith('/')) {
+				pathname = pathname.substring(1);
+			}
+			
+			// Construct the absolute file path.
+			const filePath = path.join(__dirname, pathname);
+			callback({ path: filePath });
+			
+		} catch (error) {
+			console.error(`[Protocol Handler Error] Failed to handle request for ${request.url}:`, error);
+			// Return a standard file not found error.
+			callback({ error: -6 }); // -6 is net::ERR_FILE_NOT_FOUND
+		}
+	});
+	
+	createWindow();
+});
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {

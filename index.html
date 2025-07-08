@@ -3,8 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	
-	<!-- MODIFIED: Added 'file:' to worker-src in the CSP to allow Monaco Editor's web workers to load correctly in the Electron file:// context. This resolves the "Could not create web worker" error. -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'  'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob: file:;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' app:; img-src 'self' data: blob:  app:; script-src 'self' 'unsafe-inline' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' data: app:; connect-src 'self' app:; worker-src 'self' blob: file: app:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
 	

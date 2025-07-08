@@ -1,3 +1,5 @@
+// node-files.js:
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -133,6 +135,25 @@ function get_file_content(input_path, project_path) {
 }
 
 /**
+ * NEW: Writes content to a specified file.
+ * @param {object} params - The parameters for saving.
+ * @param {string} params.project_path - The absolute path of the project.
+ * @param {string} params.file_path - The path of the file to write, relative to the project root.
+ * @param {string} params.content - The new content for the file.
+ * @returns {object} A success object.
+ */
+function save_file_content({ project_path, file_path, content }) {
+	const full_path = resolve_path(file_path, project_path);
+	try {
+		fs.writeFileSync(full_path, content, 'utf8');
+		return { success: true };
+	} catch (error) {
+		console.error(`Error writing file ${full_path}:`, error);
+		throw new Error(`Could not save file: ${file_path}`);
+	}
+}
+
+/**
  * Reads the raw, unmodified content of a single file.
  * @param {string} input_path - The path of the file to read, relative to the project root.
  * @param {string} project_path - The absolute path of the project.
@@ -141,12 +162,8 @@ function get_file_content(input_path, project_path) {
  */
 function get_raw_file_content(input_path, project_path) {
 	const full_path = resolve_path(input_path, project_path);
-	try {
-		return fs.readFileSync(full_path, 'utf8');
-	} catch (error) {
-		console.error(`Error reading raw file ${full_path}:`, error);
-		throw new Error(`Could not read raw file content for: ${input_path}`);
-	}
+	// Let the caller handle the error.
+	return fs.readFileSync(full_path, 'utf8');
 }
 
 // Checks if a directory is a Git repository.
@@ -201,14 +218,20 @@ function getGitModifiedFiles(project_full_path) {
 }
 
 
-// Gets file content for the editor, including the original version from git if available.
+// MODIFIED: Gets file content for the editor, now gracefully handles non-existent files.
 function get_file_for_editor({ project_path, file_path }) {
 	let currentContent;
 	try {
 		currentContent = get_raw_file_content(file_path, project_path);
 	} catch (e) {
-		// If file can't be read, return an error state.
-		return { currentContent: `/* ERROR: Could not read file: ${file_path} */`, originalContent: null };
+		// Check if the error is because the file doesn't exist.
+		if (e.code === 'ENOENT') {
+			console.warn(`File not found while opening for editor: ${file_path}`);
+			return { currentContent: null, originalContent: null };
+		}
+		// For other errors (e.g., permissions), return an error message in the editor.
+		console.error(`Error reading file for editor ${file_path}:`, e);
+		return { currentContent: `/* ERROR: Could not read file: ${file_path}. Reason: ${e.message} */`, originalContent: null };
 	}
 	
 	let originalContent = null;
@@ -396,4 +419,4 @@ function check_for_modified_files({project_path}) {
 	};
 }
 
-module.exports = {get_folders, get_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files, get_file_for_editor};
+module.exports = {get_folders, get_file_content, save_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files, get_file_for_editor};

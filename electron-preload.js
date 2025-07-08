@@ -1,4 +1,3 @@
-// electron-preload.js
 const {contextBridge, ipcRenderer} = require('electron');
 
 // Expose a safe, limited API to the renderer process (e.g., js/main.js)

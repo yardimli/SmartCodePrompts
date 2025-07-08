@@ -1,11 +1,68 @@
 // SmartCodePrompts/js/editor.js
 
+import { post_data } from './utils.js';
+import { get_current_project } from './state.js';
+
 let editor = null;
 let diffEditor = null; // NEW: For side-by-side diff view
-// MODIFIED: Added originalModel, isDiff to the tab object definition.
-let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath }
+// MODIFIED: Added originalModel, isDiff, and debounceTimer to the tab object definition.
+let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, debounceTimer }
 let activeTabId = null;
 let tabCounter = 0;
+
+/**
+ * NEW: Saves the current list of open file tabs to the server for the current project.
+ * Moved from state.js to avoid circular dependency.
+ */
+function save_open_tabs_state() {
+	const project = get_current_project();
+	if (!project) return;
+	
+	// Get all tabs that have a filePath (i.e., are actual files)
+	const open_file_tabs = getTabs()
+		.map(tab => tab.filePath)
+		.filter(filePath => filePath !== null);
+	
+	post_data({
+		action: 'save_open_tabs',
+		project_path: project.path,
+		open_tabs: JSON.stringify(open_file_tabs)
+	}).catch(error => {
+		console.error('Failed to save open tabs state:', error);
+	});
+}
+
+/**
+ * NEW: Saves a tab's content to the filesystem.
+ * @param {string} tabId The ID of the tab to save.
+ */
+function saveTabContent(tabId) {
+	const tab = findTab(tabId);
+	// Don't save if it's not a file, is read-only, or is a diff view
+	if (!tab || !tab.filePath || tab.readOnly || tab.isDiff) {
+		return;
+	}
+	
+	const project = get_current_project();
+	if (!project) {
+		console.error("Cannot save file: No project selected.");
+		return;
+	}
+	
+	const content = tab.model.getValue();
+	console.log(`Auto-saving ${tab.filePath}...`);
+	
+	post_data({
+		action: 'save_file_content',
+		project_path: project.path,
+		file_path: tab.filePath,
+		content: content
+	}).catch(error => {
+		console.error(`Failed to auto-save ${tab.filePath}:`, error);
+		// TODO: Show an error to the user in the UI
+	});
+}
+
 
 // NEW: Helper to get the currently active Monaco editor instance (either the standard one or the modified pane of the diff editor).
 function getActiveMonacoEditorInstance() {
@@ -150,6 +207,11 @@ export function closeTab(tabId) {
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
 	
+	// NEW: Clear any pending auto-save timer before closing.
+	if (tabToClose.debounceTimer) {
+		clearTimeout(tabToClose.debounceTimer);
+	}
+	
 	// MODIFIED: Dispose of both models to free up memory if it's a diff tab
 	tabToClose.model.dispose();
 	if (tabToClose.originalModel) {
@@ -173,6 +235,7 @@ export function closeTab(tabId) {
 	}
 	
 	renderTabs();
+	save_open_tabs_state(); // NEW: Persist the new tab state.
 }
 
 /**
@@ -203,7 +266,8 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		language: language,
 		viewState: null,
 		readOnly: readOnly,
-		filePath: filePath
+		filePath: filePath,
+		debounceTimer: null, // NEW
 	};
 	
 	tabs.push(newTab);
@@ -252,12 +316,29 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		isCloseable: true,
 		language: language,
 		viewState: null,
-		readOnly: true, // Files opened for viewing are read-only by default.
-		filePath: filePath
+		// MODIFIED: Diff views are read-only; normal file views are editable.
+		readOnly: isDiff,
+		filePath: filePath,
+		debounceTimer: null, // NEW: initialize timer handle
 	};
+	
+	// NEW: Add auto-save listener for editable, non-diff tabs
+	if (!newTab.readOnly && !newTab.isDiff) {
+		newTab.model.onDidChangeContent(() => {
+			// Clear previous timer if it exists
+			if (newTab.debounceTimer) {
+				clearTimeout(newTab.debounceTimer);
+			}
+			// Set a new timer to save after 1.5 seconds of inactivity
+			newTab.debounceTimer = setTimeout(() => {
+				saveTabContent(newTab.id);
+			}, 1500);
+		});
+	}
 	
 	tabs.push(newTab);
 	switchToTab(newTabId);
+	save_open_tabs_state(); // NEW: Persist the new tab state.
 }
 
 /**

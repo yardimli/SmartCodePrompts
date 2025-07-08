@@ -243,6 +243,13 @@ ipcMain.handle('post-data', async (event, data) => {
 					selected_files: data.selected_files
 				});
 				break;
+			// NEW: Action to save the list of open tabs for a project.
+			case 'save_open_tabs':
+				result = project_manager.save_open_tabs({
+					project_path: data.project_path,
+					open_tabs_json: data.open_tabs
+				});
+				break;
 			
 			// --- File Actions (from node-files.js) ---
 			case 'get_folders':
@@ -258,10 +265,19 @@ ipcMain.handle('post-data', async (event, data) => {
 					result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
 				}
 				break;
+			// NEW: Action to save content back to a file.
+			case 'save_file_content':
+				result = file_manager.save_file_content({
+					project_path: data.project_path,
+					file_path: data.file_path,
+					content: data.content
+				});
+				break;
 			case 'get_file_for_editor':
 				result = file_manager.get_file_for_editor({
 					project_path: data.project_path,
-					file_path: data.path // MODIFIED: Changed data.file_path to data.path to match the key sent from the frontend.
+					// The frontend sends 'path', but the file manager expects 'file_path'.
+					file_path: data.path
 				});
 				break;
 			case 'search_files':

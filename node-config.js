@@ -27,6 +27,14 @@ function create_tables () {
             FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
         );
 
+        /* NEW: Table to store open file tabs for each project */
+        CREATE TABLE IF NOT EXISTS project_open_tabs (
+            project_path TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            PRIMARY KEY (project_path, file_path),
+            FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS file_metadata (
             project_path TEXT NOT NULL,
             file_path TEXT NOT NULL,

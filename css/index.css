@@ -211,7 +211,68 @@
     color: hsl(var(--pf))
 }
 
-/* NEW: Ensure the Monaco editor container is ready for the editor */
+/* NEW: Styles for the editor tabs */
+#editor-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    user-select: none; /* Prevent text selection of tabs */
+    background-color: hsl(var(--b2)); /* DaisyUI base-200 */
+}
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-right: 1px solid hsl(var(--b3)); /* DaisyUI base-300 */
+    cursor: pointer;
+    color: hsl(var(--bc) / 0.6); /* DaisyUI base-content at 60% opacity */
+    white-space: nowrap;
+    font-size: 13px;
+    transition: background-color 0.2s, color 0.2s;
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+.editor-tab:hover {
+    background-color: hsl(var(--b3));
+    color: hsl(var(--bc) / 0.8);
+}
+
+.editor-tab.active {
+    background-color: hsl(var(--p) / 0.05); /* Use a subtle version of the primary color for the editor background */
+    color: hsl(var(--bc));
+    border-bottom: 1px solid transparent;
+}
+
+[data-theme="light"] .editor-tab.active {
+    background-color: #ffffff; /* Match light theme editor background */
+}
+
+[data-theme="dark"] .editor-tab.active {
+    background-color: #1e1e1e; /* Match dark theme editor background */
+}
+
+
+.close-tab-btn {
+    margin-left: 8px;
+    padding: 2px;
+    border-radius: 50%;
+    line-height: 1;
+    font-size: 14px;
+    opacity: 0.5;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.editor-tab:hover .close-tab-btn {
+    opacity: 1;
+}
+
+.close-tab-btn:hover {
+    background-color: hsl(var(--bc) / 0.2);
+}
+
+
+/* Ensure the Monaco editor container is ready for the editor */
 #monaco-editor-container {
     overflow: hidden; /* Monaco manages its own scrollbars */
 }

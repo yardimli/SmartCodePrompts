@@ -1,9 +1,20 @@
 // SmartCodePrompts/js/editor.js
 
 let editor = null;
-let tabs = []; // Array of { id, title, model, isCloseable, language, viewState }
+// MODIFIED: Added readOnly and filePath to the tab object definition.
+let tabs = []; // Array of { id, title, model, isCloseable, language, viewState, readOnly, filePath }
 let activeTabId = null;
 let tabCounter = 0;
+
+// NEW: Helper to get language from filename for Monaco
+function getLanguageForFile(filename) {
+	if (!window.monaco) return 'plaintext';
+	const extension = '.' + filename.split('.').pop();
+	const languages = monaco.languages.getLanguages();
+	// Find a language that has our file extension.
+	const lang = languages.find(l => l.extensions && l.extensions.includes(extension));
+	return lang ? lang.id : 'plaintext';
+}
 
 // Helper function to render the tab UI
 function renderTabs() {
@@ -65,6 +76,7 @@ export function switchToTab(tabId) {
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
+		editor.updateOptions({ readOnly: newTab.readOnly }); // MODIFIED: Update readOnly state based on the tab.
 		editor.setModel(newTab.model);
 		editor.restoreViewState(newTab.viewState);
 		editor.focus();
@@ -109,9 +121,12 @@ export function closeTab(tabId) {
  * @param {string} content - The initial content for the tab.
  * @param {string} language - The language for syntax highlighting.
  * @param {boolean} isCloseable - Whether the tab can be closed by the user.
+ * @param {boolean} readOnly - Whether the editor should be read-only for this tab.
+ * @param {string|null} filePath - The file path associated with the tab, for deduplication.
  * @returns {string} The ID of the newly created tab.
  */
-export function createNewTab(title, content, language = 'plaintext', isCloseable = true) {
+// MODIFIED: Added readOnly and filePath parameters.
+export function createNewTab(title, content, language = 'plaintext', isCloseable = true, readOnly = false, filePath = null) {
 	if (!monaco || !editor) return null;
 	
 	tabCounter++;
@@ -124,12 +139,35 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		model: newModel,
 		isCloseable: isCloseable,
 		language: language,
-		viewState: null // Will be populated when switching away
+		viewState: null, // Will be populated when switching away
+		readOnly: readOnly, // NEW
+		filePath: filePath // NEW
 	};
 	
 	tabs.push(newTab);
 	switchToTab(newTabId); // This will also render the tabs
 	return newTabId;
+}
+
+/**
+ * Opens a file in a new tab, or switches to it if already open.
+ * @param {string} filePath - The unique path of the file.
+ * @param {string} content - The content of the file.
+ */
+export function openFileInTab(filePath, content) { // NEW: Function to handle opening files.
+                                                   // Check if a tab for this file already exists
+	const existingTab = tabs.find(t => t.filePath === filePath);
+	if (existingTab) {
+		switchToTab(existingTab.id);
+		return;
+	}
+	
+	// If not, create a new readonly, closeable tab for the file
+	const title = filePath.split('/').pop();
+	const language = getLanguageForFile(filePath);
+	
+	// Files opened for viewing are read-only.
+	createNewTab(title, content, language, true, true, filePath);
 }
 
 /**
@@ -190,12 +228,13 @@ export function initialize_editor(is_dark_mode) {
 				contextmenu: true,
 			});
 			
-			// Create the initial, non-closeable "Prompt" tab
+			// MODIFIED: Create the initial "Prompt" tab as non-readonly.
 			createNewTab(
 				'Prompt',
 				'// Select files from the left to build a prompt.',
 				'plaintext',
-				false
+				false, // isCloseable
+				false // readOnly
 			);
 			
 			console.log('Monaco editor with tabs initialized.');

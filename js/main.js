@@ -7,7 +7,8 @@ import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
 // --- MODULE IMPORTS ---
 import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
 import {initialize_analysis_modal} from './modal-analysis.js';
-import {initialize_file_view_modal} from './modal-file-view.js';
+// REMOVED: The file view modal is no longer used.
+// import {initialize_file_view_modal} from './modal-file-view.js';
 import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
 import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
 import {initialize_setup_modal, setup_setup_modal_listeners} from './modal-setup.js';
@@ -34,9 +35,10 @@ import { initialize_editor } from './editor.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
+	// MODIFIED: Removed 'modal-file-view.html' from the list.
 	const modal_files = [
 		'modal-about.html', 'modal-analysis.html',
-		'modal-file-view.html', 'modal-log.html', 'modal-qa.html',
+		'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html'
 	];
@@ -168,7 +170,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 	
 	initialize_about_modal();
 	initialize_analysis_modal();
-	initialize_file_view_modal();
+	// REMOVED: The file view modal is no longer initialized.
+	// initialize_file_view_modal();
 	initialize_log_modal();
 	initialize_search_modal();
 	initialize_setup_modal();

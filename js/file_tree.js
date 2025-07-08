@@ -2,10 +2,11 @@
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
-import {handle_file_name_click} from './modal-file-view.js';
+// REMOVED: The modal-file-view is no longer used.
+// import {handle_file_name_click} from './modal-file-view.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
-// NEW: Import editor functions
-import { set_editor_content } from './editor.js';
+// MODIFIED: Import `openFileInTab` in addition to `set_editor_content`.
+import { set_editor_content, openFileInTab } from './editor.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -377,6 +378,34 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
+// NEW: Handler for clicking a file name to open it in a new tab.
+async function handle_file_click(filePath) {
+	show_loading(`Opening ${filePath}...`);
+	try {
+		const current_project = get_current_project();
+		if (!current_project) {
+			throw new Error('No project is currently selected.');
+		}
+		const data = await post_data({
+			action: 'get_file_content',
+			project_path: current_project.path,
+			path: filePath
+		});
+		
+		// Use nullish coalescing to provide a default message for empty/missing files.
+		const content = data.content ?? `/* File not found or is empty: ${filePath} */`;
+		
+		// Call the editor module to handle tab creation/switching.
+		openFileInTab(filePath, content);
+		
+	} catch (error) {
+		console.error(`Error opening file ${filePath}:`, error);
+		// Consider showing an alert to the user here via a function from modal-alert.js
+	} finally {
+		hide_loading();
+	}
+}
+
 /**
  * Sets up delegated event listeners for the file tree container and its controls.
  * This function was created by moving logic out of main.js.
@@ -397,9 +426,11 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
+		// MODIFIED: This block now handles opening files in a new tab.
 		if (file_entry) {
 			e.stopPropagation();
-			handle_file_name_click(file_entry);
+			// The modal is no longer used; call the new handler to open the file in a tab.
+			await handle_file_click(file_entry.dataset.path);
 			return;
 		}
 		

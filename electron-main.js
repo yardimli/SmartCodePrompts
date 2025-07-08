@@ -1,8 +1,10 @@
+// electron-main.js:
+
 const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const http = require('http'); // NEW: Import the Node.js http module.
+const http = require('http');
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
@@ -21,7 +23,7 @@ const project_manager = require('./node-projects');
 const file_manager = require('./node-files');
 
 let mainWindow;
-const PORT = 31987; // NEW: Define a port for the local server. A non-standard port is chosen to avoid conflicts.
+const PORT = 31987;
 
 config_manager.initialize_database_and_config();
 
@@ -41,7 +43,6 @@ function createWindow () {
 		}
 	});
 	
-	// MODIFIED: Load the URL from the local HTTP server instead of the custom protocol.
 	mainWindow.loadURL(`http://localhost:${PORT}`);
 	
 	// Create context menu
@@ -190,7 +191,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				break;
 			case 'reanalyze_modified_files':
-				// MODIFIED: This is now a fire-and-forget call that starts a background task.
 				llm_manager.reanalyze_modified_files({
 					project_path: data.project_path,
 					llm_id: data.llm_id,
@@ -203,7 +203,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.cancel_analysis();
 				break;
 			case 'identify_project_files':
-				// This is a fire-and-forget call that starts a background task.
 				llm_manager.identify_project_files({
 					project_path: data.project_path,
 					all_files: data.all_files,
@@ -223,10 +222,10 @@ ipcMain.handle('post-data', async (event, data) => {
 					temperature: parseFloat(data.temperature)
 				});
 				break;
-			case 'ask_question_about_code_stream': // MODIFIED: Streaming action
+			case 'ask_question_about_code_stream':
 				result = handle_stream_action(llm_manager.ask_question_about_code_stream);
 				break;
-			case 'direct_prompt_stream': // MODIFIED: Streaming action
+			case 'direct_prompt_stream':
 				result = handle_stream_action(llm_manager.handle_direct_prompt_stream);
 				break;
 			
@@ -234,7 +233,6 @@ ipcMain.handle('post-data', async (event, data) => {
 			case 'add_project':
 				result = project_manager.add_project({path: data.path});
 				break;
-			// DELETED: 'browse_directory' action is no longer needed.
 			case 'get_project_state':
 				result = project_manager.get_project_state({project_path: data.project_path});
 				break;
@@ -260,6 +258,12 @@ ipcMain.handle('post-data', async (event, data) => {
 					result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
 				}
 				break;
+			case 'get_file_for_editor':
+				result = file_manager.get_file_for_editor({
+					project_path: data.project_path,
+					file_path: data.path // MODIFIED: Changed data.file_path to data.path to match the key sent from the frontend.
+				});
+				break;
 			case 'search_files':
 				result = file_manager.search_files(data.folder_path, data.search_term, data.project_path);
 				break;
@@ -281,8 +285,6 @@ ipcMain.handle('post-data', async (event, data) => {
 		return result;
 	} catch (error) {
 		console.error("Error processing IPC request:", error);
-		// When an error is thrown in an ipcMain.handle, it's automatically
-		// converted into a rejected promise for the renderer.
 		throw error;
 	}
 });
@@ -292,14 +294,12 @@ ipcMain.handle('post-data', async (event, data) => {
 app.on('ready', () => {
 	const server = http.createServer((req, res) => {
 		try {
-			// Sanitize and resolve the file path.
 			let reqPath = req.url.toString().split('?')[0];
 			if (reqPath === '/') {
 				reqPath = '/index.html';
 			}
 			const filePath = path.join(__dirname, reqPath);
 			
-			// Basic security: prevent directory traversal attacks.
 			if (!filePath.startsWith(__dirname)) {
 				res.writeHead(403);
 				res.end('Forbidden');
@@ -346,7 +346,6 @@ app.on('ready', () => {
 		}
 	});
 	
-	// Start the server and then create the main window.
 	server.listen(PORT, 'localhost', () => {
 		console.log(`[Smart Code Prompts] Server running at http://localhost:${PORT}/`);
 		createWindow();

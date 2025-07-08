@@ -66,7 +66,13 @@
 					<div id="editor-tabs" class="flex-shrink-0 bg-base-100 border-b border-base-300">
 						<!-- Tabs will be dynamically inserted here -->
 					</div>
-					<div id="monaco-editor-container" class="flex-grow w-full h-full"></div>
+					<!-- MODIFIED: Wrapper for editor containers to allow absolute positioning -->
+					<div class="flex-grow w-full h-full relative">
+						<!-- The standard editor container -->
+						<div id="monaco-editor-container" class="absolute inset-0"></div>
+						<!-- NEW: The diff editor container, initially hidden -->
+						<div id="monaco-diff-editor-container" class="absolute inset-0" style="display: none;"></div>
+					</div>
 					
 					<button id="copy-prompt-button" class="btn btn-sm btn-ghost absolute bottom-2 right-2 z-10"
 					        title="Copy to Clipboard">
@@ -122,7 +128,6 @@
 							<i class="bi bi-arrow-down-circle text-info"></i>
 							<span id="completion-tokens">0</span>
 						</div>
-						<!-- NEW -->
 						<div class="flex items-center gap-1" title="Total Estimated Cost this Session (USD)">
 							<i class="bi bi-currency-dollar text-warning"></i>
 							<span id="total-cost">$0.000000</span>

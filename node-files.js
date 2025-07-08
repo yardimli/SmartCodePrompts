@@ -1,6 +1,9 @@
+// node-files.js:
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 const {db, config} = require('./node-config');
 
 /**
@@ -137,6 +140,59 @@ function get_raw_file_content(input_path, project_path) {
 	}
 }
 
+// Checks if a directory is a Git repository.
+function isGitRepository(project_path) {
+	return fs.existsSync(path.join(project_path, '.git'));
+}
+
+// Gets the content of a file from the last commit (HEAD).
+function getGitHeadContent(relative_path, project_full_path) {
+	// Use forward slashes for git and sanitize to prevent command injection.
+	const sanitized_path = relative_path.replace(/\\/g, '/');
+	if (sanitized_path.includes('"') || sanitized_path.includes(';')) {
+		console.error(`Invalid characters in file path for git command: ${sanitized_path}`);
+		return null;
+	}
+	
+	try {
+		// The command must be run from within the git repo directory.
+		const gitCommand = `git show HEAD:"${sanitized_path}"`;
+		// Use a timeout to prevent hanging on large files or slow git operations.
+		const stdout = execSync(gitCommand, { cwd: project_full_path, encoding: 'utf8', timeout: 2000 });
+		return stdout;
+	} catch (error) {
+		// This is an expected failure for new files not yet in git.
+		// We can ignore the error and return null.
+		return null;
+	}
+}
+
+// Gets file content for the editor, including the original version from git if available.
+function get_file_for_editor({ project_path, file_path }) {
+	let currentContent;
+	try {
+		currentContent = get_raw_file_content(file_path, project_path);
+	} catch (e) {
+		// If file can't be read, return an error state.
+		return { currentContent: `/* ERROR: Could not read file: ${file_path} */`, originalContent: null };
+	}
+	
+	let originalContent = null;
+	
+	if (isGitRepository(project_path)) {
+		originalContent = getGitHeadContent(file_path, project_path);
+	}
+	
+	// MODIFIED: Normalize both strings before comparing to handle line-ending differences (CRLF vs LF).
+	// This is the primary fix for the bug where all files appeared modified.
+	if (originalContent && currentContent.replace(/\r/g, '') === originalContent.replace(/\r/g, '')) {
+		originalContent = null;
+	}
+	
+	return { currentContent, originalContent };
+}
+
+
 /**
  * Recursively searches for a term within files in a given directory.
  * @param {string} start_path - The directory path to start the search from, relative to the project root.
@@ -147,8 +203,6 @@ function get_raw_file_content(input_path, project_path) {
 function search_files(start_path, search_term, project_path) {
 	const absolute_start_path = resolve_path(start_path, project_path);
 	const matching_files = [];
-	// Create a case-insensitive regex for finding all occurrences.
-	// We must escape special regex characters from the user's search term to prevent errors.
 	const search_regex = new RegExp(search_term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
 	
 	function search_in_directory(current_dir) {
@@ -178,11 +232,9 @@ function search_files(start_path, search_term, project_path) {
 				if (config.allowed_extensions.includes(ext)) {
 					try {
 						const content = fs.readFileSync(item_full_path, 'utf8');
-						// Use regex to find all matches to get an accurate count.
 						const matches = content.match(search_regex);
 						if (matches && matches.length > 0) {
 							const relative_path = path.relative(project_path, item_full_path).replace(/\\/g, '/');
-							// Push an object with the file path and the number of matches found.
 							matching_files.push({path: relative_path, match_count: matches.length});
 						}
 					} catch (err) {
@@ -299,4 +351,4 @@ function check_for_modified_files({project_path}) {
 	};
 }
 
-module.exports = {get_folders, get_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files};
+module.exports = {get_folders, get_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files, get_file_for_editor};

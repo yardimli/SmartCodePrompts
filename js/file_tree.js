@@ -2,9 +2,8 @@
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
-// REMOVED: The modal-file-view is no longer used.
 import {update_estimated_prompt_tokens} from './status_bar.js';
-// MODIFIED: Import functions to specifically target the prompt tab.
+// MODIFIED: Import functions to specifically target the prompt tab and open file tabs.
 import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
@@ -65,12 +64,10 @@ function _updateEditorWithCachedContent () {
 			final_content.substring(last_index + search_str.length);
 	}
 	
-	// MODIFIED: Update the 'Prompt' tab specifically, not the active tab.
 	const promptTabId = getPromptTabId();
 	if (promptTabId) {
 		setTabContent(promptTabId, final_content);
 	} else {
-		// This can happen if the prompt tab was somehow closed or not created.
 		console.error("Could not find the 'Prompt' tab to update.");
 	}
 	
@@ -104,11 +101,6 @@ export function load_folders (path, element) {
 				file_tree.innerHTML = '';
 			}
 			if (!response || (!response.folders.length && !response.files.length)) {
-				// *** BUG FIX ***
-				// The line below was causing an infinite loop in expand_all_folders.
-				// An empty folder is still successfully "opened", so we should not remove the .open class.
-				// The class should only be removed on a load *error*, which is handled in the catch block.
-				// if (element) element.classList.remove('open');
 				return resolve();
 			}
 			const ul = document.createElement('ul');
@@ -118,8 +110,6 @@ export function load_folders (path, element) {
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			response.folders.forEach(folder => {
-				// Make folder path construction consistent with file paths.
-				// This avoids a leading './' if the base path is '.', fixing the toggle-select bug.
 				const full_path = (path === '.') ? folder : `${path}/${folder}`;
 				content += `
                     <li>
@@ -179,14 +169,11 @@ export function load_folders (path, element) {
 export async function update_selected_content () {
 	const checked_boxes = document.querySelectorAll('#file-tree input[type="checkbox"]:checked');
 	
-	// MODIFIED: Get the prompt tab ID to update it specifically.
 	const promptTabId = getPromptTabId();
 	
 	if (checked_boxes.length === 0) {
 		cached_file_content_string = '';
-		// MODIFIED: Clear the 'Prompt' tab specifically.
 		if (promptTabId) {
-			// Reset to the initial prompt message.
 			setTabContent(promptTabId, '// Select files from the left to build a prompt.');
 		}
 		update_estimated_prompt_tokens(0);
@@ -199,13 +186,10 @@ export async function update_selected_content () {
 		const path = box.dataset.path;
 		return post_data({action: 'get_file_content', project_path: get_current_project().path, path: path})
 			.then(response => {
-				// Check if the first line contains the prompt (assuming 'prompt' variable exists)
 				const firstLine = response.content.split('\n')[0];
 				if (firstLine && firstLine.includes(path)) {
-					// Don't include the path comment
 					return `${response.content}\n\n`;
 				} else {
-					// Include the path comment as before
 					return `// ${path}:\n\n${response.content}\n\n`;
 				}
 			})
@@ -219,7 +203,6 @@ export async function update_selected_content () {
 	} catch (error) {
 		console.error('Error updating content:', error);
 		const error_message = '/* --- An unexpected error occurred while loading file contents. --- */';
-		// MODIFIED: Update the 'Prompt' tab specifically with the error.
 		if (promptTabId) {
 			setTabContent(promptTabId, error_message);
 		}
@@ -287,7 +270,6 @@ export async function ensure_file_is_visible (file_path) {
 	const parts = file_path.split('/');
 	let current_path = '.'; // Start from root
 	for (let i = 0; i < parts.length - 1; i++) {
-		// Build path part by part, avoiding leading './' for subsequent parts
 		current_path = current_path === '.' ? parts[i] : `${current_path}/${parts[i]}`;
 		const folder_element = document.querySelector(`#file-tree .folder[data-path="${current_path}"]`);
 		if (folder_element && !folder_element.classList.contains('open')) {
@@ -313,7 +295,6 @@ function handle_modification_status_updates (updates) {
 	
 	let has_changes = false;
 	
-	// Add 'modified' icon to files that have changed
 	updates.modified.forEach(file_path => {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (!file_li) return;
@@ -328,7 +309,6 @@ function handle_modification_status_updates (updates) {
 		}
 	});
 	
-	// Remove 'modified' icon from files that are now back to their analyzed state
 	updates.unmodified.forEach(file_path => {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (!file_li) return;
@@ -340,11 +320,9 @@ function handle_modification_status_updates (updates) {
 		}
 	});
 	
-	// Remove list items for files that have been deleted from the filesystem
 	updates.deleted.forEach(file_path => {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (file_li) {
-			// If the deleted file was selected, we need to update the content area
 			const checkbox = file_li.querySelector('input[type="checkbox"]');
 			const was_checked = checkbox && checkbox.checked;
 			
@@ -352,7 +330,6 @@ function handle_modification_status_updates (updates) {
 			has_changes = true;
 			
 			if (was_checked) {
-				// This will re-fetch content for remaining checked files
 				update_selected_content();
 			}
 		}
@@ -403,7 +380,7 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
-// NEW: Handler for clicking a file name to open it in a new tab.
+// MODIFIED: Handler for clicking a file name to open it in a new tab with diff capabilities.
 async function handle_file_click(filePath) {
 	show_loading(`Opening ${filePath}...`);
 	try {
@@ -411,21 +388,23 @@ async function handle_file_click(filePath) {
 		if (!current_project) {
 			throw new Error('No project is currently selected.');
 		}
+		// MODIFIED: Call the new backend action to get both current and original content.
 		const data = await post_data({
-			action: 'get_file_content',
+			action: 'get_file_for_editor',
 			project_path: current_project.path,
 			path: filePath
 		});
 		
-		// Use nullish coalescing to provide a default message for empty/missing files.
-		const content = data.content ?? `/* File not found or is empty: ${filePath} */`;
+		// data now contains { currentContent, originalContent }
+		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
+		const originalContent = data.originalContent; // This will be null if there's no diff.
 		
-		// Call the editor module to handle tab creation/switching.
-		openFileInTab(filePath, content);
+		// MODIFIED: Call the editor module to handle tab creation/switching with both contents.
+		openFileInTab(filePath, currentContent, originalContent);
 		
 	} catch (error) {
 		console.error(`Error opening file ${filePath}:`, error);
-		// Consider showing an alert to the user here via a function from modal-alert.js
+		// TODO: Consider showing an alert to the user here via a function from modal-alert.js
 	} finally {
 		hide_loading();
 	}
@@ -451,10 +430,9 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
-		// MODIFIED: This block now handles opening files in a new tab.
+		// MODIFIED: This block now handles opening files in a new tab (potentially with a diff).
 		if (file_entry) {
 			e.stopPropagation();
-			// The modal is no longer used; call the new handler to open the file in a tab.
 			await handle_file_click(file_entry.dataset.path);
 			return;
 		}
@@ -464,13 +442,11 @@ export function setup_file_tree_listeners () {
 			const folder_path = toggle_select_icon.closest('.folder').dataset.path;
 			if (!folder_path) return;
 			
-			// This selector correctly targets files directly within the folder and in any sub-folders.
 			const selector = `input[type="checkbox"][data-path^="${folder_path}/"]`;
 			const checkboxes = document.querySelectorAll(selector);
 			
-			if (checkboxes.length === 0) return; // No files to toggle.
+			if (checkboxes.length === 0) return;
 			
-			// Determine the new state: if all are checked, uncheck all. Otherwise, check all.
 			const all_currently_checked = Array.from(checkboxes).every(cb => cb.checked);
 			const new_checked_state = !all_currently_checked;
 			let changed_count = 0;
@@ -538,13 +514,11 @@ export function setup_file_tree_listeners () {
 		let checked_count = 0;
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
 			console.log(`Checkbox for ${cb.dataset.path} has analysis: ${cb.dataset.has_analysis}`);
-			// Check if the checkbox is not already checked and its data-has_analysis attribute is 'false'
 			if (!cb.checked && cb.dataset.has_analysis === 'false') {
 				cb.checked = true;
 				checked_count++;
 			} else
 			{
-				//uncheck the box if it is checked and has_analysis is true
 				if (cb.checked && cb.dataset.has_analysis === 'true') {
 					cb.checked = false;
 				}

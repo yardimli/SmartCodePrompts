@@ -1,17 +1,30 @@
 // SmartCodePrompts/js/editor.js
 
 let editor = null;
-// MODIFIED: Added readOnly and filePath to the tab object definition.
-let tabs = []; // Array of { id, title, model, isCloseable, language, viewState, readOnly, filePath }
+let diffEditor = null; // NEW: For side-by-side diff view
+// MODIFIED: Added originalModel, isDiff to the tab object definition.
+let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath }
 let activeTabId = null;
 let tabCounter = 0;
 
-// NEW: Helper to get language from filename for Monaco
+// NEW: Helper to get the currently active Monaco editor instance (either the standard one or the modified pane of the diff editor).
+function getActiveMonacoEditorInstance() {
+	if (!activeTabId) return null;
+	const tab = findTab(activeTabId);
+	if (!tab) return null;
+	
+	if (tab.isDiff) {
+		return diffEditor ? diffEditor.getModifiedEditor() : null;
+	} else {
+		return editor;
+	}
+}
+
+// Helper to get language from filename for Monaco
 function getLanguageForFile(filename) {
 	if (!window.monaco) return 'plaintext';
 	const extension = '.' + filename.split('.').pop();
 	const languages = monaco.languages.getLanguages();
-	// Find a language that has our file extension.
 	const lang = languages.find(l => l.extensions && l.extensions.includes(extension));
 	return lang ? lang.id : 'plaintext';
 }
@@ -21,7 +34,7 @@ function renderTabs() {
 	const tabsContainer = document.getElementById('editor-tabs');
 	if (!tabsContainer) return;
 	
-	tabsContainer.innerHTML = ''; // Clear existing tabs
+	tabsContainer.innerHTML = '';
 	
 	tabs.forEach(tab => {
 		const tabEl = document.createElement('div');
@@ -33,6 +46,11 @@ function renderTabs() {
 		
 		const titleEl = document.createElement('span');
 		titleEl.textContent = tab.title;
+		// NEW: Add a visual indicator for diff tabs.
+		if (tab.isDiff) {
+			titleEl.textContent += ' (modified)';
+			titleEl.style.fontStyle = 'italic';
+		}
 		tabEl.appendChild(titleEl);
 		
 		if (tab.isCloseable) {
@@ -40,7 +58,7 @@ function renderTabs() {
 			closeBtn.className = 'bi bi-x close-tab-btn';
 			closeBtn.title = 'Close Tab';
 			closeBtn.onclick = (e) => {
-				e.stopPropagation(); // Prevent tab switch when clicking close
+				e.stopPropagation();
 				closeTab(tab.id);
 			};
 			tabEl.appendChild(closeBtn);
@@ -64,25 +82,62 @@ function findTab(tabId) {
  * @param {string} tabId - The ID of the tab to switch to.
  */
 export function switchToTab(tabId) {
-	if (!editor || tabId === activeTabId) return;
+	if (tabId === activeTabId) return;
+	if (!editor || !diffEditor) return; // MODIFIED: Check both editors are initialized
+	
+	const editorContainer = document.getElementById('monaco-editor-container');
+	const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
 	
 	// Save view state of the old tab
 	const oldTab = findTab(activeTabId);
 	if (oldTab) {
-		oldTab.viewState = editor.saveViewState();
+		// MODIFIED: Save view state based on which editor was active
+		if (oldTab.isDiff) {
+			oldTab.viewState = diffEditor.saveViewState();
+		} else {
+			oldTab.viewState = editor.saveViewState();
+		}
 	}
 	
 	// Switch to the new tab
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
-		editor.updateOptions({ readOnly: newTab.readOnly }); // MODIFIED: Update readOnly state based on the tab.
-		editor.setModel(newTab.model);
-		editor.restoreViewState(newTab.viewState);
-		editor.focus();
+		
+		// MODIFIED: Show the correct editor and set models
+		if (newTab.isDiff) {
+			// This is a diff tab
+			editorContainer.style.display = 'none';
+			diffEditorContainer.style.display = 'block';
+			
+			diffEditor.setModel({
+				original: newTab.originalModel,
+				modified: newTab.model
+			});
+			// The original is always read-only. Set readOnly for the modified editor.
+			diffEditor.getModifiedEditor().updateOptions({ readOnly: newTab.readOnly });
+			if (newTab.viewState) {
+				diffEditor.restoreViewState(newTab.viewState);
+			}
+			diffEditor.getModifiedEditor().focus();
+			
+		} else {
+			// This is a regular tab
+			diffEditorContainer.style.display = 'none';
+			editorContainer.style.display = 'block';
+			
+			editor.setModel(newTab.model);
+			editor.updateOptions({ readOnly: newTab.readOnly });
+			if (newTab.viewState) {
+				editor.restoreViewState(newTab.viewState);
+			}
+			editor.focus();
+		}
+		
 		renderTabs();
 	}
 }
+
 
 /**
  * Closes a tab.
@@ -95,20 +150,25 @@ export function closeTab(tabId) {
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
 	
-	// Dispose of the model to free up memory
+	// MODIFIED: Dispose of both models to free up memory if it's a diff tab
 	tabToClose.model.dispose();
+	if (tabToClose.originalModel) {
+		tabToClose.originalModel.dispose();
+	}
 	tabs.splice(tabIndex, 1);
 	
 	// If the closed tab was the active one, switch to another tab
 	if (activeTabId === tabId) {
-		// Switch to the previous tab, or the next one if it was the first
 		const newActiveTab = tabs[tabIndex - 1] || tabs[0];
 		if (newActiveTab) {
 			switchToTab(newActiveTab.id);
 		} else {
-			// No tabs left, should not happen if prompt tab is not closeable
+			// MODIFIED: No tabs left, hide both editors
 			activeTabId = null;
 			editor.setModel(null);
+			diffEditor.setModel({ original: null, modified: null });
+			document.getElementById('monaco-editor-container').style.display = 'block'; // Show default
+			document.getElementById('monaco-diff-editor-container').style.display = 'none';
 		}
 	}
 	
@@ -116,16 +176,15 @@ export function closeTab(tabId) {
 }
 
 /**
- * Creates a new tab in the editor.
+ * Creates a new non-diff tab in the editor. Used for programmatic tabs like "Prompt".
  * @param {string} title - The title for the new tab.
  * @param {string} content - The initial content for the tab.
  * @param {string} language - The language for syntax highlighting.
  * @param {boolean} isCloseable - Whether the tab can be closed by the user.
  * @param {boolean} readOnly - Whether the editor should be read-only for this tab.
- * @param {string|null} filePath - The file path associated with the tab, for deduplication.
+ * @param {string|null} filePath - The file path associated with the tab.
  * @returns {string} The ID of the newly created tab.
  */
-// MODIFIED: Added readOnly and filePath parameters.
 export function createNewTab(title, content, language = 'plaintext', isCloseable = true, readOnly = false, filePath = null) {
 	if (!monaco || !editor) return null;
 	
@@ -133,41 +192,72 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	const newTabId = `tab-${Date.now()}-${tabCounter}`;
 	const newModel = monaco.editor.createModel(content, language);
 	
+	// MODIFIED: Updated tab object structure
 	const newTab = {
 		id: newTabId,
 		title: title,
 		model: newModel,
+		originalModel: null, // Explicitly null for non-diff tabs
+		isDiff: false,       // Explicitly false for non-diff tabs
 		isCloseable: isCloseable,
 		language: language,
-		viewState: null, // Will be populated when switching away
-		readOnly: readOnly, // NEW
-		filePath: filePath // NEW
+		viewState: null,
+		readOnly: readOnly,
+		filePath: filePath
 	};
 	
 	tabs.push(newTab);
-	switchToTab(newTabId); // This will also render the tabs
+	switchToTab(newTabId);
 	return newTabId;
 }
 
 /**
- * Opens a file in a new tab, or switches to it if already open.
+ * Opens a file in a new tab (or switches to it), showing a diff view if changes are detected.
  * @param {string} filePath - The unique path of the file.
- * @param {string} content - The content of the file.
+ * @param {string} currentContent - The current content of the file from disk.
+ * @param {string|null} originalContent - The content from git HEAD, or null if no diff.
  */
-export function openFileInTab(filePath, content) { // NEW: Function to handle opening files.
+export function openFileInTab(filePath, currentContent, originalContent) {
+	if (!monaco || !editor) return;
+	
 	// Check if a tab for this file already exists
 	const existingTab = tabs.find(t => t.filePath === filePath);
 	if (existingTab) {
+		// For now, just switch to the existing tab. A future enhancement could be to refresh its content.
 		switchToTab(existingTab.id);
 		return;
 	}
 	
-	// If not, create a new readonly, closeable tab for the file
 	const title = filePath.split('/').pop();
 	const language = getLanguageForFile(filePath);
+	const isDiff = originalContent !== null;
 	
-	// Files opened for viewing are read-only.
-	createNewTab(title, content, language, true, true, filePath);
+	tabCounter++;
+	const newTabId = `tab-${Date.now()}-${tabCounter}`;
+	const modifiedModel = monaco.editor.createModel(currentContent, language);
+	let originalModel = null;
+	
+	if (isDiff) {
+		originalModel = monaco.editor.createModel(originalContent, language);
+		// The original (left side) of a diff should always be read-only.
+		originalModel.updateOptions({ readOnly: true });
+	}
+	
+	const newTab = {
+		id: newTabId,
+		title: title,
+		model: modifiedModel,
+		originalModel: originalModel,
+		isDiff: isDiff,
+		isCloseable: true,
+		language: language,
+		viewState: null,
+		readOnly: true, // Files opened for viewing are read-only by default.
+		filePath: filePath
+	};
+	
+	tabs.push(newTab);
+	switchToTab(newTabId);
 }
 
 /**
@@ -179,6 +269,7 @@ export function appendToTabContent(tabId, text) {
 	const tab = findTab(tabId);
 	if (!tab) return;
 	
+	// Appending content only makes sense for the modifiable model.
 	const model = tab.model;
 	const lastLine = model.getLineCount();
 	const lastColumn = model.getLineMaxColumn(lastLine);
@@ -195,24 +286,21 @@ export function appendToTabContent(tabId, text) {
 export function setTabContent(tabId, content) {
 	const tab = findTab(tabId);
 	if (tab) {
+		// Setting content only makes sense for the modifiable model.
 		tab.model.setValue(content);
 	}
 }
 
 /**
- * Initializes the Monaco Editor and the tab system.
+ * Initializes the Monaco Editors and the tab system.
  * @param {boolean} is_dark_mode - Whether to initialize in dark mode.
- * @returns {Promise<void>} A promise that resolves when the editor is initialized.
+ * @returns {Promise<void>} A promise that resolves when the editors are initialized.
  */
 export function initialize_editor(is_dark_mode) {
 	return new Promise((resolve) => {
 		require(['vs/editor/editor.main'], () => {
-			// FIXED: Properly configure MonacoEnvironment for Electron
-			// This configuration ensures web workers load correctly in the Electron environment
 			window.MonacoEnvironment = {
 				getWorkerUrl: function (moduleId, label) {
-					// Use blob URLs to create workers from fetched scripts
-					// This is the recommended approach for Electron apps
 					return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
 						self.MonacoEnvironment = {
 							baseUrl: 'http://localhost:31987/node_modules/monaco-editor/min/'
@@ -221,34 +309,45 @@ export function initialize_editor(is_dark_mode) {
 					`)}`;
 				},
 				getWorker: function (moduleId, label) {
-					// Create workers using blob URLs
 					const getWorkerUrl = this.getWorkerUrl(moduleId, label);
 					return new Worker(getWorkerUrl);
 				}
 			};
 			
-			const editor_container = document.getElementById('monaco-editor-container');
-			if (!editor_container) {
-				console.error('Monaco editor container not found!');
+			// MODIFIED: Get both editor containers
+			const editorContainer = document.getElementById('monaco-editor-container');
+			const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
+			if (!editorContainer || !diffEditorContainer) {
+				console.error('Monaco editor container(s) not found!');
 				resolve();
 				return;
 			}
 			
-			editor = monaco.editor.create(editor_container, {
-				// Initial value is irrelevant as we'll set a model immediately
-				language: 'plaintext',
+			const commonEditorOptions = {
 				theme: is_dark_mode ? 'vs-dark' : 'vs',
-				readOnly: false,
-				wordWrap: 'on',
+				wordWrap: 'off',
 				fontFamily: 'monospace',
 				fontSize: 13,
 				minimap: { enabled: true },
-				automaticLayout: true,
+				automaticLayout: true, // Crucial for editors in hidden containers
 				scrollBeyondLastLine: false,
 				contextmenu: true,
+			};
+			
+			// Create the standard editor
+			editor = monaco.editor.create(editorContainer, {
+				...commonEditorOptions,
+				language: 'plaintext',
+				readOnly: false,
 			});
 			
-			// MODIFIED: Create the initial "Prompt" tab as non-readonly.
+			// NEW: Create the diff editor
+			diffEditor = monaco.editor.createDiffEditor(diffEditorContainer, {
+				...commonEditorOptions,
+				originalEditable: false, // The left side is never editable.
+				readOnly: false, // This applies to the component; we control the modified editor individually.
+			});
+			
 			createNewTab(
 				'Prompt',
 				'// Select files from the left to build a prompt.',
@@ -257,7 +356,7 @@ export function initialize_editor(is_dark_mode) {
 				false // readOnly
 			);
 			
-			console.log('Monaco editor with tabs initialized.');
+			console.log('Monaco editors with tabs initialized.');
 			resolve();
 		});
 	});
@@ -268,7 +367,7 @@ export function initialize_editor(is_dark_mode) {
  * @param {string} content - The new content to display.
  */
 export function set_editor_content(content) {
-	if (editor && activeTabId) {
+	if (activeTabId) {
 		setTabContent(activeTabId, content);
 	}
 }
@@ -280,6 +379,7 @@ export function set_editor_content(content) {
 export function get_editor_content() {
 	const activeTab = findTab(activeTabId);
 	if (activeTab) {
+		// Always get content from the main (potentially modified) model.
 		return activeTab.model.getValue();
 	}
 	return '';
@@ -289,15 +389,15 @@ export function get_editor_content() {
  * Gets the current list of open tabs.
  * @returns {Array<object>} A copy of the tabs array.
  */
-export function getTabs() { // NEW
-	return [...tabs]; // Return a copy to prevent external modification
+export function getTabs() {
+	return [...tabs];
 }
 
 /**
  * Gets the ID of the currently active tab.
  * @returns {string|null} The active tab's ID.
  */
-export function getActiveTabId() { // NEW
+export function getActiveTabId() {
 	return activeTabId;
 }
 
@@ -305,8 +405,7 @@ export function getActiveTabId() { // NEW
  * Gets the ID of the "Prompt" tab.
  * @returns {string|null} The prompt tab's ID, or null if not found.
  */
-export function getPromptTabId() { // NEW
-                                   // The prompt tab is uniquely identified by its title and non-closeable status.
+export function getPromptTabId() {
 	const promptTab = tabs.find(t => t.title === 'Prompt' && t.isCloseable === false);
 	return promptTab ? promptTab.id : null;
 }
@@ -316,7 +415,8 @@ export function getPromptTabId() { // NEW
  * @param {boolean} is_dark_mode - True for dark mode, false for light mode.
  */
 export function set_editor_theme(is_dark_mode) {
-	if (editor) {
+	// MODIFIED: This global call updates all editor instances.
+	if (monaco) {
 		monaco.editor.setTheme(is_dark_mode ? 'vs-dark' : 'vs');
 	}
 }
@@ -327,9 +427,11 @@ export function set_editor_theme(is_dark_mode) {
  * @param {number} current_index - The index of the currently selected match.
  */
 export function highlight_search_matches(matches, current_index) {
-	if (!editor) return;
+	// MODIFIED: Use helper to get the correct editor instance.
+	const activeEditor = getActiveMonacoEditorInstance();
+	if (!activeEditor) return;
 	
-	const model = editor.getModel(); // Gets the active model
+	const model = activeEditor.getModel();
 	if (!model) return;
 	
 	const decorations = matches.map((match, index) => {
@@ -347,12 +449,12 @@ export function highlight_search_matches(matches, current_index) {
 		};
 	});
 	
-	editor.deltaDecorations([], decorations);
+	activeEditor.deltaDecorations([], decorations);
 	
 	if (current_index >= 0 && current_index < matches.length) {
 		const current_match_decoration = decorations[current_index];
 		if (current_match_decoration) {
-			editor.revealRangeInCenter(current_match_decoration.range, monaco.editor.ScrollType.Smooth);
+			activeEditor.revealRangeInCenter(current_match_decoration.range, monaco.editor.ScrollType.Smooth);
 		}
 	}
 }
@@ -361,8 +463,9 @@ export function highlight_search_matches(matches, current_index) {
  * Clears all search-related highlights from the active editor tab.
  */
 export function clear_search_highlights() {
-	if (editor) {
-		// This assumes we don't have other decorations. If we did, we'd need an ownerId.
-		editor.deltaDecorations([], []);
+	// MODIFIED: Use helper to get the correct editor instance.
+	const activeEditor = getActiveMonacoEditorInstance();
+	if (activeEditor) {
+		activeEditor.deltaDecorations([], []);
 	}
 }

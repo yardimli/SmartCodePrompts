@@ -28,6 +28,7 @@ import {setup_file_tree_listeners} from './file_tree.js';
 import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
 import {initialize_confirm_modal} from './modal-confirm.js';
+import {setup_auto_select_listeners} from './auto_select.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -193,4 +194,5 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_file_tree_listeners();
 	setup_ui_event_listeners();
 	setup_prompt_bar_listeners();
+	setup_auto_select_listeners();
 });

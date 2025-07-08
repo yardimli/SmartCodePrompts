@@ -1,5 +1,5 @@
 // electron-main.js
-const {app, BrowserWindow, ipcMain, dialog} = require('electron');
+const {app, BrowserWindow, Menu, MenuItem, ipcMain, dialog} = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -27,6 +27,7 @@ function createWindow () {
 	mainWindow = new BrowserWindow({
 		width: 1600,
 		height: 1000,
+		icon: path.join(__dirname, 'assets/icon.png'),
 		title: "Smart Code Prompts - Studio",
 		autoHideMenuBar: true,
 		webPreferences: {
@@ -38,7 +39,46 @@ function createWindow () {
 		}
 	});
 	
+	
 	mainWindow.loadFile('index.html');
+	
+	// Create context menu
+	mainWindow.webContents.on('context-menu', (event, params) => {
+		const menu = new Menu();
+		
+		// Add each spelling suggestion
+		for (const suggestion of params.dictionarySuggestions) {
+			menu.append(new MenuItem({
+				label: suggestion,
+				click: () => mainWindow.webContents.replaceMisspelling(suggestion)
+			}));
+		}
+		
+		// Allow users to add the misspelled word to the dictionary
+		if (params.misspelledWord) {
+			menu.append(
+				new MenuItem({
+					label: 'Add to dictionary',
+					click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+				})
+			);
+		}
+		
+		// Add standard editor actions
+		if (params.isEditable) {
+			if (menu.items.length > 0) {
+				menu.append(new MenuItem({ type: 'separator' }));
+			}
+			
+			menu.append(new MenuItem({ label: 'Cut', role: 'cut', enabled: params.selectionText }));
+			menu.append(new MenuItem({ label: 'Copy', role: 'copy', enabled: params.selectionText }));
+			menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
+			menu.append(new MenuItem({ type: 'separator' }));
+			menu.append(new MenuItem({ label: 'Select All', role: 'selectAll' }));
+		}
+		
+		menu.popup();
+	});
 	
 	mainWindow.on('closed', () => {
 		mainWindow = null;
@@ -141,6 +181,19 @@ ipcMain.handle('post-data', async (event, data) => {
 				break;
 			case 'cancel_analysis':
 				result = llm_manager.cancel_analysis();
+				break;
+			case 'identify_project_files':
+				// This is a fire-and-forget call that starts a background task.
+				llm_manager.identify_project_files({
+					project_path: data.project_path,
+					all_files: data.all_files,
+					llm_id: data.llm_id,
+					temperature: parseFloat(data.temperature)
+				});
+				result = {success: true, message: 'Auto-select process started.'};
+				break;
+			case 'cancel_auto_select':
+				result = llm_manager.cancel_auto_select();
 				break;
 			case 'get_relevant_files_from_prompt':
 				result = await llm_manager.get_relevant_files_from_prompt({

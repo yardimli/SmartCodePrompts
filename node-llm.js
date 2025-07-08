@@ -11,6 +11,7 @@ const isElectron = !!process.env.ELECTRON_RUN;
 const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;
 
 let reanalysis_progress = {total: 0, current: 0, running: false, message: '', cancelled: false, summary: null};
+let auto_select_progress = {total: 0, current: 0, running: false, message: '', cancelled: false, summary: null};
 
 /**
  * Logs an interaction with the LLM to a file.
@@ -34,6 +35,14 @@ function cancel_analysis () {
 	if (reanalysis_progress && reanalysis_progress.running) {
 		console.log('Cancellation signal received for re-analysis.');
 		reanalysis_progress.cancelled = true;
+	}
+	return {success: true};
+}
+
+function cancel_auto_select () {
+	if (auto_select_progress && auto_select_progress.running) {
+		console.log('Cancellation signal received for auto-select.');
+		auto_select_progress.cancelled = true;
 	}
 	return {success: true};
 }
@@ -480,7 +489,8 @@ function get_session_stats() {
 			completion: completionTokens_row ? parseInt(completionTokens_row.value, 10) : 0
 		},
 		cost: total_cost,
-		reanalysis: reanalysis_progress
+		reanalysis: reanalysis_progress,
+		auto_select: auto_select_progress
 	};
 }
 
@@ -513,6 +523,88 @@ function get_llm_log() {
 	});
 }
 
+/**
+ * Identifies project-specific files from a list using an LLM, processing in batches.
+ * This is a background task that reports progress via the `auto_select_progress` state object.
+ * @param {object} params - The parameters for the operation.
+ */
+async function identify_project_files ({project_path, all_files, llm_id, temperature}) {
+	if (!llm_id) {
+		console.error('No LLM selected for auto-select.');
+		return;
+	}
+	
+	const files_to_process = JSON.parse(all_files);
+	const BATCH_SIZE = 20;
+	
+	// Initialize progress tracking state.
+	auto_select_progress = {
+		total: files_to_process.length,
+		current: 0,
+		running: true,
+		message: 'Initializing file identification...',
+		cancelled: false,
+		summary: null
+	};
+	
+	let identified_files = [];
+	const errors = [];
+	
+	try {
+		for (let i = 0; i < files_to_process.length; i += BATCH_SIZE) {
+			if (auto_select_progress.cancelled) {
+				errors.push('Operation cancelled by user.');
+				break;
+			}
+			
+			const batch_paths = files_to_process.slice(i, i + BATCH_SIZE);
+			let file_list_string = '';
+			
+			for (const file_path of batch_paths) {
+				try {
+					const content = get_raw_file_content(file_path, project_path);
+					const snippet = content.substring(0, 256).replace(/\s+/g, ' ');
+					file_list_string += `File: ${file_path}\nSnippet: "${snippet}..."\n\n`;
+				} catch (e) {
+					console.warn(`Could not read file for auto-select snippet: ${file_path}`, e);
+					file_list_string += `File: ${file_path}\nSnippet: "[Error reading file content]"\n\n`;
+				}
+			}
+			
+			const current_batch_num = Math.floor(i / BATCH_SIZE) + 1;
+			const total_batches = Math.ceil(files_to_process.length / BATCH_SIZE);
+			auto_select_progress.message = `Processing batch ${current_batch_num}/${total_batches}...`;
+			
+			const prompt_template = config.prompt_auto_select;
+			const prompt = prompt_template.replace(/\$\{file_list_string\}/g, file_list_string);
+			
+			try {
+				const llm_response = await call_llm(prompt, llm_id, `Auto-Select Batch ${current_batch_num}`, temperature);
+				const parsed = JSON.parse(llm_response);
+				if (parsed && Array.isArray(parsed.project_files)) {
+					identified_files = identified_files.concat(parsed.project_files);
+				} else {
+					errors.push(`Batch ${current_batch_num}: Invalid LLM response format.`);
+				}
+			} catch (llm_error) {
+				console.error(`Error processing auto-select batch ${current_batch_num}:`, llm_error);
+				errors.push(`Batch ${current_batch_num}: ${llm_error.message}`);
+			}
+			
+			auto_select_progress.current = Math.min(i + BATCH_SIZE, files_to_process.length);
+		}
+	} finally {
+		const summary = {
+			success: errors.length === 0,
+			identified_files: identified_files,
+			errors: errors
+		};
+		auto_select_progress.summary = summary;
+		auto_select_progress.running = false;
+		console.log('Auto-select process finished.', summary);
+	}
+}
+
 module.exports = {
 	refresh_llms,
 	analyze_file,
@@ -522,5 +614,7 @@ module.exports = {
 	get_llm_log,
 	ask_question_about_code,
 	handle_direct_prompt,
-	cancel_analysis
+	cancel_analysis,
+	identify_project_files,
+	cancel_auto_select
 };

@@ -3,9 +3,10 @@
 <head>
 	<meta charset="UTF-8">
 	
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Smart Code Prompts - Studio</title>
+	
 	<link href="./node_modules/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 	<!-- MODIFIED: Added an ID to the highlight.js theme stylesheet for dynamic switching. -->
 	<link id="highlight-js-theme" rel="stylesheet" href="./vendor/highlight.js/styles/atom-one-dark.min.css">
@@ -29,6 +30,10 @@
 		
 		<div class="bottom-icons">
 			<div id="project-search-button" title="Search Project" class="cursor-pointer text-info"><i class="bi bi-search"></i></div>
+			<!-- NEW: Auto-Select Button -->
+			<div id="auto-select-project-files-btn" class="cursor-pointer" title="Auto-Select Project Files">
+				<i class="bi bi-magic"></i>
+			</div>
 			<div id="select-unanalyzed" class="cursor-pointer" title="Select Unanalyzed Files">
 				<i class="bi bi-file-earmark-plus"></i>
 			</div>
@@ -187,7 +192,7 @@
 					       class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200"
 					       title="Select extensions to compress">Select extensions...</label>
 					<ul id="compress-extensions-dropdown-menu"
-					    class="dropdown-content z-[1] p-2 shadow bg-accent rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
+					    class="dropdown-content z-[1] p-2 shadow bg-base-200 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
 						<!-- Checkboxes will be populated by JS -->
 						<li><a>Loading...</a></li>
 					</ul>

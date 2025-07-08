@@ -217,11 +217,29 @@ CONTEXT:
 QUESTION:
 \${user_question}`;
 		
+		const default_auto_select_prompt = `You are an intelligent file filter. Your task is to identify which of the following files are part of the core, user-written project source code, and which are likely third-party libraries, dependencies, configuration files, or build artifacts.
+
+Analyze the list of file paths and the first 256 characters of their content.
+
+Return a single, minified JSON object with a single key "project_files", which is an array of strings. Each string must be a file path from the provided list that you identify as core project code.
+
+Considerations:
+- Files in directories like 'src', 'app', 'components', 'controllers', 'models' are likely project files.
+- Files in directories like 'vendor', 'node_modules', 'dist', 'build', 'assets' are likely NOT project files.
+- Files with common library names (e.g., 'jquery.js', 'bootstrap.css') are likely NOT project files.
+- Pay attention to the content snippet for clues like copyright notices, minification, or boilerplate code.
+
+Do not include any other text or explanation in your response.
+
+LIST OF FILES:
+\${file_list_string}`;
+		
 		initSettings_stmt.run('prompt_file_overview', default_overview_prompt);
 		initSettings_stmt.run('prompt_functions_logic', default_functions_prompt);
 		initSettings_stmt.run('prompt_content_footer', default_content_footer);
 		initSettings_stmt.run('prompt_smart_prompt', default_smart_prompt);
-		initSettings_stmt.run('prompt_qa', default_qa_prompt); // NEW
+		initSettings_stmt.run('prompt_qa', default_qa_prompt);
+		initSettings_stmt.run('prompt_auto_select', default_auto_select_prompt);
 		
 		const allowed_extensions = db.prepare('SELECT value FROM app_setup WHERE key = ?').get('allowed_extensions')?.value;
 		if (allowed_extensions) {
@@ -311,7 +329,7 @@ function get_setup_data () {
  */
 function save_setup_data (data) {
 	const setup_keys = new Set(['allowed_extensions', 'excluded_folders', 'openrouter_api_key']);
-	const settings_keys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'compress_extensions']);
+	const settings_keys = new Set(['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'prompt_auto_select', 'compress_extensions']);
 	const upsertSetup_stmt = db.prepare('INSERT OR REPLACE INTO app_setup (key, value) VALUES (?, ?)');
 	const upsertSettings_stmt = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
 	
@@ -338,7 +356,7 @@ function save_setup_data (data) {
  * @returns {object} A success object.
  */
 function reset_prompts_to_default () {
-	const prompt_keys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa'];
+	const prompt_keys = ['prompt_file_overview', 'prompt_functions_logic', 'prompt_content_footer', 'prompt_smart_prompt', 'prompt_qa', 'prompt_auto_select'];
 	const delete_stmt = db.prepare('DELETE FROM app_settings WHERE key = ?');
 	const transaction = db.transaction(() => {
 		for (const key of prompt_keys) {

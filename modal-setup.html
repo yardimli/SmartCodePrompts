@@ -66,6 +66,14 @@
 					<label class="label"><span
 						class="label-text-alt">Use <code>${user_prompt}</code> and <code>${analysis_data_string}</code> as placeholders.</span></label>
 				</div>
+				
+				<div class="form-control">
+					<label class="label" for="prompt-auto-select-input"><span
+						class="label-text">Auto-Select Project Files Prompt</span></label>
+					<textarea class="textarea textarea-bordered font-mono h-32" id="prompt-auto-select-input"></textarea>
+					<label class="label"><span
+						class="label-text-alt">Use <code>${file_list_string}</code> as a placeholder. This prompt helps the LLM decide which files are part of your core project.</span></label>
+				</div>
 			</form>
 		</div>
 		<div class="modal-action flex-shrink-0 border-t border-base-300 pt-4">

@@ -92,10 +92,10 @@ export function simple_markdown_to_html (text) {
 				.replace(/>/g, '&gt;');
 			
 			return `<div class="relative group my-2">
-                        <button class="copy-code-button btn btn-xs btn-ghost absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Copy code">
+                        <button class="copy-code-button btn btn-xs absolute top-1 right-1 opacity-20 group-hover:opacity-100 transition-opacity z-10" title="Copy code">
                             <i class="bi bi-clipboard"></i> Copy
                         </button>
-                        <pre class="bg-accent p-2 rounded-md text-sm overflow-x-auto pt-8"><code>${escaped_code.trim()}</code></pre>
+                        <pre class="bg-base-200 text-base-content p-2 rounded-md text-sm overflow-x-auto pt-8"><code>${escaped_code.trim()}</code></pre>
                     </div>`;
 			
 		} else {
@@ -108,7 +108,7 @@ export function simple_markdown_to_html (text) {
 			// Order of replacement matters for markdown parsing. Use non-greedy matchers.
 			regular_text = regular_text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
 			regular_text = regular_text.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italic
-			regular_text = regular_text.replace(/`(.+?)`/g, '<code class="bg-accent px-1 rounded-sm">$1</code>'); // Inline code
+			regular_text = regular_text.replace(/`(.+?)`/g, '<code class="bg-base-200 text-base-content px-1 rounded-sm">$1</code>'); // Inline code
 			
 			// Convert newlines to <br> tags for this part only.
 			return regular_text.replace(/\n/g, '<br>');

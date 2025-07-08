@@ -95,7 +95,11 @@ export function load_folders (path, element) {
 				file_tree.innerHTML = '';
 			}
 			if (!response || (!response.folders.length && !response.files.length)) {
-				if (element) element.classList.remove('open');
+				// *** BUG FIX ***
+				// The line below was causing an infinite loop in expand_all_folders.
+				// An empty folder is still successfully "opened", so we should not remove the .open class.
+				// The class should only be removed on a load *error*, which is handled in the catch block.
+				// if (element) element.classList.remove('open');
 				return resolve();
 			}
 			const ul = document.createElement('ul');

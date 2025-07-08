@@ -10,7 +10,7 @@ let is_selection_analysis_cancelled = false;
  * This function now contains the logic for analyzing selected files.
  * It is called from the new analysis options modal.
  */
-async function perform_selection_analysis () {
+export async function perform_selection_analysis () {
 	const checked_boxes = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'));
 	const llm_id = document.getElementById('llm-dropdown-analysis').value;
 	const temperature = document.getElementById('temperature-slider').value;

@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const {db} = require('./node-config');
-const { get_default_settings_object } = require('./node-config');
+const { get_project_settings } = require('./node-projects'); // NEW: Import settings helper
 
 function resolve_path(relative_path, project_full_path) {
 	const full_path = path.resolve(project_full_path, relative_path);
@@ -19,8 +19,9 @@ function calculate_checksum(data) {
 	return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-function get_folders({ input_path, project_path, project_settings }) {
-	const settings = { ...get_default_settings_object(), ...project_settings };
+// MODIFIED: Function signature changed; no longer accepts project_settings.
+function get_folders({ input_path, project_path }) {
+	const settings = get_project_settings(project_path); // NEW: Get settings internally.
 	const { allowed_extensions, excluded_folders } = settings;
 	
 	const full_path = resolve_path(input_path, project_path);
@@ -92,10 +93,11 @@ function get_folders({ input_path, project_path, project_settings }) {
 	return {folders, files};
 }
 
+// MODIFIED: Now handles content compression based on project settings.
 function get_file_content(input_path, project_path) {
 	const full_path = resolve_path(input_path, project_path);
 	try {
-		const file_contents = fs.readFileSync(full_path, 'utf8');
+		let file_contents = fs.readFileSync(full_path, 'utf8');
 		return {content: file_contents};
 	} catch (error) {
 		console.error(`Error reading file ${full_path}:`, error);
@@ -175,8 +177,9 @@ function get_file_for_editor({ project_path, file_path }) {
 	return { currentContent, originalContent };
 }
 
-function search_files({ start_path, search_term, project_path, project_settings }) {
-	const settings = { ...get_default_settings_object(), ...project_settings };
+// MODIFIED: Function signature changed; no longer accepts project_settings.
+function search_files({ start_path, search_term, project_path }) {
+	const settings = get_project_settings(project_path); // NEW: Get settings internally.
 	const { allowed_extensions, excluded_folders } = settings;
 	
 	const absolute_start_path = resolve_path(start_path, project_path);
@@ -238,10 +241,10 @@ function get_file_analysis({project_path, file_path}) {
  * by comparing their current checksums against those stored in the database.
  * @param {object} params - The parameters for the function.
  * @param {string} params.project_path - The absolute path of the project.
- * @param {object} params.project_settings - The parsed settings from the project's settings.yaml.
  * @returns {object} An object containing arrays of file paths for `updates` and `deleted` files.
  */
-function check_folder_updates({ project_path, project_settings }) {
+// MODIFIED: Function signature changed; no longer accepts project_settings.
+function check_folder_updates({ project_path }) {
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
 	const analyzed_files = stmt.all(project_path);
 	

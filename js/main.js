@@ -2,15 +2,16 @@
 
 // --- CORE & STATE IMPORTS ---
 import {post_data} from './utils.js';
-import {set_content_footer_prompt, set_last_smart_prompt, get_current_project} from './state.js'; // MODIFIED
-import { update_project_settings } from './settings.js'; // NEW
+import {set_content_footer_prompt, set_last_smart_prompt, get_current_project} from './state.js';
+import { update_project_settings } from './settings.js';
 
 // --- MODULE IMPORTS ---
 import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
 import {initialize_analysis_modal} from './modal-analysis.js';
 import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
 import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
-// REMOVED: setup modal imports
+// NEW: Import for API Key Modal
+import { initialize_api_key_modal, setup_api_key_modal_listeners, update_api_key_status } from './modal-api-key.js';
 import {setup_analysis_actions_listener} from './analysis.js';
 import {initialize_llm_selector, setup_llm_listeners} from './llm.js';
 import {initialize_status_bar} from './status_bar.js';
@@ -26,11 +27,11 @@ import {setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
-import {initialize_confirm_modal, show_confirm} from './modal-confirm.js'; // NEW
+import {initialize_confirm_modal, show_confirm} from './modal-confirm.js';
 import {setup_auto_select_listeners} from './auto_select.js';
 
-import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js'; // MODIFIED
-import { initialize_tab_switcher } from './tab-switcher.js'; // This is now handled by initialize_tab_scroller
+import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js';
+import { initialize_tab_switcher } from './tab-switcher.js';
 
 // Function to load all individual modal HTML files.
 async function load_all_modals_html () {
@@ -39,7 +40,8 @@ async function load_all_modals_html () {
 		'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
-		'modal-tab-switcher.html'
+		'modal-tab-switcher.html',
+		'modal-api-key.html' // NEW: Add the new modal file
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -183,8 +185,6 @@ async function initialize_app() {
 		
 		// 2. Set global prompts from state
 		console.log('Last Smart Prompt:', data.last_smart_prompt);
-		// MODIFIED: content_footer prompt is now loaded from settings.yaml per project
-		// set_content_footer_prompt(data.prompt_content_footer || '');
 		set_last_smart_prompt(data.last_smart_prompt || '');
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
 		adjust_prompt_textarea_height();
@@ -198,6 +198,8 @@ async function initialize_app() {
 		};
 		initialize_llm_selector(data.llms, last_selected_llms);
 		initialize_status_bar(data.session_tokens);
+		// NEW: Update the API key status indicator on startup
+		update_api_key_status(data.api_key_set);
 		
 		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
@@ -308,7 +310,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_analysis_modal();
 	initialize_log_modal();
 	initialize_search_modal();
-	// REMOVED: initialize_setup_modal();
+	initialize_api_key_modal(); // NEW: Initialize the API key modal
 	initialize_qa_modal();
 	initialize_progress_modal();
 	initialize_alert_modal();
@@ -331,7 +333,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_about_modal_listeners();
 	setup_log_modal_listeners();
 	setup_search_modal_listeners();
-	// REMOVED: setup_setup_modal_listeners();
+	setup_api_key_modal_listeners(); // NEW: Set up API key modal listeners
 	setup_qa_listeners();
 	setup_direct_prompt_listeners();
 	setup_analysis_actions_listener();
@@ -341,5 +343,5 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_ui_event_listeners();
 	setup_prompt_bar_listeners();
 	setup_auto_select_listeners();
-	setup_save_and_settings_listeners(); // MODIFIED: Renamed and expanded
+	setup_save_and_settings_listeners();
 });

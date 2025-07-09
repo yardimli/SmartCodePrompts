@@ -3,7 +3,7 @@ import {post_data} from './utils.js';
 import {get_current_project} from './state.js';
 import {show_progress_modal, hide_progress_modal, update_progress} from './modal-progress.js';
 import {show_alert} from './modal-alert.js';
-import { get_all_settings } from './settings.js'; // NEW: Import settings manager
+import { get_all_settings } from './settings.js';
 
 let is_selection_analysis_cancelled = false;
 
@@ -38,7 +38,6 @@ export async function perform_selection_analysis () {
 		console.log('Selection analysis cancellation requested.');
 	};
 	show_progress_modal('Analyzing Selected Files', stop_callback);
-	const project_settings = get_all_settings();
 	
 	for (let i = 0; i < total_files; i++) {
 		// Check for cancellation on each iteration
@@ -50,16 +49,15 @@ export async function perform_selection_analysis () {
 		const checkbox = checked_boxes[i];
 		const file_path = checkbox.dataset.path;
 		const file_name = file_path.split('/').pop();
-
+		
 		update_progress(i, total_files, `Analyzing ${i + 1}/${total_files}: ${file_name}`);
-		console.log(project_settings);
 		try {
 			const response = await post_data({
 				action: 'analyze_file',
 				project_path: current_project.path,
 				file_path: file_path,
 				llm_id: llm_id,
-				project_settings: project_settings, // NEW: Pass settings
+				// REMOVED: project_settings is no longer sent from the frontend.
 				temperature: parseFloat(temperature),
 				force: true
 			});
@@ -121,13 +119,11 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		show_progress_modal('Re-analyzing Project', stop_callback);
 		
-		const project_settings = get_all_settings();
-		
 		post_data({
 			action: 'reanalyze_modified_files',
 			project_path: current_project.path,
 			llm_id: llm_id,
-			project_settings: project_settings, // NEW: Pass settings
+			// REMOVED: project_settings is no longer sent from the frontend.
 			force: force_reanalysis,
 			temperature: parseFloat(temperature)
 		}).catch(error => {

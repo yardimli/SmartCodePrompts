@@ -22,6 +22,7 @@ const config_manager = require('./node-config');
 const llm_manager = require('./node-llm');
 const project_manager = require('./node-projects');
 const node_files = require('./node-files');
+const {get_project_settings} = require("./node-projects");
 
 let mainWindow;
 const PORT = 31987;
@@ -152,6 +153,13 @@ ipcMain.handle('post-data', async (event, data) => {
 					.run(data.llm_id, data.key);
 				result = {success: true};
 				break;
+			// NEW: Handle saving the global API key
+			case 'save_api_key':
+				config_manager.save_api_key(data.api_key);
+				// Reload config into memory after saving
+				config_manager.load_config_from_db();
+				result = { success: true };
+				break;
 			case 'save_last_smart_prompt':
 				config_manager.save_last_smart_prompt(data.prompt);
 				result = {success: true};
@@ -166,28 +174,26 @@ ipcMain.handle('post-data', async (event, data) => {
 			
 			// --- LLM Actions (from node-llm.js) ---
 			case 'refresh_llms':
-				result = await llm_manager.refresh_llms();
+				// MODIFIED: This action can now be used to test a key by passing it in the data.
+				// If no key is passed, it uses the saved one.
+				result = await llm_manager.refresh_llms({ api_key_override: data.api_key });
 				break;
 			case 'get_llm_log':
 				result = llm_manager.get_llm_log();
 				break;
 			case 'analyze_file':
-				// MODIFIED: Pass project_settings
 				result = await llm_manager.analyze_file({
 					project_path: data.project_path,
 					file_path: data.file_path,
 					llm_id: data.llm_id,
-					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature),
 					force: data.force
 				});
 				break;
 			case 'reanalyze_modified_files':
-				// MODIFIED: Pass project_settings
 				llm_manager.reanalyze_modified_files({
 					project_path: data.project_path,
 					llm_id: data.llm_id,
-					project_settings: data.project_settings, // Pass it through
 					force: data.force,
 					temperature: parseFloat(data.temperature)
 				});
@@ -197,12 +203,10 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.cancel_analysis();
 				break;
 			case 'identify_project_files':
-				// MODIFIED: Pass project_settings
 				llm_manager.identify_project_files({
 					project_path: data.project_path,
 					all_files: data.all_files,
 					llm_id: data.llm_id,
-					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature)
 				});
 				result = {success: true, message: 'Auto-select process started.'};
@@ -211,21 +215,17 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.cancel_auto_select();
 				break;
 			case 'get_relevant_files_from_prompt':
-				// MODIFIED: Pass project_settings
 				result = await llm_manager.get_relevant_files_from_prompt({
 					project_path: data.project_path,
 					user_prompt: data.user_prompt,
 					llm_id: data.llm_id,
-					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature)
 				});
 				break;
 			case 'ask_question_about_code_stream':
-				// MODIFIED: Pass project_settings
 				result = handle_stream_action((callbacks) => llm_manager.ask_question_about_code_stream({ ...data, ...callbacks }));
 				break;
 			case 'direct_prompt_stream':
-				// MODIFIED: Pass project_settings
 				result = handle_stream_action((callbacks) => llm_manager.handle_direct_prompt_stream({ ...data, ...callbacks }));
 				break;
 			
@@ -258,18 +258,16 @@ ipcMain.handle('post-data', async (event, data) => {
 			
 			// --- File Actions (from node-files.js) ---
 			case 'get_folders':
-				// MODIFIED: Pass a single object to match the updated function signature.
 				result = node_files.get_folders({
 					input_path: data.path,
-					project_path: data.project_path,
-					project_settings: data.project_settings
+					project_path: data.project_path
 				});
 				break;
 			case 'get_file_content':
 				const file_path = data.path;
+				const project_settings = get_project_settings(data.project_path);
 				result = node_files.get_file_content(file_path, data.project_path);
-				// This logic should also be updated to use project settings, but we'll leave it for now.
-				const compress_extensions = data.project_settings?.compress_extensions || [];
+				const compress_extensions = project_settings?.compress_extensions || [];
 				if (result && result.content && compress_extensions.includes(path.extname(file_path).slice(1))) {
 					result.content = result.content.replace(/\s+/g, ' ');
 					result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
@@ -289,12 +287,10 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				break;
 			case 'search_files':
-				// MODIFIED: Pass a single object to match the updated function signature.
 				result = node_files.search_files({
 					start_path: data.folder_path,
 					search_term: data.search_term,
-					project_path: data.project_path,
-					project_settings: data.project_settings
+					project_path: data.project_path
 				});
 				break;
 			case 'get_file_analysis':
@@ -307,10 +303,8 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = node_files.check_for_modified_files({project_path: data.project_path});
 				break;
 			case 'check_folder_updates':
-				// MODIFIED: Pass a single object to match the updated function signature.
 				result = node_files.check_folder_updates({
-					project_path: data.project_path,
-					project_settings: data.project_settings
+					project_path: data.project_path
 				});
 				break;
 			default:

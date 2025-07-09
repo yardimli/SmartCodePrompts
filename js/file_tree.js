@@ -5,7 +5,7 @@ import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, s
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
-import { get_all_settings } from './settings.js'; // NEW: Import settings manager
+import { get_all_settings } from './settings.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -84,15 +84,12 @@ export function load_folders (path, element) {
 		const current_project = get_current_project();
 		if (!current_project) return reject(new Error('No project selected'));
 		
-		// NEW: Get the current project's settings to pass to the backend.
-		const project_settings = get_all_settings();
-		
 		try {
 			const response = await post_data({
 				action: 'get_folders',
 				path: path,
-				project_path: current_project.path,
-				project_settings: project_settings // NEW: Pass settings
+				project_path: current_project.path
+				// REMOVED: project_settings is no longer sent from the frontend.
 			});
 			const file_tree = document.getElementById('file-tree');
 			if (element) {
@@ -128,10 +125,8 @@ export function load_folders (path, element) {
 				const filetype_class = get_filetype_class(file_info.name);
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
 				
-				// NEW: Icon for files needing re-analysis (stale analysis)
 				const reanalysis_icon = file_info.needs_reanalysis ? `<i class="bi bi-exclamation-triangle-fill reanalysis-alert-icon align-middle" title="File has been modified since last analysis"></i>` : '';
 				
-				// NEW: Icon for files with git changes, which opens the diff view
 				const diff_icon = file_info.has_git_diff ? `<i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_info.path}" title="View Changes (Diff)"></i>` : '';
 				
 				let title_attr = file_info.path;
@@ -191,11 +186,9 @@ export async function update_selected_content () {
 	
 	const request_promises = Array.from(checked_boxes).map(box => {
 		const path = box.dataset.path;
-		const project_settings = get_all_settings();
 		return post_data({
 			action: 'get_file_content',
 			project_path: get_current_project().path,
-			project_settings: project_settings, // NEW: Pass settings
 			path: path
 		})
 			.then(response => {
@@ -385,12 +378,10 @@ export function start_file_tree_polling () {
 		}
 		
 		try {
-			// MODIFIED: Pass project settings to the polling action
-			const project_settings = get_all_settings();
 			const updates = await post_data({
 				action: 'check_folder_updates',
-				project_path: current_project.path,
-				project_settings: project_settings
+				project_path: current_project.path
+				// REMOVED: project_settings is no longer sent from the frontend.
 			});
 			
 			handle_modification_status_updates(updates);

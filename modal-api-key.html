@@ -1,0 +1,30 @@
+<!-- SmartCodePrompts/modal-api-key.html -->
+<dialog id="api_key_modal" class="modal">
+	<div class="modal-box w-11/12 max-w-lg">
+		<h3 class="font-bold text-lg">Set OpenRouter API Key</h3>
+		<p class="py-4">
+			Enter your OpenRouter.ai API key here. This key is stored locally on your machine and is required for all LLM interactions.
+			You can get a key from the <a href="https://openrouter.ai/keys" target="_blank" class="link link-primary">OpenRouter Keys page</a>.
+		</p>
+		<div class="form-control">
+			<label class="label">
+				<span class="label-text">API Key</span>
+				<span id="api-key-status" class="label-text-alt"></span>
+			</label>
+			<div class="join w-full">
+				<input type="password" id="api-key-input" placeholder="sk-or-..." class="input input-bordered join-item w-full" />
+				<button id="api-key-test-button" class="btn join-item">Test Key</button>
+			</div>
+		</div>
+		<div id="api-key-feedback" class="text-sm mt-2 min-h-[1.25rem]"></div>
+		<div class="modal-action">
+			<form method="dialog" class="w-full flex justify-end gap-2">
+				<button type="button" class="btn btn-ghost" id="api-key-modal-close-button">Cancel</button>
+				<button type="button" class="btn btn-primary" id="api-key-modal-save-button">Save & Close</button>
+			</form>
+		</div>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>

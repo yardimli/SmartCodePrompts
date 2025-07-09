@@ -2,7 +2,7 @@
 import {show_loading, hide_loading, post_data, simple_markdown_to_html} from './utils.js';
 import {get_current_project} from './state.js';
 import {show_alert} from './modal-alert.js';
-import { get_all_settings } from './settings.js'; // NEW: Import settings manager
+import { get_all_settings } from './settings.js';
 
 let qa_modal = null;
 let qa_chat_window = null;
@@ -88,8 +88,6 @@ async function handle_question_submit() {
 	
 	let cleanupListener = null;
 	
-	const project_settings = get_all_settings();
-	
 	try {
 		// Step 1: Get relevant files based on the question using the Smart Prompt LLM
 		const relevant_files_response = await post_data({
@@ -97,7 +95,7 @@ async function handle_question_submit() {
 			project_path: current_project.path,
 			user_prompt: user_question,
 			llm_id: smart_prompt_llm_id,
-			project_settings: project_settings, // NEW: Pass settings
+			// REMOVED: project_settings is no longer sent from the frontend.
 			temperature: parseFloat(temperature)
 		});
 		
@@ -117,7 +115,7 @@ async function handle_question_submit() {
 			project_path: current_project.path,
 			question: user_question,
 			relevant_files: JSON.stringify(relevant_files),
-			project_settings: project_settings, // NEW: Pass settings
+			// REMOVED: project_settings is no longer sent from the frontend.
 			llm_id: qa_llm_id,
 			temperature: parseFloat(temperature)
 		});

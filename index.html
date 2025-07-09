@@ -172,7 +172,11 @@
 			
 			<div class="divider"></div>
 			
-			<div class="flex justify-end -mb-2">
+			<!-- MODIFIED: Wrapped buttons for better alignment -->
+			<div class="flex justify-between items-center -mb-2">
+				<button id="api-key-modal-button" class="btn btn-xs btn-ghost" title="Set API Key">
+					<i class="bi bi-key-fill"></i> Set API Key
+				</button>
 				<button id="refresh-llms" class="btn btn-xs btn-ghost" title="Refresh LLM List">
 					<i class="bi bi-arrow-clockwise"></i> Refresh Models
 				</button>
@@ -202,7 +206,7 @@
 				<input id="temperature-slider" type="range" min="0" max="1" value="0.25" step="0.01"
 				       class="range range-sm"/>
 			</div>
-			
+		
 		</div>
 	</aside>
 </div>

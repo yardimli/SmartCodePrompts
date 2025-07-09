@@ -3,9 +3,10 @@ const https = require('https');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-// MODIFIED: Removed 'config' import, added get_default_settings_object for fallbacks.
-const {db, get_default_settings_object} = require('./node-config');
+// MODIFIED: Import the global 'config' object
+const {db, config} = require('./node-config');
 const {get_file_content, get_raw_file_content, get_file_analysis, calculate_checksum} = require('./node-files');
+const { get_project_settings } = require('./node-projects');
 
 // Determine the application data path from environment variables for consistency with node-config.js.
 const isElectron = !!process.env.ELECTRON_RUN;
@@ -50,9 +51,16 @@ function cancel_auto_select () {
 
 /**
  * Fetches the list of available models from the OpenRouter API.
+ * @param {string|null} [api_key_override=null] - An optional API key to use for this call, for testing purposes.
  * @returns {Promise<object>} A promise that resolves to the parsed JSON response from OpenRouter.
  */
-async function fetch_open_router_models() {
+async function fetch_open_router_models(api_key_override = null) {
+	// MODIFIED: Use the override key if provided, otherwise use the globally configured key.
+	const api_key = api_key_override || config.openrouter_api_key;
+	if (!api_key) {
+		throw new Error('OpenRouter API key is not configured.');
+	}
+	
 	return new Promise((resolve, reject) => {
 		const options = {
 			hostname: 'openrouter.ai',
@@ -62,6 +70,8 @@ async function fetch_open_router_models() {
 				'Accept': 'application/json',
 				'HTTP-Referer': 'https://smartcodeprompts.com',
 				'X-Title': 'Smart Code Prompts',
+				// MODIFIED: Use the determined API key.
+				'Authorization': `Bearer ${api_key}`,
 			}
 		};
 		const req = https.request(options, (res) => {
@@ -77,7 +87,7 @@ async function fetch_open_router_models() {
 						reject(new Error('Failed to parse OpenRouter response.'));
 					}
 				} else {
-					reject(new Error(`OpenRouter request failed with status code: ${res.statusCode}`));
+					reject(new Error(`OpenRouter request failed with status code: ${res.statusCode}. Response: ${data}`));
 				}
 			});
 		});
@@ -90,16 +100,17 @@ async function fetch_open_router_models() {
  * Calls a specified LLM synchronously, waiting for the full response.
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} model_id - The ID of the OpenRouter model to use.
- * @param {object} project_settings - The settings object for the current project.
+ * @param {object} project_settings - The settings object for the current project (used for prompts).
  * @param {string} [call_reason='Unknown'] - A short description of why the LLM is being called.
  * @param {number} [temperature] - The temperature for the LLM call.
  * @param {string|null} [response_format='json_object'] - The expected response format ('json_object' or 'text'). Pass null for default.
  * @returns {Promise<string>} A promise that resolves to the content of the LLM's response.
  */
 async function call_llm_sync(prompt, model_id, project_settings, call_reason = 'Unknown', temperature, response_format = 'json_object') {
-	const api_key = project_settings?.openrouter_api_key;
-	if (!api_key || api_key === 'YOUR_API_KEY_HERE') {
-		throw new Error('OpenRouter API key is not configured. Please add it in the .scp/settings.yaml file for this project.');
+	// MODIFIED: Get API key from the global config object, not project settings.
+	const api_key = config.openrouter_api_key;
+	if (!api_key) {
+		throw new Error('OpenRouter API key is not configured. Please add it via the API Key settings.');
 	}
 	return new Promise((resolve, reject) => {
 		const request_body = {
@@ -182,16 +193,17 @@ async function call_llm_sync(prompt, model_id, project_settings, call_reason = '
  * Calls a specified LLM and streams the response back via callbacks.
  * @param {string} prompt - The prompt to send to the LLM.
  * @param {string} model_id - The ID of the OpenRouter model to use.
- * @param {object} project_settings - The settings object for the current project.
+ * @param {object} project_settings - The settings object for the current project (used for prompts).
  * @param {string} call_reason - A short description of why the LLM is being called.
  * @param {number} temperature - The temperature for the LLM call.
  * @param {string|null} response_format - The expected response format ('json_object' or 'text').
  * @param {object} callbacks - The callback functions.
  */
 async function call_llm_stream(prompt, model_id, project_settings, call_reason, temperature, response_format, { onChunk, onEnd, onError }) {
-	const api_key = project_settings?.openrouter_api_key;
-	if (!api_key || api_key === 'YOUR_API_KEY_HERE') {
-		onError(new Error('OpenRouter API key is not configured. Please add it in the .scp/settings.yaml file for this project.'));
+	// MODIFIED: Get API key from the global config object, not project settings.
+	const api_key = config.openrouter_api_key;
+	if (!api_key) {
+		onError(new Error('OpenRouter API key is not configured. Please add it via the API Key settings.'));
 		return;
 	}
 	
@@ -300,26 +312,34 @@ async function call_llm_stream(prompt, model_id, project_settings, call_reason, 
 }
 
 /**
- * Refreshes the local list of LLMs from OpenRouter and stores them in the database.
+ * Refreshes the local list of LLMs from OpenRouter. Can also be used to test a key.
+ * @param {object} [options={}] - Options for the refresh.
+ * @param {string|null} [options.api_key_override=null] - An API key to test. If provided, models are not saved to the DB.
  * @returns {Promise<object>} A promise that resolves to an object containing the new list of LLMs.
  */
-async function refresh_llms() {
-	const model_data = await fetch_open_router_models();
+async function refresh_llms({ api_key_override = null } = {}) {
+	// MODIFIED: Pass the override key to the fetch function.
+	const model_data = await fetch_open_router_models(api_key_override);
 	const models = model_data.data || [];
-	const insert = db.prepare('INSERT OR REPLACE INTO llms (id, name, context_length, prompt_price, completion_price) VALUES (@id, @name, @context_length, @prompt_price, @completion_price)');
-	const transaction = db.transaction((models_to_insert) => {
-		db.exec('DELETE FROM llms');
-		for (const model of models_to_insert) {
-			insert.run({
-				id: model.id,
-				name: model.name,
-				context_length: model.context_length,
-				prompt_price: parseFloat(model.pricing.prompt),
-				completion_price: parseFloat(model.pricing.completion)
-			});
-		}
-	});
-	transaction(models);
+	
+	// MODIFIED: Only save the models to the database if we are not testing a key.
+	if (!api_key_override) {
+		const insert = db.prepare('INSERT OR REPLACE INTO llms (id, name, context_length, prompt_price, completion_price) VALUES (@id, @name, @context_length, @prompt_price, @completion_price)');
+		const transaction = db.transaction((models_to_insert) => {
+			db.exec('DELETE FROM llms');
+			for (const model of models_to_insert) {
+				insert.run({
+					id: model.id,
+					name: model.name,
+					context_length: model.context_length,
+					prompt_price: parseFloat(model.pricing.prompt),
+					completion_price: parseFloat(model.pricing.completion)
+				});
+			}
+		});
+		transaction(models);
+	}
+	
 	const new_llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
 	return {success: true, llms: new_llms};
 }
@@ -331,15 +351,17 @@ async function refresh_llms() {
  * @param {string} params.project_path - The path of the project.
  * @param {string} params.file_path - The path of the file to analyze.
  * @param {string} params.llm_id - The ID of the LLM to use for analysis.
- * @param {object} params.project_settings - The parsed settings from the project's settings.yaml.
  * @param {boolean} [params.force=false] - If true, analysis is performed even if checksums match.
  * @param {number} [params.temperature] - The temperature for the LLM call.
  * @returns {Promise<object>} A promise that resolves to a success object with a status ('analyzed' or 'skipped').
  */
-async function analyze_file({project_path, file_path, llm_id, project_settings, force = false, temperature}) {
+async function analyze_file({project_path, file_path, llm_id, force = false, temperature}) {
 	if (!llm_id) {
 		throw new Error('No LLM selected for analysis.');
 	}
+	
+	const project_settings = get_project_settings(project_path);
+	
 	const raw_file_content = get_raw_file_content(file_path, project_path);
 	const current_checksum = crypto.createHash('sha256').update(raw_file_content).digest('hex');
 	const existing_metadata = db.prepare('SELECT last_checksum FROM file_metadata WHERE project_path = ? AND file_path = ?')
@@ -354,20 +376,20 @@ async function analyze_file({project_path, file_path, llm_id, project_settings, 
 	const file_content = get_file_content(file_path, project_path).content;
 	const short_file_name = path.basename(file_path);
 	
-	// NEW: Use passed-in settings with a fallback to defaults.
-	const default_prompts = get_default_settings_object().prompts;
-	const prompts = project_settings?.prompts || default_prompts;
+	const prompts = project_settings.prompts;
 	
-	const overview_prompt_template = prompts.file_overview || default_prompts.file_overview;
+	const overview_prompt_template = prompts.file_overview;
 	const overview_prompt = overview_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
+	// MODIFIED: call_llm_sync no longer needs the API key from project_settings.
 	const overview_result = await call_llm_sync(overview_prompt, llm_id, project_settings, `File Overview: ${short_file_name}`, temperature);
 	
-	const functions_prompt_template = prompts.functions_logic || default_prompts.functions_logic;
+	const functions_prompt_template = prompts.functions_logic;
 	const functions_prompt = functions_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
+	// MODIFIED: call_llm_sync no longer needs the API key from project_settings.
 	const functions_result = await call_llm_sync(functions_prompt, llm_id, project_settings, `Functions/Logic: ${short_file_name}`, temperature);
 	
 	db.prepare(`
@@ -378,18 +400,20 @@ async function analyze_file({project_path, file_path, llm_id, project_settings, 
 	return {success: true, status: 'analyzed'};
 }
 
+// ... (The rest of the file remains largely the same, as the changes are concentrated in the API calling functions)
+// The following functions will now correctly use the global API key via their calls to call_llm_sync and call_llm_stream.
+
 /**
- * MODIFIED: This function now runs as a background task. It scans all analyzed files in a project,
+ * This function now runs as a background task. It scans all analyzed files in a project,
  * re-analyzes any that have been modified (or all if forced), and reports progress via the
  * module-level `reanalysis_progress` state object for the frontend to poll.
  * @param {object} params - The parameters for the operation.
  * @param {string} params.project_path - The path of the project.
  * @param {string} params.llm_id - The ID of the LLM to use for analysis.
- * @param {object} params.project_settings - The parsed settings from the project's settings.yaml.
  * @param {boolean} [params.force=false] - If true, re-analyzes all files, ignoring checksums.
  * @param {number} [params.temperature] - The temperature for the LLM call.
  */
-async function reanalyze_modified_files({project_path, llm_id, project_settings, force = false, temperature}) {
+async function reanalyze_modified_files({project_path, llm_id, force = false, temperature}) {
 	if (!llm_id) {
 		console.error('No LLM selected for re-analysis.');
 		return;
@@ -442,7 +466,7 @@ async function reanalyze_modified_files({project_path, llm_id, project_settings,
 				if (force || current_checksum !== file.last_checksum) {
 					reanalysis_progress.message = `Analyzing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
 					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-					await analyze_file({project_path, file_path: file.file_path, llm_id, project_settings, force: true, temperature});
+					await analyze_file({project_path, file_path: file.file_path, llm_id, force: true, temperature});
 					analyzed_count++;
 				} else {
 					skipped_count++;
@@ -465,10 +489,13 @@ async function reanalyze_modified_files({project_path, llm_id, project_settings,
  * @param {object} params - The parameters for the operation.
  * @returns {Promise<object>} A promise resolving to an object with a `relevant_files` array.
  */
-async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id, project_settings, temperature}) {
+async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id, temperature}) {
 	if (!llm_id) {
 		throw new Error('No LLM selected for analysis.');
 	}
+	
+	const project_settings = get_project_settings(project_path);
+	
 	const analyzed_files = db.prepare(`
         SELECT file_path, file_overview, functions_overview
         FROM file_metadata
@@ -494,9 +521,8 @@ async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id
 		analysis_data_string += '---\n\n';
 	}
 	
-	const default_prompts = get_default_settings_object().prompts;
-	const prompts = project_settings?.prompts || default_prompts;
-	const master_prompt_template = prompts.smart_prompt || default_prompts.smart_prompt;
+	const prompts = project_settings.prompts;
+	const master_prompt_template = prompts.smart_prompt;
 	
 	const master_prompt = master_prompt_template
 		.replace(/\$\{user_prompt\}/g, user_prompt)
@@ -523,11 +549,13 @@ async function get_relevant_files_from_prompt({project_path, user_prompt, llm_id
  * Asks a question about the code, using provided files as context, and streams the answer.
  * @param {object} params - The parameters for the operation, including callbacks.
  */
-async function ask_question_about_code_stream({project_path, question, relevant_files, llm_id, project_settings, temperature, onChunk, onEnd, onError}) {
+async function ask_question_about_code_stream({project_path, question, relevant_files, llm_id, temperature, onChunk, onEnd, onError}) {
 	if (!llm_id) {
 		onError(new Error('No LLM selected for the question.'));
 		return;
 	}
+	
+	const project_settings = get_project_settings(project_path);
 	
 	const parsed_relevant_files = JSON.parse(relevant_files);
 	if (!parsed_relevant_files || parsed_relevant_files.length === 0) {
@@ -546,9 +574,8 @@ async function ask_question_about_code_stream({project_path, question, relevant_
 		}
 	}
 	
-	const default_prompts = get_default_settings_object().prompts;
-	const prompts = project_settings?.prompts || default_prompts;
-	const qa_prompt_template = prompts.qa || default_prompts.qa;
+	const prompts = project_settings.prompts;
+	const qa_prompt_template = prompts.qa;
 	
 	const final_prompt = qa_prompt_template
 		.replace(/\$\{file_context\}/g, file_context)
@@ -561,7 +588,7 @@ async function ask_question_about_code_stream({project_path, question, relevant_
  * Handles a direct prompt from the user, streaming the response.
  * @param {object} params - The parameters for the operation, including callbacks.
  */
-async function handle_direct_prompt_stream({prompt, llm_id, project_settings, temperature, onChunk, onEnd, onError}) {
+async function handle_direct_prompt_stream({prompt, llm_id, temperature, onChunk, onEnd, onError, project_path}) {
 	if (!llm_id) {
 		onError(new Error('No LLM selected for the prompt.'));
 		return;
@@ -570,6 +597,12 @@ async function handle_direct_prompt_stream({prompt, llm_id, project_settings, te
 		onError(new Error('Prompt content is empty.'));
 		return;
 	}
+	if (!project_path) {
+		onError(new Error('No project context was provided for the direct prompt.'));
+		return;
+	}
+	
+	const project_settings = get_project_settings(project_path);
 	
 	await call_llm_stream(prompt, llm_id, project_settings, `Direct Prompt`, temperature, 'text', { onChunk, onEnd, onError });
 }
@@ -644,11 +677,13 @@ function get_llm_log() {
  * This is a background task that reports progress via the `auto_select_progress` state object.
  * @param {object} params - The parameters for the operation.
  */
-async function identify_project_files ({project_path, all_files, llm_id, project_settings, temperature}) {
+async function identify_project_files ({project_path, all_files, llm_id, temperature}) {
 	if (!llm_id) {
 		console.error('No LLM selected for auto-select.');
 		return;
 	}
+	
+	const project_settings = get_project_settings(project_path);
 	
 	const files_to_process = JSON.parse(all_files);
 	const BATCH_SIZE = 20;
@@ -690,9 +725,8 @@ async function identify_project_files ({project_path, all_files, llm_id, project
 			const total_batches = Math.ceil(files_to_process.length / BATCH_SIZE);
 			auto_select_progress.message = `Processing batch ${current_batch_num}/${total_batches}...`;
 			
-			const default_prompts = get_default_settings_object().prompts;
-			const prompts = project_settings?.prompts || default_prompts;
-			const prompt_template = prompts.auto_select || default_prompts.auto_select;
+			const prompts = project_settings.prompts;
+			const prompt_template = prompts.auto_select;
 			const prompt = prompt_template.replace(/\$\{file_list_string\}/g, file_list_string);
 			
 			try {

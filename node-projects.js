@@ -1,9 +1,9 @@
 // SmartCodePrompts/node-projects.js
-const fs = require('fs'); // NEW
-const path = require('path'); // NEW
-const yaml = require('js-yaml'); // NEW
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
 const {db} = require('./node-config');
-const { get_default_settings_yaml, get_default_settings_object } = require('./node-config'); // NEW
+const { get_default_settings_yaml, get_default_settings_object } = require('./node-config');
 
 /**
  * Adds a new project to the database.
@@ -13,13 +13,13 @@ const { get_default_settings_yaml, get_default_settings_object } = require('./no
  */
 function add_project ({path}) {
 	db.prepare('INSERT OR IGNORE INTO projects (path) VALUES (?)').run(path);
-	// NEW: Ensure settings file exists when adding a project
+	// Ensure settings file exists when adding a project
 	ensure_settings_file_exists(path);
 	return {success: true};
 }
 
 /**
- * NEW: Ensures the .scp/settings.yaml file exists for a project, creating it with defaults if not.
+ * Ensures the .scp/settings.yaml file exists for a project, creating it with defaults if not.
  * @param {string} project_path - The full path of the project.
  * @returns {string} The content of the settings file.
  */
@@ -39,6 +39,44 @@ function ensure_settings_file_exists(project_path) {
 }
 
 /**
+ * NEW: Reads, parses, and returns the settings for a specific project.
+ * Merges project-specific settings over default settings to ensure a complete object.
+ * @param {string} project_path - The full path of the project.
+ * @returns {object} The complete settings object.
+ */
+function get_project_settings(project_path) {
+	const default_settings = get_default_settings_object();
+	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
+	
+	if (!fs.existsSync(settings_file_path)) {
+		// This is a safe fallback, though the file should always exist for a loaded project.
+		return default_settings;
+	}
+	
+	try {
+		const yaml_content = fs.readFileSync(settings_file_path, 'utf8');
+		const project_specific_settings = yaml.load(yaml_content);
+		
+		if (typeof project_specific_settings !== 'object' || project_specific_settings === null) {
+			console.warn(`[${project_path}] settings.yaml is not a valid object. Using default settings.`);
+			return default_settings;
+		}
+		
+		// Merge project settings over defaults. A simple deep merge for the 'prompts' object.
+		const merged_settings = { ...default_settings, ...project_specific_settings };
+		if (default_settings.prompts && project_specific_settings.prompts) {
+			merged_settings.prompts = { ...default_settings.prompts, ...project_specific_settings.prompts };
+		}
+		
+		return merged_settings;
+		
+	} catch (error) {
+		console.error(`[${project_path}] Error reading or parsing settings.yaml. Using default settings. Error: ${error.message}`);
+		return default_settings;
+	}
+}
+
+/**
  * Retrieves the saved state (open folders, selected files, open tabs, and settings) for a specific project.
  * @param {object} params - The parameters for fetching state.
  * @param {string} params.project_path - The full path of the project.
@@ -51,14 +89,14 @@ function get_project_state ({project_path}) {
 	const open_tabs_rows = db.prepare('SELECT file_path FROM project_open_tabs WHERE project_path = ?').all(project_path);
 	const open_tabs = open_tabs_rows.map(row => row.file_path);
 	
-	// NEW: Load settings from the project's .scp/settings.yaml file
+	// Load settings from the project's .scp/settings.yaml file
 	const settings_yaml = ensure_settings_file_exists(project_path);
 	
 	return {
 		open_folders: state ? JSON.parse(state.open_folders || '[]') : [],
 		selected_files: state ? JSON.parse(state.selected_files || '[]') : [],
 		open_tabs: open_tabs,
-		settings_yaml: settings_yaml // NEW
+		settings_yaml: settings_yaml
 	};
 }
 
@@ -104,7 +142,7 @@ function save_open_tabs({ project_path, open_tabs_json }) {
 }
 
 /**
- * NEW: Validates and saves the project settings YAML file.
+ * Validates and saves the project settings YAML file.
  * @param {object} params - The parameters.
  * @param {string} params.project_path - The full path of the project.
  * @param {string} params.content - The YAML content to validate and save.
@@ -146,5 +184,6 @@ module.exports = {
 	get_project_state,
 	save_project_state,
 	save_open_tabs,
-	validate_and_save_settings, // NEW
+	validate_and_save_settings,
+	get_project_settings, // NEW
 };

@@ -7,6 +7,7 @@ import {show_alert} from './modal-alert.js';
 import {show_confirm} from './modal-confirm.js';
 // MODIFIED: Import functions to interact with the editor tabs.
 import {switchToTab, getPromptTabId, getActiveTabId} from './editor.js';
+import { get_all_settings } from './settings.js'; // NEW: Import settings manager
 
 /**
  * Adjusts the height of the bottom prompt textarea to fit its content.
@@ -50,6 +51,8 @@ async function perform_smart_prompt (user_prompt) {
 	
 	set_last_smart_prompt(user_prompt);
 	
+	const project_settings = get_all_settings();
+	
 	show_loading('Asking LLM to select relevant files...');
 	try {
 		const current_project = get_current_project();
@@ -58,6 +61,7 @@ async function perform_smart_prompt (user_prompt) {
 			project_path: current_project.path,
 			user_prompt: trimmed_prompt,
 			llm_id: llm_id,
+			project_settings: project_settings, // NEW: Pass settings
 			temperature: document.getElementById('temperature-slider').value
 		});
 		

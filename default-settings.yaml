@@ -1,0 +1,191 @@
+# Smart Code Prompts - Project Settings
+# This file configures the behavior of the application for this specific project.
+# You can edit prompts and settings here. Changes are applied when you save the file.
+
+# Your API key for making requests to OpenRouter.ai for analysis.
+# Only files with these extensions will be shown in the file tree.
+# These folder names will be ignored entirely.
+# Files with these extensions will have their whitespace compressed when added to the prompt.
+# --- LLM PROMPTS ---
+# Use ${file_path}, ${file_content}, ${user_prompt}, etc. as placeholders.
+
+openrouter_api_key: YOUR_API_KEY_HERE
+
+allowed_extensions:
+  - js
+  - jsx
+  - json
+  - ts
+  - tsx
+  - php
+  - py
+  - html
+  - css
+  - swift
+  - xcodeproj
+  - xcworkspace
+  - storyboard
+  - xib
+  - plist
+  - xcassets
+  - playground
+  - cs
+  - csproj
+  - htaccess
+  - yaml
+
+excluded_folders:
+  - .scp
+  - .git
+  - .idea
+  - vendor
+  - storage
+  - node_modules
+
+# Whitespace and new line compression settings
+compress_extensions:
+  - json
+
+prompts:
+  file_overview: |-
+    Analyze the following file content and provide a response in a single, JSON object format.
+    Do not include any text outside of the JSON object.
+    The JSON object should have the following structure, if a structure is empty, it should not be included in the output.:
+
+    {
+      "overview": "A brief, one-sentence summary of the file's primary purpose.",
+      "internal_dependencies": ["list/of/project/files/it/imports/or/requires"],
+      "external_dependencies": ["list/of/external/libraries/or/apis/used"],
+      "codex": 
+      {
+        "security_crypto": ["List of security and cryptographic functions found - including encryption/decryption (AES, RSA,
+        DES), hashing (SHA, bcrypt, PBKDF2), random generation, key management, signatures, certificates"],
+        "auth": ["List of authentication and authorization functions - including OAuth, JWT, sessions, biometric auth,
+        MFA"],
+        "platform_apis": ["List of platform-specific security APIs - Android KeyStore, iOS Keychain, Web Crypto API"],
+        "system_io": ["List of system and I/O operations - file system, network, process management, database operations"],
+        "data_processing": ["List of data processing functions - JSON parsing, encoding/decoding, compression, regex,
+        XML/HTML parsing"],
+        "data_protection": ["List of data protection and privacy functions - PII handling, secure storage, data erasure,
+        clipboard ops"],
+        "memory_resources": ["List of memory and resource management - allocation, garbage collection, threading, pools"],
+        "communication": ["List of communication and protocol functions - WebSockets, gRPC, GraphQL, push notifications,
+        WebRTC, message queues"],
+        "state_cache": ["List of state and cache management - localStorage, mobile databases, cache operations, state
+        libraries"],
+        "third_party": ["List of third-party service integrations - payment processing, cloud services, analytics, social
+        media, maps"],
+        "web_apis": ["List of modern web APIs - service workers, web workers, permissions, device APIs, media APIs"],
+        "runtime_ops": ["List of build-time and runtime operations - reflection, dynamic loading, code generation, hot
+        reload"]
+      }
+    }
+
+    File Path: ${file_path}
+    File Content:
+    ${file_content}
+
+  functions_logic: |-
+    PROMPT: Create a concise function analysis summary
+
+    INSTRUCTIONS:
+    Analyze all functions and provide a minimal but comprehensive overview:
+
+    Function Analysis:
+    - List all functions with their primary purpose (one line max)
+    - Include only essential parameters (name and type if typed)
+    - Note return type only if explicitly defined
+    - Flag only: async, generator, constructor, or security-sensitive functions
+    - List direct dependencies only (called functions, not callers)
+    - Include only critical side effects or state mutations
+
+    Class Analysis:
+    - Class name, parent class, and one-line purpose
+    - List method names only (no details unless critical)
+
+    Global Scope:
+    - List imports, exports, and entry point only
+
+    Output Format (exclude empty fields):
+    {
+      "language": "detected language",
+      "functions": [
+        {
+          "name": "functionName",
+          "type": "only if not regular function",
+          "purpose": "one line description",
+          "params": ["param1: type", "param2?: type"],
+          "returns": "type only if explicit",
+          "async": true, // only if true
+          "calls": ["critical dependencies only"],
+          "sideEffects": "only if significant",
+          "security": "only if security-relevant"
+        }
+      ],
+      "classes": [
+        {
+          "name": "ClassName",
+          "extends": "ParentClass",
+          "purpose": "one line",
+          "methods": ["method1", "method2"]
+        }
+      ],
+      "imports": ["module names only"],
+      "exports": ["exported items"],
+      "entryPoint": "main() or initialization"
+    }
+
+    Keep descriptions under 10 words. Omit obvious information.
+
+    File Path: ${file_path}
+    File Content:
+    ${file_content}
+  content_footer: |-
+
+    ${user_prompt}
+
+    Format the output.
+    For PHP use psr-12 standards.
+    For javascript use StandardJS but include semicolumns.
+    For html use W3C standards.
+    Skip files that dont need to be changed and are provided for reference.
+    Don't refactor code that is not needed to be changed.
+    Comment as needed.
+    Add comments to new lines and modified sections.
+
+  smart_prompt: |-
+    Based on the user's request below, identify which of the provided files are directly or indirectly necessary to fulfill the request. The user has provided a list of files with their automated analysis (overview and function summaries). Your task is to act as a filter. Only return the file paths that are relevant. Return your answer as a single, minified JSON object with a single key "relevant_files" which is an array of strings. Each string must be one of the file paths provided in the "AVAILABLE FILES" section. Do not include any other text or explanation.
+    
+    Example response: {"relevant_files":["src/user.js","src/api/auth.js"]}
+
+    USER REQUEST: ${user_prompt}
+
+    AVAILABLE FILES AND THEIR ANALYSIS:
+    ${analysis_data_string}
+
+  qa: |-
+    You are an expert software developer assistant. Based *only* on the code provided in the context below, answer the user's question. Format your answer clearly using Markdown. If the question cannot be answered from the provided context, say so and explain why.
+
+    CONTEXT:
+    ${file_context}
+
+    QUESTION:
+    ${user_question}
+
+  auto_select: |-
+    You are an intelligent file filter. Your task is to identify which of the following files are part of the core, user-written project source code, and which are likely third-party libraries, dependencies, configuration files, or build artifacts.
+
+    Analyze the list of file paths and the first 256 characters of their content.
+
+    Return a single, minified JSON object with a single key "project_files", which is an array of strings. Each string must be a file path from the provided list that you identify as core project code.
+
+    Considerations:
+    - Files in directories like 'src', 'app', 'components', 'controllers', 'models' are likely project files.
+    - Files in directories like 'vendor', 'node_modules', 'dist', 'build', 'assets' are likely NOT project files.
+    - Files with common library names (e.g., 'jquery.js', 'bootstrap.css') are likely NOT project files.
+    - Pay attention to the content snippet for clues like copyright notices, minification, or boilerplate code.
+
+    Do not include any other text or explanation in your response.
+
+    LIST OF FILES:
+    ${file_list_string}

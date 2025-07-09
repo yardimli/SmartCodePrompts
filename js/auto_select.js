@@ -6,6 +6,7 @@ import {show_alert} from './modal-alert.js';
 import {show_confirm} from './modal-confirm.js';
 import {load_folders, update_selected_content} from './file_tree.js';
 import {perform_selection_analysis} from './analysis.js';
+import { get_all_settings } from './settings.js'; // NEW: Import settings manager
 
 /**
  * Recursively expands all folders in the file tree UI.
@@ -74,12 +75,15 @@ export async function handle_auto_select_click () {
 	};
 	show_progress_modal('Identifying Project Files', stop_callback);
 	
+	const project_settings = get_all_settings();
+	
 	// Fire-and-forget the backend request
 	post_data({
 		action: 'identify_project_files',
 		project_path: current_project.path,
 		all_files: JSON.stringify(all_file_paths),
 		llm_id: llm_id,
+		project_settings: project_settings, // NEW: Pass settings
 		temperature: parseFloat(temperature)
 	}).catch(error => {
 		console.error('Failed to start auto-select process:', error);

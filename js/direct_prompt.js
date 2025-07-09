@@ -3,6 +3,7 @@ import { post_data } from './utils.js';
 import { show_alert } from './modal-alert.js';
 // NEW: Import new editor functions
 import { get_editor_content, createNewTab, setTabContent, appendToTabContent } from './editor.js';
+import { get_all_settings } from './settings.js'; // NEW: Import settings manager
 
 let responseTabId = null;
 let responseTabCounter = 0;
@@ -40,11 +41,14 @@ async function handle_direct_prompt() {
 	let cleanupListener = null;
 	let isFirstChunk = true;
 	
+	const project_settings = get_all_settings();
+	
 	try {
 		const { streamId, success } = await post_data({
 			action: 'direct_prompt_stream',
 			prompt: prompt_content,
 			llm_id: llm_id,
+			project_settings: project_settings, // NEW: Pass settings
 			temperature: parseFloat(temperature)
 		});
 		

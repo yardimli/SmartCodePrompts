@@ -15,6 +15,7 @@
   "dependencies": {
     "better-sqlite3": "^12.2.0",
     "bootstrap-icons": "^1.11.3",
+    "js-yaml": "^4.1.0",
     "monaco-editor": "^0.52.2"
   },
   "devDependencies": {

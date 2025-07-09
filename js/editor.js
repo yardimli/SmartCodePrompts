@@ -2,6 +2,8 @@
 
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
+import { show_alert } from './modal-alert.js'; // NEW
+import { update_project_settings } from './settings.js'; // NEW
 
 let editor = null;
 let diffEditor = null; // NEW: For side-by-side diff view
@@ -30,7 +32,8 @@ export function updateSaveButtonState() {
  */
 export function saveAllModifiedTabs() {
 	console.log('Attempting to save all modified files on blur...');
-	const modifiedTabs = tabs.filter(tab => tab.isModified && !tab.readOnly && tab.filePath);
+	// MODIFIED: Exclude the settings file from auto-save
+	const modifiedTabs = tabs.filter(tab => tab.isModified && !tab.readOnly && tab.filePath && tab.filePath !== '.scp/settings.yaml');
 	
 	if (modifiedTabs.length > 0) {
 		const savePromises = modifiedTabs.map(tab => saveTabContent(tab.id));
@@ -67,6 +70,7 @@ function save_open_tabs_state() {
 
 /**
  * MODIFIED: Saves a tab's content to the filesystem. Now async and updates modification state.
+ * It now includes special handling for the project settings file.
  * @param {string} tabId The ID of the tab to save.
  */
 export async function saveTabContent(tabId) {
@@ -83,8 +87,36 @@ export async function saveTabContent(tabId) {
 	}
 	
 	const content = tab.model.getValue();
-	console.log(`Saving ${tab.filePath}...`);
 	
+	// NEW: Special handling for the settings file
+	if (tab.filePath === '.scp/settings.yaml') {
+		console.log('Validating and saving project settings...');
+		try {
+			const result = await post_data({
+				action: 'validate_and_save_settings',
+				project_path: project.path,
+				content: content
+			});
+			
+			if (result.success) {
+				tab.isModified = false;
+				await update_project_settings(content); // Reload settings into the app
+				renderTabs();
+				updateSaveButtonState();
+				show_alert('Project settings saved and reloaded successfully.', 'Settings Saved');
+			} else {
+				// Validation failed, show error and don't mark as saved
+				show_alert(result.error, 'Settings Validation Error');
+			}
+		} catch (error) {
+			console.error('Failed to save project settings:', error);
+			show_alert(`An error occurred while saving settings: ${error.message}`, 'Error');
+		}
+		return; // End execution here for settings file
+	}
+	
+	// Regular file saving logic
+	console.log(`Saving ${tab.filePath}...`);
 	try {
 		await post_data({
 			action: 'save_file_content',
@@ -99,7 +131,7 @@ export async function saveTabContent(tabId) {
 		console.log(`${tab.filePath} saved successfully.`);
 	} catch (error) {
 		console.error(`Failed to save ${tab.filePath}:`, error);
-		// TODO: Show an error to the user in the UI
+		show_alert(`Failed to save ${tab.filePath}: ${error.message}`, 'Save Error');
 	}
 }
 
@@ -120,6 +152,10 @@ function getActiveMonacoEditorInstance() {
 // Helper to get language from filename for Monaco
 function getLanguageForFile(filename) {
 	if (!window.monaco) return 'plaintext';
+	// NEW: Treat settings file as YAML
+	if (filename.endsWith('settings.yaml')) {
+		return 'yaml';
+	}
 	const extension = '.' + filename.split('.').pop();
 	const languages = monaco.languages.getLanguages();
 	const lang = languages.find(l => l.extensions && l.extensions.includes(extension));
@@ -158,9 +194,15 @@ function renderTabs() {
 			const closeBtn = document.createElement('i');
 			closeBtn.className = 'bi bi-x close-tab-btn';
 			closeBtn.title = 'Close Tab';
-			closeBtn.onclick = (e) => {
+			closeBtn.onclick = async (e) => {
 				e.stopPropagation();
-				// TODO: In the future, check for unsaved changes before closing.
+				const tabToClose = findTab(tab.id);
+				if (tabToClose && tabToClose.isModified) {
+					const confirmed = await show_confirm(`The file "${tabToClose.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
+					if (!confirmed) {
+						return;
+					}
+				}
 				closeTab(tab.id);
 			};
 			tabEl.appendChild(closeBtn);
@@ -189,6 +231,7 @@ export function switchToTab(tabId) {
 	
 	const editorContainer = document.getElementById('monaco-editor-container');
 	const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
+	const resetSettingsBtn = document.getElementById('reset-settings-btn'); // NEW
 	
 	// Save view state of the old tab
 	const oldTab = findTab(activeTabId);
@@ -205,6 +248,11 @@ export function switchToTab(tabId) {
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
+		
+		// NEW: Show/hide the reset settings button
+		if (resetSettingsBtn) {
+			resetSettingsBtn.classList.toggle('hidden', newTab.filePath !== '.scp/settings.yaml');
+		}
 		
 		// MODIFIED: Show the correct editor and set models
 		if (newTab.isDiff) {
@@ -272,6 +320,7 @@ export function closeTab(tabId) {
 			diffEditor.setModel({ original: null, modified: null });
 			document.getElementById('monaco-editor-container').style.display = 'block'; // Show default
 			document.getElementById('monaco-diff-editor-container').style.display = 'none';
+			document.getElementById('reset-settings-btn').classList.add('hidden'); // NEW: Hide reset button
 			updateSaveButtonState(); // NEW: Ensure button is disabled
 		}
 	}
@@ -334,7 +383,7 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		return;
 	}
 	
-	const title = filePath.split('/').pop();
+	const title = filePath === '.scp/settings.yaml' ? 'Project Settings' : filePath.split('/').pop();
 	const language = getLanguageForFile(filePath);
 	const isDiff = originalContent !== null;
 	
@@ -359,6 +408,7 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		language: language,
 		viewState: null,
 		// MODIFIED: Diff views are read-only; normal file views are editable.
+		// The settings file is editable but not a diff view.
 		readOnly: isDiff,
 		filePath: filePath,
 		isModified: false, // NEW: Not modified initially

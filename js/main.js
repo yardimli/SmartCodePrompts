@@ -2,21 +2,21 @@
 
 // --- CORE & STATE IMPORTS ---
 import {post_data} from './utils.js';
-import {set_content_footer_prompt, set_last_smart_prompt} from './state.js';
+import {set_content_footer_prompt, set_last_smart_prompt, get_current_project} from './state.js'; // MODIFIED
+import { update_project_settings } from './settings.js'; // NEW
 
 // --- MODULE IMPORTS ---
 import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
 import {initialize_analysis_modal} from './modal-analysis.js';
 import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
 import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
-import {initialize_setup_modal, setup_setup_modal_listeners} from './modal-setup.js';
+// REMOVED: setup modal imports
 import {setup_analysis_actions_listener} from './analysis.js';
 import {initialize_llm_selector, setup_llm_listeners} from './llm.js';
 import {initialize_status_bar} from './status_bar.js';
 import {load_project, setup_project_listeners} from './project.js';
 import {initialize_auto_expand_textarea, setup_prompt_bar_listeners} from './prompt.js';
 import {
-	initialize_compress_extensions_dropdown,
 	initialize_resizers,
 	initialize_temperature_slider,
 	setup_ui_event_listeners
@@ -26,10 +26,10 @@ import {setup_direct_prompt_listeners} from './direct_prompt.js';
 import {setup_file_tree_listeners} from './file_tree.js';
 import {initialize_progress_modal} from './modal-progress.js';
 import {initialize_alert_modal, show_alert} from './modal-alert.js';
-import {initialize_confirm_modal} from './modal-confirm.js';
+import {initialize_confirm_modal, show_confirm} from './modal-confirm.js'; // NEW
 import {setup_auto_select_listeners} from './auto_select.js';
 
-import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs } from './editor.js';
+import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js'; // MODIFIED
 import { initialize_tab_switcher } from './tab-switcher.js'; // This is now handled by initialize_tab_scroller
 
 // Function to load all individual modal HTML files.
@@ -37,7 +37,7 @@ async function load_all_modals_html () {
 	const modal_files = [
 		'modal-about.html', 'modal-analysis.html',
 		'modal-log.html', 'modal-qa.html',
-		'modal-reanalysis.html', 'modal-search.html', 'modal-setup.html',
+		'modal-reanalysis.html', 'modal-search.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
 		'modal-tab-switcher.html'
 	];
@@ -183,7 +183,8 @@ async function initialize_app() {
 		
 		// 2. Set global prompts from state
 		console.log('Last Smart Prompt:', data.last_smart_prompt);
-		set_content_footer_prompt(data.prompt_content_footer || '');
+		// MODIFIED: content_footer prompt is now loaded from settings.yaml per project
+		// set_content_footer_prompt(data.prompt_content_footer || '');
 		set_last_smart_prompt(data.last_smart_prompt || '');
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
 		adjust_prompt_textarea_height();
@@ -196,7 +197,6 @@ async function initialize_app() {
 			direct_prompt: data.last_selected_llm_direct_prompt
 		};
 		initialize_llm_selector(data.llms, last_selected_llms);
-		initialize_compress_extensions_dropdown(data.allowed_extensions, data.compress_extensions);
 		initialize_status_bar(data.session_tokens);
 		
 		// 4. Populate Projects Dropdown
@@ -237,9 +237,9 @@ async function initialize_app() {
 }
 
 /**
- * NEW: Sets up listeners related to the new save functionality.
+ * NEW: Sets up listeners related to the new save and settings functionality.
  */
-function setup_save_listeners() {
+function setup_save_and_settings_listeners() {
 	// Listener for the manual "Save" button click.
 	const saveBtn = document.getElementById('save-active-file-btn');
 	if (saveBtn) {
@@ -255,6 +255,46 @@ function setup_save_listeners() {
 	window.addEventListener('blur', () => {
 		saveAllModifiedTabs();
 	});
+	
+	// Listener for the "Configure Project Settings" button
+	document.getElementById('open-settings-file-button').addEventListener('click', async () => {
+		const project = get_current_project();
+		if (!project) {
+			show_alert('Please select a project first.', 'No Project Selected');
+			return;
+		}
+		try {
+			const data = await post_data({
+				action: 'get_file_for_editor',
+				project_path: project.path,
+				path: '.scp/settings.yaml'
+			});
+			if (data.currentContent !== null) {
+				openFileInTab('.scp/settings.yaml', data.currentContent, data.originalContent);
+			} else {
+				show_alert('Could not find or create the settings file for this project.', 'Error');
+			}
+		} catch (error) {
+			show_alert(`Error opening settings file: ${error.message}`, 'Error');
+		}
+	});
+	
+	// Listener for the "Reset Settings" button
+	document.getElementById('reset-settings-btn').addEventListener('click', async () => {
+		const confirmed = await show_confirm('Are you sure you want to reset the project settings to their default values? This will overwrite the current content in the editor.', 'Confirm Reset');
+		if (confirmed) {
+			try {
+				const result = await post_data({ action: 'get_default_settings_yaml' });
+				const activeTabId = getActiveTabId();
+				if (activeTabId && result.yaml) {
+					setTabContent(activeTabId, result.yaml);
+					// The content is now "modified", user can save it to apply.
+				}
+			} catch (error) {
+				show_alert(`Failed to fetch default settings: ${error.message}`, 'Error');
+			}
+		}
+	});
 }
 
 // --- Document Ready ---
@@ -268,7 +308,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_analysis_modal();
 	initialize_log_modal();
 	initialize_search_modal();
-	initialize_setup_modal();
+	// REMOVED: initialize_setup_modal();
 	initialize_qa_modal();
 	initialize_progress_modal();
 	initialize_alert_modal();
@@ -291,7 +331,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_about_modal_listeners();
 	setup_log_modal_listeners();
 	setup_search_modal_listeners();
-	setup_setup_modal_listeners();
+	// REMOVED: setup_setup_modal_listeners();
 	setup_qa_listeners();
 	setup_direct_prompt_listeners();
 	setup_analysis_actions_listener();
@@ -301,5 +341,5 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_ui_event_listeners();
 	setup_prompt_bar_listeners();
 	setup_auto_select_listeners();
-	setup_save_listeners(); // NEW: Set up save-related event listeners.
+	setup_save_and_settings_listeners(); // MODIFIED: Renamed and expanded
 });

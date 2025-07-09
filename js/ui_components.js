@@ -5,58 +5,6 @@ import {show_alert} from './modal-alert.js';
 // NEW: Import editor functions
 import { get_editor_content, set_editor_theme } from './editor.js';
 
-function update_compress_extensions_button() {
-	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
-	const button_label = document.getElementById('compress-extensions-button');
-	if (!menu_element || !button_label) return;
-	
-	const count = menu_element.querySelectorAll('.compress-extension-checkbox:checked').length;
-	
-	if (count === 0) {
-		button_label.textContent = 'Select extensions...';
-	} else {
-		button_label.textContent = `${count} extension(s) selected`;
-	}
-}
-
-/**
- * Populates the compress extensions dropdown with checkboxes.
- * @param {string} allowed_extensions_json - JSON string array of all possible extensions.
- * @param {string} compressed_extensions_json - JSON string array of extensions to be selected.
- */
-export function initialize_compress_extensions_dropdown(allowed_extensions_json, compressed_extensions_json) {
-	const menu_element = document.getElementById('compress-extensions-dropdown-menu');
-	if (!menu_element) return;
-	
-	try {
-		const allowed = JSON.parse(allowed_extensions_json);
-		const compressed = new Set(JSON.parse(compressed_extensions_json));
-		
-		if (!Array.isArray(allowed) || allowed.length === 0) {
-			menu_element.innerHTML = '<li class="w-full"><a>No extensions configured.</a></li>';
-			return;
-		}
-		
-		allowed.sort();
-		let content = '';
-		for (const ext of allowed) {
-			const is_selected = compressed.has(ext);
-			content += `
-                <li class="w-full">
-                    <label class="label cursor-pointer justify-start gap-3">
-                        <input type="checkbox" value="${ext}" ${is_selected ? 'checked' : ''} class="checkbox checkbox-primary checkbox-sm compress-extension-checkbox" />
-                        <span class="label-text">.${ext}</span>
-                    </label>
-                </li>`;
-		}
-		menu_element.innerHTML = content;
-		update_compress_extensions_button();
-	} catch (e) {
-		console.error("Failed to parse extension settings:", e);
-		menu_element.innerHTML = '<li><a>Error loading settings.</a></li>';
-	}
-}
-
 /**
  * Initializes the vertical and horizontal resizers for the layout.
  */
@@ -147,47 +95,8 @@ export function initialize_temperature_slider() {
  * Sets up various general-purpose UI event listeners.
  */
 export function setup_ui_event_listeners() {
-	// Listener for the compress extensions dropdown menu.
-	document.getElementById('compress-extensions-dropdown-menu').addEventListener('change', (e) => {
-		if (!e.target.classList.contains('compress-extension-checkbox')) {
-			return;
-		}
-		update_compress_extensions_button();
-		
-		const checked_checkboxes = document.querySelectorAll('#compress-extensions-dropdown-menu .compress-extension-checkbox:checked');
-		const selected_extensions = Array.from(checked_checkboxes).map(checkbox => checkbox.value);
-		
-		post_data({
-			action: 'save_compress_extensions',
-			extensions: JSON.stringify(selected_extensions)
-		}).then(() => {
-			update_selected_content();
-		}).catch(err => {
-			console.error("Failed to save compress extensions setting:", err);
-			show_alert("Could not save compression setting. See console for details.", "Error");
-		});
-	});
-	
-	// Listeners to manually control the compress extensions dropdown toggle.
-	const compress_dropdown = document.getElementById('compress-extensions-dropdown');
-	const compress_button = document.getElementById('compress-extensions-button');
-	
-	if (compress_dropdown && compress_button) {
-		compress_button.addEventListener('click', (e) => {
-			e.stopPropagation();
-			compress_dropdown.classList.toggle('dropdown-open');
-		});
-	}
-	
-	// Listener to close the dropdown when clicking anywhere else on the page.
-	document.addEventListener('click', () => {
-		if (compress_dropdown) {
-			compress_dropdown.classList.remove('dropdown-open');
-		}
-	});
-	
 	// Listener for the copy prompt button.
-	// MODIFIED: Updated to get content from the Monaco Editor.
+	// Updated to get content from the Monaco Editor.
 	document.getElementById('copy-prompt-button').addEventListener('click', function () {
 		const text_to_copy = get_editor_content();
 		

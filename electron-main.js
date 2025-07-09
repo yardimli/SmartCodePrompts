@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const http = require('http');
+const yaml = require('js-yaml');
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
@@ -20,7 +21,7 @@ if (!fs.existsSync(userDataPath)) {
 const config_manager = require('./node-config');
 const llm_manager = require('./node-llm');
 const project_manager = require('./node-projects');
-const file_manager = require('./node-files');
+const node_files = require('./node-files');
 
 let mainWindow;
 const PORT = 31987;
@@ -132,15 +133,8 @@ ipcMain.handle('post-data', async (event, data) => {
 			case 'get_session_stats':
 				result = llm_manager.get_session_stats();
 				break;
-			case 'get_setup':
-				result = config_manager.get_setup_data();
-				break;
-			case 'save_setup':
-				config_manager.save_setup_data(data);
-				result = {success: true};
-				break;
-			case 'reset_prompts':
-				result = config_manager.reset_prompts_to_default();
+			case 'get_default_settings_yaml':
+				result = { yaml: config_manager.get_default_settings_yaml() };
 				break;
 			case 'reset_llm_log':
 				result = config_manager.reset_llm_log();
@@ -162,10 +156,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				config_manager.save_last_smart_prompt(data.prompt);
 				result = {success: true};
 				break;
-			case 'save_compress_extensions':
-				config_manager.save_compress_extensions(data.extensions);
-				result = {success: true};
-				break;
 			case 'save_file_tree_width':
 				config_manager.save_file_tree_width(data.width);
 				result = {success: true};
@@ -182,18 +172,22 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.get_llm_log();
 				break;
 			case 'analyze_file':
+				// MODIFIED: Pass project_settings
 				result = await llm_manager.analyze_file({
 					project_path: data.project_path,
 					file_path: data.file_path,
 					llm_id: data.llm_id,
+					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature),
 					force: data.force
 				});
 				break;
 			case 'reanalyze_modified_files':
+				// MODIFIED: Pass project_settings
 				llm_manager.reanalyze_modified_files({
 					project_path: data.project_path,
 					llm_id: data.llm_id,
+					project_settings: data.project_settings, // Pass it through
 					force: data.force,
 					temperature: parseFloat(data.temperature)
 				});
@@ -203,10 +197,12 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.cancel_analysis();
 				break;
 			case 'identify_project_files':
+				// MODIFIED: Pass project_settings
 				llm_manager.identify_project_files({
 					project_path: data.project_path,
 					all_files: data.all_files,
 					llm_id: data.llm_id,
+					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature)
 				});
 				result = {success: true, message: 'Auto-select process started.'};
@@ -215,18 +211,22 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = llm_manager.cancel_auto_select();
 				break;
 			case 'get_relevant_files_from_prompt':
+				// MODIFIED: Pass project_settings
 				result = await llm_manager.get_relevant_files_from_prompt({
 					project_path: data.project_path,
 					user_prompt: data.user_prompt,
 					llm_id: data.llm_id,
+					project_settings: data.project_settings, // Pass it through
 					temperature: parseFloat(data.temperature)
 				});
 				break;
 			case 'ask_question_about_code_stream':
-				result = handle_stream_action(llm_manager.ask_question_about_code_stream);
+				// MODIFIED: Pass project_settings
+				result = handle_stream_action((callbacks) => llm_manager.ask_question_about_code_stream({ ...data, ...callbacks }));
 				break;
 			case 'direct_prompt_stream':
-				result = handle_stream_action(llm_manager.handle_direct_prompt_stream);
+				// MODIFIED: Pass project_settings
+				result = handle_stream_action((callbacks) => llm_manager.handle_direct_prompt_stream({ ...data, ...callbacks }));
 				break;
 			
 			// --- Project Actions (from node-projects.js) ---
@@ -243,57 +243,75 @@ ipcMain.handle('post-data', async (event, data) => {
 					selected_files: data.selected_files
 				});
 				break;
-			// NEW: Action to save the list of open tabs for a project.
 			case 'save_open_tabs':
 				result = project_manager.save_open_tabs({
 					project_path: data.project_path,
 					open_tabs_json: data.open_tabs
 				});
 				break;
+			case 'validate_and_save_settings':
+				result = project_manager.validate_and_save_settings({
+					project_path: data.project_path,
+					content: data.content
+				});
+				break;
 			
 			// --- File Actions (from node-files.js) ---
 			case 'get_folders':
-				result = file_manager.get_folders(data.path, data.project_path);
+				// MODIFIED: Pass a single object to match the updated function signature.
+				result = node_files.get_folders({
+					input_path: data.path,
+					project_path: data.project_path,
+					project_settings: data.project_settings
+				});
 				break;
 			case 'get_file_content':
 				const file_path = data.path;
-				result = file_manager.get_file_content(file_path, data.project_path);
-				const file_ext = path.extname(file_path).slice(1);
-				const compress_extensions = Array.isArray(config_manager.config.compress_extensions) ? config_manager.config.compress_extensions : [];
-				if (result && result.content && compress_extensions.includes(file_ext)) {
+				result = node_files.get_file_content(file_path, data.project_path);
+				// This logic should also be updated to use project settings, but we'll leave it for now.
+				const compress_extensions = data.project_settings?.compress_extensions || [];
+				if (result && result.content && compress_extensions.includes(path.extname(file_path).slice(1))) {
 					result.content = result.content.replace(/\s+/g, ' ');
 					result.content = result.content.split(/\r?\n/).filter(line => line.trim() !== '').join('\n');
 				}
 				break;
-			// NEW: Action to save content back to a file.
 			case 'save_file_content':
-				result = file_manager.save_file_content({
+				result = node_files.save_file_content({
 					project_path: data.project_path,
 					file_path: data.file_path,
 					content: data.content
 				});
 				break;
 			case 'get_file_for_editor':
-				result = file_manager.get_file_for_editor({
+				result = node_files.get_file_for_editor({
 					project_path: data.project_path,
-					// The frontend sends 'path', but the file manager expects 'file_path'.
 					file_path: data.path
 				});
 				break;
 			case 'search_files':
-				result = file_manager.search_files(data.folder_path, data.search_term, data.project_path);
+				// MODIFIED: Pass a single object to match the updated function signature.
+				result = node_files.search_files({
+					start_path: data.folder_path,
+					search_term: data.search_term,
+					project_path: data.project_path,
+					project_settings: data.project_settings
+				});
 				break;
 			case 'get_file_analysis':
-				result = file_manager.get_file_analysis({
+				result = node_files.get_file_analysis({
 					project_path: data.project_path,
 					file_path: data.file_path
 				});
 				break;
 			case 'check_for_modified_files':
-				result = file_manager.check_for_modified_files({project_path: data.project_path});
+				result = node_files.check_for_modified_files({project_path: data.project_path});
 				break;
 			case 'check_folder_updates':
-				result = file_manager.check_folder_updates(data.project_path);
+				// MODIFIED: Pass a single object to match the updated function signature.
+				result = node_files.check_folder_updates({
+					project_path: data.project_path,
+					project_settings: data.project_settings
+				});
 				break;
 			default:
 				throw new Error(`Unknown action: ${action}`);
@@ -326,6 +344,7 @@ app.on('ready', () => {
 			const mimeTypes = {
 				'.html': 'text/html',
 				'.js': 'text/javascript',
+				'.mjs': 'text/javascript',
 				'.css': 'text/css',
 				'.json': 'application/json',
 				'.png': 'image/png',

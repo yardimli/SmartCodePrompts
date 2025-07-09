@@ -4,6 +4,7 @@ import {set_current_project} from './state.js';
 import {load_folders, restore_state, start_file_tree_polling, stop_file_tree_polling} from './file_tree.js';
 import {show_alert} from './modal-alert.js';
 import { openFileInTab } from './editor.js';
+import { update_project_settings } from './settings.js';
 
 /**
  * Opens a native dialog to select a project folder and adds it to the application.
@@ -11,14 +12,12 @@ import { openFileInTab } from './editor.js';
  */
 export async function open_project_modal () {
 	try {
-		// Call the method exposed from the main process via the preload script.
 		const selected_path = await window.electronAPI.openDirectoryDialog();
 		
 		if (selected_path) {
 			show_loading('Adding project...');
 			try {
 				await post_data({action: 'add_project', path: selected_path});
-				// Reload the page to refresh the project list and load the new project.
 				window.location.reload();
 			} catch (error) {
 				console.error('Failed to add project:', error);
@@ -53,16 +52,26 @@ export async function load_project(project_path) {
 			action: 'get_project_state',
 			project_path: project_path
 		});
-		// Load the root of the project. The path '.' is relative to the project root.
+		console.log('Loaded saved state:', saved_state);
+		
+		// --- CRITICAL CHANGE HERE ---
+		// 1. Synchronously update settings from the fetched YAML.
+		let project_settings = null;
+		if (saved_state.settings_yaml) {
+			// This is now a synchronous call. When it finishes, the settings module is updated.
+			project_settings = update_project_settings(saved_state.settings_yaml);
+		}
+		
+		
+		// 3. NOW it is safe to load the file tree, which depends on the settings.
 		await load_folders('.', null);
 		await restore_state(saved_state || {open_folders: [], selected_files: []});
 		
-		// NEW: Restore open tabs from the saved state.
+		// 4. Restore open tabs. This part is independent of settings, so its order is less critical.
 		if (saved_state && saved_state.open_tabs && saved_state.open_tabs.length > 0) {
 			console.log('Restoring open tabs:', saved_state.open_tabs);
 			show_loading(`Restoring ${saved_state.open_tabs.length} open file(s)...`);
 			
-			// Fetch content for each file in parallel to open it.
 			const open_tab_promises = saved_state.open_tabs.map(async (filePath) => {
 				try {
 					const data = await post_data({
@@ -70,9 +79,7 @@ export async function load_project(project_path) {
 						project_path: project_path,
 						path: filePath
 					});
-					// The backend returns null for currentContent if the file doesn't exist.
 					if (data.currentContent !== null) {
-						// openFileInTab will handle both normal and diff views.
 						openFileInTab(filePath, data.currentContent, data.originalContent);
 					} else {
 						console.warn(`Could not restore tab for non-existent file: ${filePath}`);
@@ -84,7 +91,9 @@ export async function load_project(project_path) {
 			await Promise.all(open_tab_promises);
 		}
 		
+		// 5. Start polling, which also depends on settings.
 		start_file_tree_polling();
+		
 	} catch (error) {
 		console.error(`Error loading project ${project_path}:`, error);
 		show_alert(`Error loading project. Check console for details.`, 'Error');

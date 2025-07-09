@@ -1,8 +1,11 @@
+// SmartCodePrompts/js/file_tree.js
+
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
+import { get_all_settings } from './settings.js'; // NEW: Import settings manager
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
@@ -80,11 +83,16 @@ export function load_folders (path, element) {
 	return new Promise(async (resolve, reject) => {
 		const current_project = get_current_project();
 		if (!current_project) return reject(new Error('No project selected'));
+		
+		// NEW: Get the current project's settings to pass to the backend.
+		const project_settings = get_all_settings();
+		
 		try {
 			const response = await post_data({
 				action: 'get_folders',
 				path: path,
-				project_path: current_project.path
+				project_path: current_project.path,
+				project_settings: project_settings // NEW: Pass settings
 			});
 			const file_tree = document.getElementById('file-tree');
 			if (element) {
@@ -183,7 +191,13 @@ export async function update_selected_content () {
 	
 	const request_promises = Array.from(checked_boxes).map(box => {
 		const path = box.dataset.path;
-		return post_data({action: 'get_file_content', project_path: get_current_project().path, path: path})
+		const project_settings = get_all_settings();
+		return post_data({
+			action: 'get_file_content',
+			project_path: get_current_project().path,
+			project_settings: project_settings, // NEW: Pass settings
+			path: path
+		})
 			.then(response => {
 				const firstLine = response.content.split('\n')[0];
 				if (firstLine && firstLine.includes(path)) {
@@ -371,9 +385,12 @@ export function start_file_tree_polling () {
 		}
 		
 		try {
+			// MODIFIED: Pass project settings to the polling action
+			const project_settings = get_all_settings();
 			const updates = await post_data({
 				action: 'check_folder_updates',
-				project_path: current_project.path
+				project_path: current_project.path,
+				project_settings: project_settings
 			});
 			
 			handle_modification_status_updates(updates);

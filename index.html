@@ -1,3 +1,5 @@
+<!-- index.html: -->
+
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -16,8 +18,8 @@
 	<link rel="stylesheet" href="./dist/output.css">
 	<script>var require = { paths: { 'vs': './node_modules/monaco-editor/min/vs' } };</script>
 	<script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
-	<script type="module" src="js/main.js"></script>
 	<script src="./vendor/highlight.js/highlight.min.js"></script>
+	<script type="module" src="js/main.js"></script>
 </head>
 <body class="h-screen overflow-hidden">
 <div class="flex h-full" id="app-container">
@@ -48,7 +50,8 @@
 				<i class="bi bi-eraser"></i>
 			</div>
 			<div id="add-project-button" class="cursor-pointer" title="Add New Project"><i class="bi bi-database-add"></i></div>
-			<div id="setup-modal-button" class="cursor-pointer" title="Configure"><i class="bi bi-gear-fill"></i></div>
+			<!-- MODIFIED: This button now opens the settings file -->
+			<div id="open-settings-file-button" class="cursor-pointer" title="Configure Project Settings"><i class="bi bi-gear-fill"></i></div>
 			<div id="toggle-right-sidebar" class="cursor-pointer" title="Toggle Settings Panel">
 				<i class="bi bi-layout-sidebar-reverse"></i>
 			</div>
@@ -200,25 +203,14 @@
 				       class="range range-sm"/>
 			</div>
 			
-			
-			<div class="form-control">
-				<label class="label">
-					<span class="label-text">Compress Extensions</span>
-				</label>
-				<div id="compress-extensions-dropdown" class="dropdown dropdown-bottom w-full">
-					<label id="compress-extensions-button"
-					       class="btn btn-sm w-full justify-start font-normal border-base-300 bg-base-100 hover:bg-base-200"
-					       title="Select extensions to compress">Select extensions...</label>
-					<ul id="compress-extensions-dropdown-menu"
-					    class="dropdown-content z-[1] p-2 shadow bg-base-200 rounded-box w-full max-h-60 overflow-y-auto flex flex-col">
-						<!-- Checkboxes will be populated by JS -->
-						<li><a>Loading...</a></li>
-					</ul>
-				</div>
-			</div>
 		</div>
 	</aside>
 </div>
+
+<!-- NEW: Floating button to reset settings, only visible when settings tab is active -->
+<button id="reset-settings-btn" class="btn btn-warning fixed bottom-20 right-5 z-20 hidden" title="Reset settings to their default values">
+	<i class="bi bi-arrow-counterclockwise"></i> Reset Settings
+</button>
 
 <div id="modal-container"></div>
 

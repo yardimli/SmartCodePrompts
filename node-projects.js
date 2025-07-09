@@ -1,5 +1,9 @@
 // SmartCodePrompts/node-projects.js
+const fs = require('fs'); // NEW
+const path = require('path'); // NEW
+const yaml = require('js-yaml'); // NEW
 const {db} = require('./node-config');
+const { get_default_settings_yaml, get_default_settings_object } = require('./node-config'); // NEW
 
 /**
  * Adds a new project to the database.
@@ -9,11 +13,33 @@ const {db} = require('./node-config');
  */
 function add_project ({path}) {
 	db.prepare('INSERT OR IGNORE INTO projects (path) VALUES (?)').run(path);
+	// NEW: Ensure settings file exists when adding a project
+	ensure_settings_file_exists(path);
 	return {success: true};
 }
 
 /**
- * Retrieves the saved state (open folders, selected files, open tabs) for a specific project.
+ * NEW: Ensures the .scp/settings.yaml file exists for a project, creating it with defaults if not.
+ * @param {string} project_path - The full path of the project.
+ * @returns {string} The content of the settings file.
+ */
+function ensure_settings_file_exists(project_path) {
+	const scp_dir = path.join(project_path, '.scp');
+	const settings_file_path = path.join(scp_dir, 'settings.yaml');
+	
+	if (!fs.existsSync(settings_file_path)) {
+		if (!fs.existsSync(scp_dir)) {
+			fs.mkdirSync(scp_dir);
+		}
+		const default_yaml = get_default_settings_yaml();
+		fs.writeFileSync(settings_file_path, default_yaml, 'utf8');
+		return default_yaml;
+	}
+	return fs.readFileSync(settings_file_path, 'utf8');
+}
+
+/**
+ * Retrieves the saved state (open folders, selected files, open tabs, and settings) for a specific project.
  * @param {object} params - The parameters for fetching state.
  * @param {string} params.project_path - The full path of the project.
  * @returns {object} The saved state of the project.
@@ -22,14 +48,17 @@ function get_project_state ({project_path}) {
 	const state = db.prepare('SELECT open_folders, selected_files FROM project_states WHERE project_path = ?')
 		.get(project_path);
 	
-	// Get open tabs from the new table
 	const open_tabs_rows = db.prepare('SELECT file_path FROM project_open_tabs WHERE project_path = ?').all(project_path);
 	const open_tabs = open_tabs_rows.map(row => row.file_path);
+	
+	// NEW: Load settings from the project's .scp/settings.yaml file
+	const settings_yaml = ensure_settings_file_exists(project_path);
 	
 	return {
 		open_folders: state ? JSON.parse(state.open_folders || '[]') : [],
 		selected_files: state ? JSON.parse(state.selected_files || '[]') : [],
-		open_tabs: open_tabs
+		open_tabs: open_tabs,
+		settings_yaml: settings_yaml // NEW
 	};
 }
 
@@ -52,7 +81,7 @@ function save_project_state ({project_path, open_folders, selected_files}) {
 }
 
 /**
- * NEW: Saves the list of open file tabs for a project.
+ * Saves the list of open file tabs for a project.
  * @param {object} params - The parameters for saving tabs.
  * @param {string} params.project_path - The full path of the project.
  * @param {string} params.open_tabs_json - A JSON string array of file paths.
@@ -74,10 +103,48 @@ function save_open_tabs({ project_path, open_tabs_json }) {
 	return { success: true };
 }
 
+/**
+ * NEW: Validates and saves the project settings YAML file.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The full path of the project.
+ * @param {string} params.content - The YAML content to validate and save.
+ * @returns {object} A success or error object.
+ */
+function validate_and_save_settings({ project_path, content }) {
+	try {
+		const parsed_content = yaml.load(content);
+		if (typeof parsed_content !== 'object' || parsed_content === null) {
+			throw new Error('Root of YAML must be an object.');
+		}
+		
+		// Basic validation: check for the presence of a few key properties
+		const required_keys = ['allowed_extensions', 'excluded_folders', 'prompts'];
+		for (const key of required_keys) {
+			if (!(key in parsed_content)) {
+				throw new Error(`Missing required top-level key: '${key}'`);
+			}
+		}
+		if (typeof parsed_content.prompts !== 'object' || parsed_content.prompts === null) {
+			throw new Error("'prompts' key must be an object.");
+		}
+		
+		// If validation passes, save the file
+		const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
+		fs.writeFileSync(settings_file_path, content, 'utf8');
+		
+		return { success: true };
+		
+	} catch (error) {
+		console.error('Settings validation failed:', error.message);
+		return { success: false, error: `Settings validation failed: ${error.message}` };
+	}
+}
+
 
 module.exports = {
 	add_project,
 	get_project_state,
 	save_project_state,
 	save_open_tabs,
+	validate_and_save_settings, // NEW
 };

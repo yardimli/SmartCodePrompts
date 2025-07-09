@@ -21,6 +21,8 @@ export function initialize_qa_modal() {
 	qa_modal_title = document.getElementById('qa-modal-title');
 }
 
+
+
 /**
  * Adds a message to the chat window in the QA modal.
  * @param {string} role - 'user' or 'assistant'.

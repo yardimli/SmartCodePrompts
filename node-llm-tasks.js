@@ -1,3 +1,5 @@
+// node-llm-tasks.js:
+
 /**
  * @file node-llm-tasks.js
  * @description Implements high-level LLM-driven tasks like file analysis, Q&A, and code generation.
@@ -97,6 +99,11 @@ async function analyze_file ({project_path, file_path, llm_id, force = false, te
  * @param {object} params - The parameters for the operation.
  */
 async function reanalyze_modified_files ({project_path, llm_id, force = false, temperature}) {
+	// NEW: Prevent multiple re-analysis tasks from running at the same time.
+	if (reanalysis_progress.running) {
+		console.warn('Re-analysis is already running. Ignoring new request.');
+		return;
+	}
 	if (!llm_id) {
 		console.error('No LLM selected for re-analysis.');
 		return;
@@ -105,14 +112,14 @@ async function reanalyze_modified_files ({project_path, llm_id, force = false, t
 	const analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
 	
-	reanalysis_progress = {
-		total: analyzed_files.length,
-		current: 0,
-		running: true,
-		message: 'Initializing re-analysis...',
-		cancelled: false,
-		summary: null
-	};
+	// MODIFIED: Mutate the existing progress object instead of reassigning it.
+	// This ensures that other modules holding a reference to this object see the updates.
+	reanalysis_progress.total = analyzed_files.length;
+	reanalysis_progress.current = 0;
+	reanalysis_progress.running = true;
+	reanalysis_progress.message = 'Initializing re-analysis...';
+	reanalysis_progress.cancelled = false;
+	reanalysis_progress.summary = null;
 	
 	let analyzed_count = 0;
 	let skipped_count = 0;
@@ -296,6 +303,11 @@ async function handle_direct_prompt_stream ({prompt, llm_id, temperature, onChun
  * @param {object} params - The parameters for the operation.
  */
 async function identify_project_files ({project_path, all_files, llm_id, temperature}) {
+	// NEW: Prevent multiple auto-select tasks from running at the same time.
+	if (auto_select_progress.running) {
+		console.warn('Auto-select is already running. Ignoring new request.');
+		return;
+	}
 	if (!llm_id) {
 		console.error('No LLM selected for auto-select.');
 		return;
@@ -306,14 +318,13 @@ async function identify_project_files ({project_path, all_files, llm_id, tempera
 	const files_to_process = JSON.parse(all_files);
 	const BATCH_SIZE = 20;
 	
-	auto_select_progress = {
-		total: files_to_process.length,
-		current: 0,
-		running: true,
-		message: 'Initializing file identification...',
-		cancelled: false,
-		summary: null
-	};
+	// MODIFIED: Mutate the existing progress object instead of reassigning it.
+	auto_select_progress.total = files_to_process.length;
+	auto_select_progress.current = 0;
+	auto_select_progress.running = true;
+	auto_select_progress.message = 'Initializing file identification...';
+	auto_select_progress.cancelled = false;
+	auto_select_progress.summary = null;
 	
 	let identified_files = [];
 	const errors = [];

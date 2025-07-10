@@ -441,34 +441,6 @@ function initialize_file_tree_context_menu() {
 	const menu = document.getElementById('file-tree-context-menu');
 	if (!menu) return;
 	
-	/**
-	 * A helper function to refresh the parent folder of a given path after a file operation.
-	 * @param {string} targetPath - The path of the file/folder that was acted upon.
-	 */
-	async function refreshParent(targetPath) {
-		show_loading('Refreshing file tree...');
-		try {
-			const parentPath = get_parent_path(targetPath) || '.';
-			const parentElement = parentPath === '.' ? null : document.querySelector(`.folder[data-path="${parentPath}"]`);
-			
-			if (!parentElement) {
-				// If the parent is the root, we need to clear the entire tree and reload from the top.
-				document.getElementById('file-tree').innerHTML = '';
-			} else {
-				// Ensure the parent folder is visually open before reloading its contents.
-				if (!parentElement.classList.contains('open')) {
-					parentElement.classList.add('open');
-				}
-			}
-			// load_folders handles both root (element=null) and sub-folder reloads.
-			await load_folders(parentPath, parentElement);
-		} catch (error) {
-			console.error('Failed to refresh file tree:', error);
-			show_alert(`Could not refresh file tree: ${error.message}`, 'Error');
-		} finally {
-			hide_loading();
-		}
-	}
 	
 	// --- Menu Item Event Listeners ---
 	
@@ -483,11 +455,11 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: newFilePath
 				});
-				await refreshParent(newFilePath);
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
 			}
 		}
+		contextMenuTargetPath = null;
 	});
 	
 	document.getElementById('context-menu-new-file-root').addEventListener('click', async () => {
@@ -499,7 +471,6 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: filename // Path is just the filename for root
 				});
-				await refreshParent(filename); // Refresh from root
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
 			}
@@ -517,11 +488,11 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					folder_path: newFolderPath
 				});
-				await refreshParent(newFolderPath);
 			} catch (error) {
 				show_alert(`Failed to create folder: ${error.message}`, 'Error');
 			}
 		}
+		contextMenuTargetPath = null;
 	});
 	
 	document.getElementById('context-menu-rename').addEventListener('click', async () => {
@@ -538,11 +509,11 @@ function initialize_file_tree_context_menu() {
 					old_path: contextMenuTargetPath,
 					new_path: newPath
 				});
-				await refreshParent(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to rename: ${error.message}`, 'Error');
 			}
 		}
+		contextMenuTargetPath = null;
 	});
 	
 	document.getElementById('context-menu-delete').addEventListener('click', async () => {
@@ -555,11 +526,11 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					path_to_delete: contextMenuTargetPath
 				});
-				await refreshParent(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to delete: ${error.message}`, 'Error');
 			}
 		}
+		contextMenuTargetPath = null;
 	});
 	
 	document.getElementById('context-menu-git-reset').addEventListener('click', async (e) => {
@@ -572,11 +543,11 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: contextMenuTargetPath
 				});
-				await refreshParent(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to reset file: ${error.message}`, 'Error');
 			}
 		}
+		contextMenuTargetPath = null;
 	});
 }
 
@@ -713,7 +684,6 @@ export function setup_file_tree_listeners () {
 		if (menu) {
 			menu.classList.add('hidden');
 		}
-		contextMenuTargetPath = null;
 	});
 	
 	document.addEventListener('keydown', (e) => {

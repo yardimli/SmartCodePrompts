@@ -8,7 +8,8 @@ import { update_project_settings } from './settings.js';
 
 let editor = null;
 let diffEditor = null;
-let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified }
+// MODIFIED: Added isGitModified to the tab object definition.
+let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified }
 let activeTabId = null;
 let tabCounter = 0;
 let contextMenuTargetTabId = null;
@@ -136,8 +137,10 @@ async function closeAllTabs() {
 	save_open_tabs_state();
 }
 
+// MODIFIED: This function now checks both in-editor and Git modification status.
 function closeUnmodifiedTabs() {
-	const tabsToClose = tabs.filter(tab => !tab.isModified && tab.isCloseable);
+	// A tab is considered "unmodified" for closing if it has no unsaved changes AND its underlying file is not modified in Git.
+	const tabsToClose = tabs.filter(tab => !tab.isModified && !tab.isGitModified && tab.isCloseable);
 	let activeTabWasClosed = false;
 
 	for (const tab of tabsToClose) {
@@ -524,6 +527,7 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		readOnly: readOnly,
 		filePath: filePath,
 		isModified: false,
+		isGitModified: false, // NEW: New tabs are not modified in git.
 	};
 	
 	tabs.push(newTab);
@@ -531,11 +535,16 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	return newTabId;
 }
 
-export function openFileInTab(filePath, currentContent, originalContent) {
+// MODIFIED: Added isGitModified parameter to track version control status.
+export function openFileInTab(filePath, currentContent, originalContent, isGitModified = false) {
 	if (!monaco || !editor) return;
 	
 	const existingTab = tabs.find(t => t.filePath === filePath);
 	if (existingTab) {
+		// If the tab already exists, update its git status if a new status is provided.
+		if (isGitModified !== undefined) {
+			existingTab.isGitModified = isGitModified;
+		}
 		switchToTab(existingTab.id);
 		return;
 	}
@@ -543,6 +552,10 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 	const title = filePath === '.scp/settings.yaml' ? 'Project Settings' : filePath.split('/').pop();
 	const language = getLanguageForFile(filePath);
 	const isDiff = originalContent !== null;
+	
+	// A file is considered modified in git if it's opened in diff view,
+	// or if the flag is explicitly passed (for normal view of a modified file).
+	const gitModifiedStatus = isDiff || isGitModified;
 	
 	tabCounter++;
 	const newTabId = `tab-${Date.now()}-${tabCounter}`;
@@ -566,6 +579,7 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		readOnly: isDiff,
 		filePath: filePath,
 		isModified: false,
+		isGitModified: gitModifiedStatus, // NEW: Store the git modification status.
 	};
 	
 	if (!newTab.readOnly && !newTab.isDiff) {
@@ -582,6 +596,19 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 	tabs.push(newTab);
 	switchToTab(newTabId);
 	save_open_tabs_state();
+}
+
+/**
+ * NEW: Updates the Git modification status of an open tab.
+ * This is called by the file tree poller to keep tab state in sync.
+ * @param {string} filePath - The path of the file to update.
+ * @param {boolean} isGitModified - The new Git modification status.
+ */
+export function updateTabGitStatus(filePath, isGitModified) {
+	const tab = tabs.find(t => t.filePath === filePath);
+	if (tab) {
+		tab.isGitModified = isGitModified;
+	}
 }
 
 export function appendToTabContent(tabId, text) {

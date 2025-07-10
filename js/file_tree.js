@@ -4,7 +4,8 @@ import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens}
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
-import { openFileInTab, setTabContent, getPromptTabId } from './editor.js';
+// MODIFIED: Import the new function to update tab status.
+import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
 import { get_all_settings } from './settings.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
@@ -294,6 +295,7 @@ export async function ensure_file_is_visible (file_path) {
  * This function is called by the polling mechanism and updates icons based on file status.
  * @param {object} updates - An object with `updates` and `deleted` file path arrays.
  */
+// MODIFIED: This function now also updates the Git status of any corresponding open editor tab.
 function handle_modification_status_updates (updates) {
 	const file_tree = document.getElementById('file-tree');
 	if (!file_tree) return;
@@ -302,6 +304,9 @@ function handle_modification_status_updates (updates) {
 	
 	// Handle files that were updated (modified or not)
 	updates.updates.forEach(file_update => {
+		// NEW: Update the git status of any open tab for this file to keep it in sync.
+		updateTabGitStatus(file_update.file_path, file_update.has_git_diff);
+		
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_update.file_path}"]`)?.closest('li');
 		if (!file_li) return;
 		
@@ -421,7 +426,7 @@ async function handle_diff_icon_click(filePath) {
 }
 
 
-// Handler for clicking a file name to open it in a normal (non-diff) view.
+// MODIFIED: This handler now determines the Git status and passes it to the editor.
 async function handle_file_click(filePath) {
 	show_loading(`Opening ${filePath}...`);
 	try {
@@ -436,9 +441,12 @@ async function handle_file_click(filePath) {
 		});
 		
 		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
+		// NEW: Determine if the file is modified in git by checking for original content from HEAD.
+		const isGitModified = data.originalContent !== null;
 		
-		// Pass null for originalContent to ensure a normal (non-diff) tab is opened.
-		openFileInTab(filePath, currentContent, null);
+		// Pass null for originalContent to ensure a normal (non-diff) tab is opened,
+		// but pass the git status flag so the editor knows about it.
+		openFileInTab(filePath, currentContent, null, isGitModified);
 		
 	} catch (error) {
 		console.error(`Error opening file ${filePath}:`, error);

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Smart Code Prompts - The Open-Source AI Coding Companion</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		body {
+			font-family: 'Inter', sans-serif;
+			background-color: #f0f0f3;
+			color: #111827;
+		}
+		
+		#main-header {
+			transition: all 0.3s ease-in-out;
+		}
+		
+		.text-gradient {
+			background: linear-gradient(to bottom, #1a1a1a, #888888);
+			-webkit-background-clip: text;
+			background-clip: text;
+			color: transparent;
+		}
+		
+		.card-bg-pattern {
+			background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e5e7eb' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+		}
+		
+		#main-header {
+			margin-top:30px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		
+		#main-header.scrolled {
+			border-radius: 9999px;
+			background-color: rgba(255, 255, 255, 0.7);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			border: 1px solid #e5e7eb;
+			box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+			max-width:800px;
+		}
+		
+		#main-header .container {
+			padding-top: 0.5rem;
+			padding-bottom: 0.5rem;
+		}
+		
+		nav {
+			position: relative;
+			z-index: 10;
+		}
+		
+		.code-block {
+			background-color: #1f2937;
+			color: #d1d5db;
+			padding: 1.5rem;
+			border-radius: 0.75rem;
+			font-family: monospace;
+			white-space: pre;
+			overflow-x: auto;
+		}
+		.code-block .line:before {
+			content: attr(data-line);
+			display: inline-block;
+			width: 2em;
+			padding-right: 1em;
+			text-align: right;
+			color: #6b7280;
+		}
+		.code-block .comment {
+			color: #6b7280;
+		}
+	
+	</style>
+</head>
+<body class="antialiased">
+
+<!-- Header -->
+<header id="main-header" class="fixed top-0 left-0 right-0 z-50">
+	<div class="container mx-auto px-6 py-3">
+		<div id="header-flex-container" class="flex items-center justify-between">
+			<div id="header-left" class="flex items-center space-x-3">
+				<img src="32x32.png" alt="Smart Code Prompts Logo">
+				<span class="text-8 font-rgular text-gray-800" id="app-title">Smart Code Prompts</span>
+			</div>
+			<nav class="hidden md:flex items-center space-x-8">
+				<a href="#features" class="text-gray-600 hover:text-gray-900">Features</a>
+				<a href="#get-started" class="text-gray-600 hover:text-gray-900">Get Started</a>
+				<a href="https://github.com/yardimli/SmartCodePrompts" target="_blank" class="text-gray-600 hover:text-gray-900">GitHub</a>
+			</nav>
+			<div id="header-right" class="flex items-center space-x-4">
+				<a href="#get-started" class="bg-black text-white px-5 py-2 rounded-md font-semibold hover:bg-gray-800 transition-colors">Download</a>
+			</div>
+		</div>
+	</div>
+</header>
+
+<main>
+	<!-- Hero Section -->
+	<section class="pt-40 pb-20 text-center relative overflow-hidden">
+		<div class="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(190,242,255,0.3),rgba(255,255,255,0))]"></div>
+		<div class="container mx-auto px-4">
+			<h1 class="text-5xl md:text-7xl font-bold tracking-tight text-gradient leading-tight">The Open-Source AI Coding Companion</h1>
+			<p class="mt-6 max-w-3xl mx-auto text-lg text-gray-600">
+				Smart Code Prompts is a free, local-first AI tool that puts you in control. Powered by the same editor as VS Code, it runs on your machine, connects to any LLM, and keeps your code completely private.
+			</p>
+			<div class="mt-10 flex justify-center items-center gap-4">
+				<a href="https://github.com/yardimli/SmartCodePrompts/releases" target="_blank" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-700 transition-transform hover:scale-105">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+					Download for Desktop
+				</a>
+				<a href="https://github.com/yardimli/SmartCodePrompts" target="_blank" class="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-100 transition-transform hover:scale-105 border border-gray-300">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+					View on GitHub
+				</a>
+			</div>
+			<div class="mt-16 max-w-5xl mx-auto">
+				<img src="app-screen-1.png" alt="Smart Code Prompts application interface showing the file tree, editor tabs, and prompt area." class="rounded-xl shadow-2xl ring-1 ring-gray-900/10">
+			</div>
+		</div>
+	</section>
+	
+	<!-- Cards Section -->
+	<section class="py-24">
+		<div class="container mx-auto px-4">
+			<h2 class="text-4xl md:text-5xl font-bold text-center text-gradient">A Powerful, Private, and Flexible AI Toolkit</h2>
+			<div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+				<!-- Card 1 -->
+				<div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg transition-shadow hover:shadow-xl">
+					<span class="text-sm font-semibold text-blue-500">PRIVATE</span>
+					<h3 class="mt-4 text-2xl font-semibold text-gradient">Truly Local-First</h3>
+					<p class="mt-2 text-gray-600">Runs entirely on your machine. Your code, project files, and API keys never leave your computer. You are in complete control.</p>
+				</div>
+				<!-- Card 2 -->
+				<div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg shadow-blue-500/20 transition-shadow hover:shadow-xl hover:shadow-blue-500/30">
+					<span class="text-sm font-semibold text-blue-500">POWERFUL</span>
+					<h3 class="mt-4 text-2xl font-semibold text-gradient">Powered by VS Code's Editor</h3>
+					<p class="mt-2 text-gray-600">Enjoy a first-class coding experience with the Monaco Editor. Get tabs, syntax highlighting, Git integration, and a familiar, productive interface.</p>
+				</div>
+				<!-- Card 3 -->
+				<div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg shadow-green-500/20 transition-shadow hover:shadow-xl hover:shadow-green-500/30">
+					<span class="text-sm font-semibold text-green-500">FLEXIBLE</span>
+					<h3 class="mt-4 text-2xl font-semibold text-gradient">Connect to Any Model</h3>
+					<p class="mt-2 text-gray-600">Integrates with OpenRouter.ai, allowing you to use hundreds of LLMs from OpenAI, Anthropic, Google, and more. Choose the best model for the job.</p>
+				</div>
+			</div>
+		</div>
+	</section>
+	
+	<!-- Sticky Features Section -->
+	<section id="features" class="py-24 relative">
+		<div class="container mx-auto px-4">
+			<div class="relative">
+				<div class="lg:sticky top-0 z-10">
+					<div class="bg-[#f0f0f3] pt-32 pb-8">
+						<h2 class="text-4xl md:text-5xl font-bold text-gradient leading-tight max-w-2xl">A Smarter Way to Interact with AI</h2>
+					</div>
+				</div>
+				
+				<div class="flex flex-col gap-24 relative z-0">
+					<!-- Feature 1 -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4">
+						<div class="flex flex-col">
+							<span class="text-sm font-semibold text-gray-500">01</span>
+							<h3 class="mt-2 text-3xl font-semibold text-gray-800">Build Rich Context</h3>
+							<p class="mt-4 text-lg text-gray-600">Select relevant files from your project to build a context-rich prompt. The AI gets a complete picture, leading to more accurate and helpful responses.</p>
+						</div>
+						<div>
+							<img src="app-screen-1.png" alt="Building context by selecting files in the file tree" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+						</div>
+					</div>
+					
+					<!-- Feature 2 -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4">
+						<div class="flex flex-col">
+							<span class="text-sm font-semibold text-gray-500">02</span>
+							<h3 class="mt-2 text-3xl font-semibold text-gray-800">Intelligent Q&A</h3>
+							<p class="mt-4 text-lg text-gray-600">Ask questions about your entire project. Smart Code Prompts analyzes your files to provide insightful answers, explain complex code, or suggest refactors.</p>
+						</div>
+						<div>
+							<img src="app-chat.png" alt="Chatting with the AI about the codebase" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+						</div>
+					</div>
+					
+					<!-- Feature 3 -->
+					<div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4 mb-8">
+						<div class="flex flex-col">
+							<span class="text-sm font-semibold text-gray-500">03</span>
+							<h3 class="mt-2 text-3xl font-semibold text-gray-800">Detailed LLM Logs</h3>
+							<p class="mt-4 text-lg text-gray-600">Keep a persistent log of every API call, including the prompt, response, token counts, and estimated cost. Understand your usage and optimize your workflow.</p>
+						</div>
+						<div>
+							<img src="app-llm-log.png" alt="Detailed logs of LLM calls with token counts and cost" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+	
+	<!-- Get Started Section -->
+	<section id="get-started" class="py-24 bg-white/50">
+		<div class="container mx-auto px-4 text-center">
+			<p class="text-blue-500 font-semibold">How to Install</p>
+			<h2 class="text-4xl md:text-5xl font-bold text-gradient mt-2">Get Started in Minutes</h2>
+			<p class="mt-4 max-w-2xl mx-auto text-lg text-gray-600">
+				Smart Code Prompts is built with Electron and runs on Windows, macOS, and Linux. You can download a pre-built binary from our GitHub Releases page, or build it from source yourself.
+			</p>
+			<div class="mt-8 max-w-2xl mx-auto text-left">
+				<div class="code-block">
+					<div class="line" data-line="1"><span class="comment"># 1. Clone the repository</span></div>
+					<div class="line" data-line="2">git clone https://github.com/yardimli/SmartCodePrompts.git</div>
+					<div class="line" data-line="3">cd SmartCodePrompts</div>
+					<div class="line" data-line="4"> </div>
+					<div class="line" data-line="5"><span class="comment"># 2. Install dependencies</span></div>
+					<div class="line" data-line="6">npm install</div>
+					<div class="line" data-line="7"> </div>
+					<div class="line" data-line="8"><span class="comment"># 3. Run the app</span></div>
+					<div class="line" data-line="9">npm start</div>
+				</div>
+			</div>
+		</div>
+	</section>
+	
+	<!-- Info Box Section -->
+	<section class="py-24">
+		<div class="container mx-auto px-4">
+			<div class="bg-white/60 rounded-2xl border border-gray-200 grid grid-cols-1 md:grid-cols-2 items-center overflow-hidden">
+				<div class="p-12">
+					<h2 class="text-4xl font-bold text-gradient leading-tight">Full Git Integration</h2>
+					<p class="mt-4 text-gray-600">View changes with a side-by-side diff viewer directly within the app. See which files have been modified in your repository and easily reset unwanted changes.</p>
+					<a href="https://github.com/yardimli/SmartCodePrompts" target="_blank" class="mt-8 inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-5 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+						Explore the Code
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+					</a>
+				</div>
+				<div class="flex items-center justify-center p-8 bg-gray-100 h-full">
+					<img src="app-diff.png" alt="Side-by-side diff viewer showing file changes" class="rounded-lg shadow-lg w-full">
+				</div>
+			</div>
+		</div>
+	</section>
+
+</main>
+
+<!-- Footer -->
+<footer class="bg-white/50 border-t border-gray-200 pt-16 pb-8">
+	<div class="container mx-auto px-4">
+		<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+			<div class="md:col-span-4">
+				<div class="flex items-center space-x-3">
+					<img src="64x64.png" alt="Smart Code Prompts Logo">
+					<span class="text-xl font-semibold text-gray-800">Smart Code Prompts</span>
+				</div>
+				<p class="mt-2 text-gray-500">The Open-Source AI Coding Companion</p>
+			</div>
+			<div class="md:col-span-4">
+				<h3 class="font-semibold text-gray-800">Resources</h3>
+				<div class="mt-4 grid grid-cols-2 gap-4 text-gray-600">
+					<a href="#features" class="hover:text-black">Features</a>
+					<a href="#get-started" class="hover:text-black">Installation</a>
+					<a href="https://github.com/yardimli/SmartCodePrompts/issues" target="_blank" class="hover:text-black">Report an Issue</a>
+					<a href="https://github.com/yardimli/SmartCodePrompts" target="_blank" class="hover:text-black">Source Code</a>
+				</div>
+			</div>
+			<div class="md:col-span-4">
+				<h3 class="font-semibold text-gray-800">Download</h3>
+				<p class="text-gray-500">Get the latest release for your OS.</p>
+				<div class="mt-4">
+					<a href="https://github.com/yardimli/SmartCodePrompts/releases" target="_blank" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.17V14h-2v-2h2v-1.17c0-2.21 1.26-3.5 3.43-3.5h1.57v2h-1.17c-1.09 0-1.26.52-1.26 1.26V12h2.21l-.36 2H12.6v2.17h-1.6z" style="display:none;"/> <!-- Placeholder, actual icon below -->
+							<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+							View Releases on GitHub
+					</a>
+				</div>
+			</div>
+		</div>
+		<div class="mt-12 border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center text-gray-500">
+			<div class="flex space-x-4 order-2 md:order-1 mt-4 md:mt-0">
+				<p>© 2024 Smart Code Prompts</p>
+				<a href="https://github.com/yardimli/SmartCodePrompts/blob/main/LICENSE" target="_blank" class="hover:text-black">License</a>
+			</div>
+			<div class="flex space-x-6 order-1 md:order-2">
+				<a href="https://github.com/yardimli/SmartCodePrompts" target="_blank" class="hover:text-black"><svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12.014c0 4.432 2.865 8.18 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0022 12.014C22 6.477 17.523 2 12 2z" clip-rule="evenodd" /></svg></a>
+			</div>
+		</div>
+	</div>
+</footer>
+
+<script>
+	const header = document.getElementById('main-header');
+	const headerLeft = document.getElementById('header-left');
+	const headerRight = document.getElementById('header-right');
+	const appTitle = document.getElementById('app-title');
+	const scrollThreshold = 100;
+	let isTransitioning = false;
+	
+	function handleScroll() {
+		const scrollPosition = window.scrollY;
+		const scrollProgress = Math.min(scrollPosition / scrollThreshold, 1);
+		
+		if (scrollPosition > 0 && scrollPosition <= scrollThreshold) {
+			const maxTranslation = 110;
+			const translation = maxTranslation * scrollProgress;
+			
+			if (isTransitioning) {
+				isTransitioning = false;
+			}
+			
+			headerLeft.style.transform = `translateX(${translation}px)`;
+			headerRight.style.transform = `translateX(-${translation}px)`;
+			appTitle.style.display = 'inline';
+			header.classList.remove('scrolled');
+		} else if (scrollPosition > scrollThreshold) {
+			header.classList.add('scrolled');
+			appTitle.style.display = 'none';
+			headerLeft.style.transition = 'none';
+			headerRight.style.transition = 'none';
+			isTransitioning = true;
+			headerLeft.style.transform = '';
+			headerRight.style.transform = '';
+			void headerLeft.offsetWidth;
+			void headerRight.offsetWidth;
+		} else {
+			header.classList.remove('scrolled');
+			if (isTransitioning) {
+				isTransitioning = false;
+			}
+			headerLeft.style.transform = '';
+			headerRight.style.transform = '';
+		}
+	}
+	
+	window.addEventListener('DOMContentLoaded', () => {
+		headerLeft.style.transition = 'transform 0.3s ease-out';
+		headerRight.style.transition = 'transform 0.3s ease-out';
+	});
+	
+	window.addEventListener('scroll', handleScroll);
+	handleScroll();
+</script>
+
+</body>
+</html>

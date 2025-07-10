@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Code Prompts - Your AI, your advantage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f3;
+            color: #111827;
+        }
+		
+	  #main-header {
+            transition: all 0.3s ease-in-out;
+        }
+		
+        /* Custom class for the text gradient */
+        .text-gradient {
+            background: linear-gradient(to bottom, #1a1a1a, #888888);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        /* Subtle background pattern for cards */
+        .card-bg-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e5e7eb' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        
+        /* --- MODIFIED STYLES --- */
+
+		
+		#main-header {
+			margin-top:30px;
+			margin-left: auto;
+            margin-right: auto;
+		}
+		
+        /* The state of the header when scrolled */
+        #main-header.scrolled {
+            border-radius: 9999px;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+			max-width:800px;
+        }	
+		
+        #main-header .container {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+		
+		
+		nav {
+			position: relative;
+			z-index: 10;
+		}
+
+
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header id="main-header" class="fixed top-0 left-0 right-0 z-50">
+        <div class="container mx-auto px-6 py-3">
+            <!-- Added ID to this flex container -->
+            <div id="header-flex-container" class="flex items-center justify-between">
+                <!-- Added ID to the left group -->
+                <div id="header-left" class="flex items-center space-x-3">
+                    <img src="32x32.png">
+                    <span class="text-8 font-rgular text-gray-800" id="app-title">Smart Code Prompts</span>
+                </div>
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="#" class="text-gray-600 hover:text-gray-900">Solutions</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">Pricing</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">Docs</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">About</a>
+                </nav>
+                <!-- Added ID to the right group -->
+                <div id="header-right" class="flex items-center space-x-4">
+                    <!--a href="#" class="hidden md:block text-gray-600 hover:text-gray-900">Sign In</a-->
+                    <a href="#" class="bg-black text-white px-5 py-2 rounded-md font-semibold hover:bg-gray-800 transition-colors">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="pt-40 pb-20 text-center relative overflow-hidden">
+            <div class="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(190,242,255,0.3),rgba(255,255,255,0))]"></div>
+            <div class="container mx-auto px-4">
+                <h1 class="text-5xl md:text-7xl font-bold tracking-tight text-gradient leading-tight">Your AI, your advantage</h1>
+                <p class="mt-6 max-w-3xl mx-auto text-lg text-gray-600">
+                    Smart Code Prompts is the open-source AI code assistant that puts you in control. Customize everything, run anywhere, and build infrastructure that gets better over time.
+                </p>
+                <div class="mt-10 flex justify-center items-center gap-4">
+                    <a href="#" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-700 transition-transform hover:scale-105">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21.43,2.57a1,1,0,0,0-1.09-.21l-17,8a1,1,0,0,0,0,1.8l4.54,1.82,1.82,4.54a1,1,0,0,0,1.8,0l8-17A1,1,0,0,0,21.43,2.57ZM5.42,12.57,17.57,5.43,11.43,17.57Z"/></svg>
+                        VS Code
+                    </a>
+                    <a href="#" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-700 transition-transform hover:scale-105">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10,0,0,0,2,12a10,10,0,0,0,10,10,10,10,0,0,0,10-10A10,10,0,0,0,12,2Zm5,13.59L15.59,17,12,13.41,8.41,17,7,15.59,10.59,12,7,8.41,8.41,7,12,10.59,15.59,7,17,8.41,13.41,12Z"/></svg>
+                        JetBrains
+                    </a>
+                </div>
+                <div class="mt-16 max-w-5xl mx-auto">
+                    <img src="app-screen-1.png" alt="Code editor interface showing Smart Code Prompts AI assistant" class="rounded-xl shadow-2xl ring-1 ring-gray-900/10">
+                </div>
+            </div>
+        </section>
+
+        <!-- Cards Section -->
+        <section class="py-24">
+            <div class="container mx-auto px-4">
+                <h2 class="text-4xl md:text-5xl font-bold text-center text-gradient">Make your own custom AI code assistants</h2>
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Card 1 -->
+                    <div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg transition-shadow hover:shadow-xl">
+                        <span class="text-sm font-semibold text-blue-500">01</span>
+                        <h3 class="mt-4 text-2xl font-semibold text-gradient">Embrace AI-native development with confidence</h3>
+                        <p class="mt-2 text-gray-600">towards a future where developers in your organization are amplified, not automated</p>
+                    </div>
+                    <!-- Card 2 -->
+                    <div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg shadow-blue-500/20 transition-shadow hover:shadow-xl hover:shadow-blue-500/30">
+                        <span class="text-sm font-semibold text-blue-500">02</span>
+                        <h3 class="mt-4 text-2xl font-semibold text-gradient">Take your AI-native development to the next level now</h3>
+                        <p class="mt-2 text-gray-600">with custom AI code assistants tailored to your environment, tools, and development practices</p>
+                    </div>
+                    <!-- Card 3 -->
+                    <div class="bg-white/60 p-8 rounded-2xl border border-gray-200 card-bg-pattern shadow-lg shadow-green-500/20 transition-shadow hover:shadow-xl hover:shadow-green-500/30">
+                        <span class="text-sm font-semibold text-green-500">03</span>
+                        <h3 class="mt-4 text-2xl font-semibold text-gradient">Shape the path forward for your AI-native development</h3>
+                        <p class="mt-2 text-gray-600">by ensuring your custom code assistants keep up as you and AI capabilities evolve over time</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+      <!-- Sticky Features Section -->
+<section class="py-24 relative">
+    <div class="container mx-auto px-4">
+        <div class="relative">
+            <!-- Main header - sticky with extended background -->
+            <div class="lg:sticky top-0 z-10">
+                <!-- Background that extends to top -->
+                <div class="bg-[#f0f0f3] pt-32 pb-8">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gradient leading-tight max-w-2xl">Accelerate your development with Smart Code Prompts</h2>
+                </div>
+            </div>
+            
+            <!-- Features container -->
+            <div class="flex flex-col gap-24 relative z-0">
+                <!-- Feature 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-semibold text-gray-500">01</span>
+                        <h3 class="mt-2 text-3xl font-semibold text-gray-800">Tab to autocomplete</h3>
+                        <p class="mt-4 text-lg text-gray-600">Smart Code Prompts autocompletes single lines or entire sections of code in any programming language as you type.</p>
+                    </div>
+                    <div>
+                        <img src="app-search.png" alt="Tab to autocomplete feature" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+                    </div>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-semibold text-gray-500">02</span>
+                        <h3 class="mt-2 text-3xl font-semibold text-gray-800">Reference and chat</h3>
+                        <p class="mt-4 text-lg text-gray-600">Attach code or other context to ask questions about functions, files, the entire codebase, and more.</p>
+                    </div>
+                    <div>
+                        <img src="app-chat.png" alt="Reference and chat feature" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+                    </div>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mr-4 mb-8">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-semibold text-gray-500">03</span>
+                        <h3 class="mt-2 text-3xl font-semibold text-gray-800">Detailed Logs</h3>
+                        <p class="mt-4 text-lg text-gray-600">Attach code or other context to ask questions about functions, files, the entire codebase, and more.</p>
+                    </div>
+                    <div>
+                        <img src="app-llm-log.png" alt="Detailed logs feature" class="rounded-xl shadow-xl ring-1 ring-gray-900/10">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+        <!-- Sticky Overlapping Cards Section -->
+        <section class="py-24 relative">
+            <div class="container mx-auto px-4 text-center">
+                <p class="text-blue-500 font-semibold">How it works</p>
+                <h2 class="text-4xl md:text-5xl font-bold text-gradient mt-2">Fit Smart Code Prompts into your dev environment</h2>
+            </div>
+            <!-- This container needs a fixed height to allow for the sticky effect to work -->
+            <div class="relative h-[230vh] mt-16">
+                <!-- Card 1 -->
+                <div class="sticky top-32 z-10 p-4">
+                    <div class="max-w-3xl mx-auto bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl p-8 shadow-lg">
+                        <img src="app-analyze-1.png" alt="Any models integration">
+                    </div>
+                </div>
+                <!-- Card 2 -->
+                <div class="sticky top-40 z-20 p-4">
+                    <div class="max-w-3xl mx-auto bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl p-8 shadow-lg">
+                        <img src="app-analyze-2.png" alt="Any context integration">
+                    </div>
+                </div>
+                <!-- Card 3 -->
+                <div class="sticky top-48 z-20 p-4">
+                    <div class="max-w-3xl mx-auto bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl p-8 shadow-lg">
+                        <img src="app-analyze-3.png" alt="Any context integration">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Info Box Section -->
+        <section class="py-24">
+            <div class="container mx-auto px-4">
+                <div class="bg-white/60 rounded-2xl border border-gray-200 grid grid-cols-1 md:grid-cols-2 items-center overflow-hidden">
+                    <div class="p-12">
+                        <h2 class="text-4xl font-bold text-gradient leading-tight">Create, share, and use custom AI code assistants</h2>
+                        <p class="mt-4 text-gray-600">Discover the models, rules, prompts, docs, and other building blocks you need to become an amplified developer.</p>
+                        <a href="#" class="mt-8 inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-5 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                            Smart Code Prompts Hub
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        </a>
+                    </div>
+                    <div class="flex items-center justify-center p-8">
+                        <img src="app-diff.png" alt="Abstract 3D sphere" class="w-full max-w-xs">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white/50 border-t border-gray-200 pt-16 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+                <div class="md:col-span-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="64x64.png">
+                        <span class="text-xl font-semibold text-gray-800">Smart Code Prompts</span>
+                    </div>
+                    <p class="mt-2 text-gray-500">Amplified developers, AI-native development</p>
+                    <div class="mt-6 grid grid-cols-2 gap-4 text-gray-600">
+                        <!-- a href="#" class="hover:text-black">Pricing</a -->
+                        <a href="#" class="hover:text-black">About Us</a>
+                        <a href="#" class="hover:text-black">Docs</a>
+                        <a href="#" class="hover:text-black">Blog</a>
+                    </div>
+                </div>
+                <div class="md:col-span-4">
+                    <h3 class="font-semibold text-gray-800">Download</h3>
+                    <p class="text-gray-500">Install in your OS of choice</p>
+                    <div class="mt-4 flex flex-col space-y-3">
+                        <a href="#" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21.43,2.57a1,1,0,0,0-1.09-.21l-17,8a1,1,0,0,0,0,1.8l4.54,1.82,1.82,4.54a1,1,0,0,0,1.8,0l8-17A1,1,0,0,0,21.43,2.57ZM5.42,12.57,17.57,5.43,11.43,17.57Z"/></svg>
+                            VS Code
+                        </a>
+                        <a href="#" class="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10,0,0,0,2,12a10,10,0,0,0,10,10,10,10,0,0,0,10-10A10,10,0,0,0,12,2Zm5,13.59L15.59,17,12,13.41,8.41,17,7,15.59,10.59,12,7,8.41,8.41,7,12,10.59,15.59,7,17,8.41,13.41,12Z"/></svg>
+                            JetBrains
+                        </a>
+                    </div>
+                </div>
+                <div class="md:col-span-4">
+                    <h3 class="font-semibold text-gray-800">Subscribe to updates</h3>
+                    <p class="text-gray-500">Join our newsletter to learn more</p>
+                    <div class="mt-4 relative">
+                        <input type="email" placeholder="Email address" class="w-full bg-gray-100 border-gray-200 rounded-lg py-3 pl-4 pr-12 focus:ring-blue-500 focus:border-blue-500">
+                        <button class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-black">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-12 border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center text-gray-500">
+                <div class="flex space-x-4 order-2 md:order-1 mt-4 md:mt-0">
+                    <p>© 2025 Smart Code Prompts</p>
+                    <a href="#" class="hover:text-black">Privacy Notice</a>
+                </div>
+                <div class="flex space-x-6 order-1 md:order-2">
+                    <!-- Social Icons -->
+                    <a href="#" class="hover:text-black"><svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12.014c0 4.432 2.865 8.18 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0022 12.014C22 6.477 17.523 2 12 2z" clip-rule="evenodd" /></svg></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- --- MODIFIED SCRIPT --- -->
+    <script>
+    const header = document.getElementById('main-header');
+    const headerLeft = document.getElementById('header-left');
+    const headerRight = document.getElementById('header-right');
+	const appTitle = document.getElementById('app-title');
+    const scrollThreshold = 100;
+    let isTransitioning = false;
+
+    function handleScroll() {
+        const scrollPosition = window.scrollY;
+        const scrollProgress = Math.min(scrollPosition / scrollThreshold, 1); // 0 to 1
+
+        if (scrollPosition > 0 && scrollPosition <= scrollThreshold) {
+            // Calculate the translation amount based on scroll progress
+            // Adjust these values to control how close elements move to center
+            const maxTranslation = 110; // pixels to move inward
+            const translation = maxTranslation * scrollProgress;
+
+            // Re-enable transitions if they were disabled
+            if (isTransitioning) {
+                //headerLeft.style.transition = 'transform 0.3s ease-out';
+                //headerRight.style.transition = 'transform 0.3s ease-out';
+                isTransitioning = false;
+            }
+
+            // Move left element to the right
+            headerLeft.style.transform = `translateX(${translation}px)`;
+            
+            // Move right element to the left
+            headerRight.style.transform = `translateX(-${translation}px)`;
+			
+			appTitle.style.display = 'inline';
+
+            // Remove the scrolled class during transition
+            header.classList.remove('scrolled');
+        } else if (scrollPosition > scrollThreshold) {
+            // At threshold, add the scrolled class and ensure elements are at final position
+            header.classList.add('scrolled');
+
+			appTitle.style.display = 'none';
+            
+            // Temporarily disable transitions to prevent animation
+            headerLeft.style.transition = 'none';
+            headerRight.style.transition = 'none';
+            isTransitioning = true;
+            
+            // Reset transforms
+            headerLeft.style.transform = '';
+            headerRight.style.transform = '';
+            
+            // Force a reflow to ensure the transition: none takes effect
+            void headerLeft.offsetWidth;
+            void headerRight.offsetWidth;
+        } else {
+            // When at the top, reset everything
+            header.classList.remove('scrolled');
+            
+            // Re-enable transitions if they were disabled
+            if (isTransitioning) {
+                headerLeft.style.transition = 'transform 0.3s ease-out';
+                headerRight.style.transition = 'transform 0.3s ease-out';
+                isTransitioning = false;
+            }
+            
+            headerLeft.style.transform = '';
+            headerRight.style.transform = '';
+        }
+    }
+
+    // Add smooth transitions to the transformed elements
+    window.addEventListener('DOMContentLoaded', () => {
+        headerLeft.style.transition = 'transform 0.3s ease-out';
+        headerRight.style.transition = 'transform 0.3s ease-out';
+    });
+
+    window.addEventListener('scroll', handleScroll);
+    
+    // Call handleScroll on load to set initial state
+    handleScroll();
+</script>
+
+</body>
+</html>

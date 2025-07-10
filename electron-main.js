@@ -34,7 +34,7 @@ function createWindow () {
 		width: 1600,
 		height: 1000,
 		icon: path.join(__dirname, 'assets/icon.png'),
-		title: "Smart Code Prompts - Studio",
+		title: "Smart Code Prompts", // MODIFIED: Simplified default title. The renderer will add more details.
 		autoHideMenuBar: true,
 		webPreferences: {
 			// Attach the preload script to the renderer process
@@ -91,6 +91,13 @@ function createWindow () {
 }
 
 // --- IPC Handlers ---
+
+// NEW: Handle request from renderer to update the window title.
+ipcMain.on('update-window-title', (event, title) => {
+	if (mainWindow) {
+		mainWindow.setTitle(title);
+	}
+});
 
 // Handle request from the renderer process to open a native directory selection dialog.
 ipcMain.handle('dialog:openDirectory', async () => {

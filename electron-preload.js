@@ -1,3 +1,5 @@
+// electron-preload.js:
+
 const {contextBridge, ipcRenderer} = require('electron');
 
 // Expose a safe, limited API to the renderer process (e.g., js/main.js)
@@ -16,6 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	 * @returns {Promise<any>} A promise that resolves with the result from the main process.
 	 */
 	postData: (data) => ipcRenderer.invoke('post-data', data),
+	
+	/**
+	 * NEW: Sends a request to the main process to update the main window's title.
+	 * This is a one-way message and does not return a promise.
+	 * @param {string} title - The new title for the window.
+	 */
+	updateWindowTitle: (title) => ipcRenderer.send('update-window-title', title),
 	
 	/**
 	 * Sets up a listener for LLM stream events from the main process.

@@ -174,6 +174,10 @@ function renderTabs() {
 		const tabEl = document.createElement('div');
 		tabEl.className = 'editor-tab';
 		tabEl.dataset.tabId = tab.id;
+		// NEW: Add the full file path as a tooltip on hover.
+		if (tab.filePath) {
+			tabEl.title = tab.filePath;
+		}
 		if (tab.id === activeTabId) {
 			tabEl.classList.add('active');
 		}
@@ -249,6 +253,24 @@ export function switchToTab(tabId) {
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
+		
+		// NEW: Update the main application window title.
+		if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
+			const project = get_current_project();
+			const projectName = project ? project.path.split(/[\\/]/).pop() : null;
+			const titleParts = [];
+			
+			titleParts.push('Smart Code Prompts');
+			
+			if (newTab.filePath) {
+				titleParts.push(newTab.filePath);
+			} else {
+				titleParts.push(newTab.title);
+			}
+			
+			
+			window.electronAPI.updateWindowTitle(titleParts.join(' - '));
+		}
 		
 		// NEW: Show/hide the reset settings button
 		if (resetSettingsBtn) {
@@ -334,6 +356,18 @@ export function closeTab(tabId) {
 			document.getElementById('monaco-diff-editor-container').style.display = 'none';
 			document.getElementById('reset-settings-btn').classList.add('hidden'); // NEW: Hide reset button
 			updateSaveButtonState(); // NEW: Ensure button is disabled
+			
+			// NEW: Reset the window title when no tabs are open.
+			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
+				const project = get_current_project();
+				const projectName = project ? project.path.split(/[\\/]/).pop() : null;
+				const titleParts = [];
+				if (projectName) {
+					titleParts.push(projectName);
+				}
+				titleParts.push('Smart Code Prompts');
+				window.electronAPI.updateWindowTitle(titleParts.join(' - '));
+			}
 		}
 	}
 	

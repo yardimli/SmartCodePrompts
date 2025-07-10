@@ -207,6 +207,10 @@ async function initialize_app() {
 		if (!data.projects || data.projects.length === 0) {
 			dropdown.innerHTML = '<option value="">No projects found</option>';
 			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please add a project to begin.</p>';
+			// NEW: Set a default window title if no projects are configured.
+			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
+				window.electronAPI.updateWindowTitle('Smart Code Prompts');
+			}
 		} else {
 			data.projects.forEach(project => {
 				const option = document.createElement('option');

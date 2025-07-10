@@ -3,6 +3,8 @@
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
+// NEW: Import for the diff modal.
+import { show_diff_modal } from './modal-diff.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 // MODIFIED: Import the new function to update tab status.
 import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
@@ -397,29 +399,14 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
-// Handler for clicking the diff icon to open a file in diff view.
+// MODIFIED: Handler for clicking the diff icon to open a file in a diff modal.
 async function handle_diff_icon_click(filePath) {
 	show_loading(`Opening diff for ${filePath}...`);
 	try {
-		const current_project = get_current_project();
-		if (!current_project) {
-			throw new Error('No project is currently selected.');
-		}
-		const data = await post_data({
-			action: 'get_file_for_editor',
-			project_path: current_project.path,
-			path: filePath
-		});
-		
-		// For a diff view, we need both original and current content.
-		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
-		const originalContent = data.originalContent;
-		
-		// A diff view requires original content. If it's null (e.g., new file), open normally.
-		openFileInTab(filePath, currentContent, originalContent);
-		
+		// The new show_diff_modal function handles all logic, including data fetching and display.
+		await show_diff_modal(filePath);
 	} catch (error) {
-		console.error(`Error opening diff for file ${filePath}:`, error);
+		console.error(`Error opening diff modal for file ${filePath}:`, error);
 	} finally {
 		hide_loading();
 	}

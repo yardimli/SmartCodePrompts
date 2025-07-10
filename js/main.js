@@ -27,6 +27,8 @@ import { setup_file_tree_listeners } from './file_tree.js';
 import { initialize_progress_modal } from './modal-progress.js';
 import { initialize_alert_modal, show_alert } from './modal-alert.js';
 import { initialize_confirm_modal, show_confirm } from './modal-confirm.js';
+// NEW: Import for the diff modal.
+import { initialize_diff_modal } from './modal-diff.js';
 import { setup_auto_select_listeners } from './auto_select.js';
 
 import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js';
@@ -40,7 +42,8 @@ async function load_all_modals_html () {
 		'modal-reanalysis.html', 'modal-search.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
 		'modal-tab-switcher.html',
-		'modal-api-key.html'
+		'modal-api-key.html',
+		'modal-diff.html' // NEW: Add the diff modal HTML.
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -297,13 +300,13 @@ document.addEventListener('DOMContentLoaded', async function () {
 	
 	initialize_about_modal();
 	initialize_analysis_modal();
-	initialize_log_modal();
-	initialize_search_modal();
 	initialize_api_key_modal();
-	initialize_qa_modal();
-	initialize_progress_modal();
-	initialize_alert_modal();
 	initialize_confirm_modal();
+	initialize_diff_modal(); // NEW: Initialize the diff modal.
+	initialize_log_modal();
+	initialize_progress_modal();
+	initialize_qa_modal();
+	initialize_search_modal();
 	initialize_resizers();
 	initialize_auto_expand_textarea();
 	initialize_temperature_slider();

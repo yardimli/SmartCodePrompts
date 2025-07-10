@@ -2,21 +2,178 @@
 
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
-import { show_alert } from './modal-alert.js'; // NEW
-import {show_confirm} from './modal-confirm.js';
-import { update_project_settings } from './settings.js'; // NEW
+import { show_alert } from './modal-alert.js';
+import { show_confirm } from './modal-confirm.js';
+import { update_project_settings } from './settings.js';
 
 let editor = null;
-let diffEditor = null; // NEW: For side-by-side diff view
-// MODIFIED: Added isModified property. Removed debounceTimer.
+let diffEditor = null;
 let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified }
 let activeTabId = null;
 let tabCounter = 0;
+let contextMenuTargetTabId = null;
 
-/**
- * NEW: A utility function to update the state of the global "Save" button.
- * It enables the button only if the active tab is a modified, editable file.
- */
+function initializeTabContextMenu() {
+	const menu = document.getElementById('tab-context-menu');
+	if (!menu) {
+		return;
+	}
+
+	const closeBtn = document.getElementById('context-menu-close');
+	const closeOthersBtn = document.getElementById('context-menu-close-others');
+	const closeUnmodifiedBtn = document.getElementById('context-menu-close-unmodified');
+	const closeAllBtn = document.getElementById('context-menu-close-all');
+
+	document.addEventListener('click', () => {
+		menu.classList.add('hidden');
+		contextMenuTargetTabId = null;
+	});
+
+	menu.addEventListener('click', (e) => {
+		e.stopPropagation();
+	});
+
+	closeBtn.addEventListener('click', async (e) => {
+		e.preventDefault();
+		if (contextMenuTargetTabId) {
+			const tabToClose = findTab(contextMenuTargetTabId);
+			if (tabToClose && tabToClose.isModified) {
+				const confirmed = await show_confirm(`The file "${tabToClose.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
+				if (!confirmed) {
+					menu.classList.add('hidden');
+					return;
+				}
+			}
+			closeTab(contextMenuTargetTabId);
+		}
+		menu.classList.add('hidden');
+	});
+
+	closeOthersBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		if (contextMenuTargetTabId) {
+			closeOtherTabs(contextMenuTargetTabId);
+		}
+		menu.classList.add('hidden');
+	});
+
+	closeUnmodifiedBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		closeUnmodifiedTabs();
+		menu.classList.add('hidden');
+	});
+
+	closeAllBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		closeAllTabs();
+		menu.classList.add('hidden');
+	});
+}
+
+async function closeOtherTabs(keepOpenTabId) {
+	const tabsToClose = tabs.filter(tab => tab.id !== keepOpenTabId && tab.isCloseable);
+
+	for (const tab of tabsToClose) {
+		if (tab.isModified) {
+			const confirmed = await show_confirm(`The file "${tab.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
+			if (!confirmed) {
+				continue;
+			}
+		}
+		const tabIndex = tabs.findIndex(t => t.id === tab.id);
+		if (tabIndex > -1) {
+			const tabToRemove = tabs[tabIndex];
+			tabToRemove.model.dispose();
+			if (tabToRemove.originalModel) {
+				tabToRemove.originalModel.dispose();
+			}
+			tabs.splice(tabIndex, 1);
+		}
+	}
+
+	if (activeTabId !== keepOpenTabId && findTab(keepOpenTabId)) {
+		switchToTab(keepOpenTabId);
+	}
+
+	renderTabs();
+	save_open_tabs_state();
+}
+
+async function closeAllTabs() {
+	const tabsToClose = tabs.filter(tab => tab.isCloseable);
+
+	for (const tab of tabsToClose) {
+		if (tab.isModified) {
+			const confirmed = await show_confirm(`The file "${tab.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
+			if (!confirmed) {
+				continue;
+			}
+		}
+		const tabIndex = tabs.findIndex(t => t.id === tab.id);
+		if (tabIndex > -1) {
+			const tabToRemove = tabs[tabIndex];
+			tabToRemove.model.dispose();
+			if (tabToRemove.originalModel) {
+				tabToRemove.originalModel.dispose();
+			}
+			tabs.splice(tabIndex, 1);
+		}
+	}
+
+	const newActiveTab = tabs.find(tab => !tab.isCloseable) || tabs[0];
+	if (newActiveTab) {
+		switchToTab(newActiveTab.id);
+	} else {
+		activeTabId = null;
+		editor.setModel(null);
+		diffEditor.setModel({ original: null, modified: null });
+		document.getElementById('monaco-editor-container').style.display = 'block';
+		document.getElementById('monaco-diff-editor-container').style.display = 'none';
+		updateSaveButtonState();
+	}
+
+	renderTabs();
+	save_open_tabs_state();
+}
+
+function closeUnmodifiedTabs() {
+	const tabsToClose = tabs.filter(tab => !tab.isModified && tab.isCloseable);
+	let activeTabWasClosed = false;
+
+	for (const tab of tabsToClose) {
+		if (tab.id === activeTabId) {
+			activeTabWasClosed = true;
+		}
+		const tabIndex = tabs.findIndex(t => t.id === tab.id);
+		if (tabIndex > -1) {
+			const tabToRemove = tabs[tabIndex];
+			tabToRemove.model.dispose();
+			if (tabToRemove.originalModel) {
+				tabToRemove.originalModel.dispose();
+			}
+			tabs.splice(tabIndex, 1);
+		}
+	}
+
+	if (activeTabWasClosed) {
+		const newActiveTab = tabs[0];
+		if (newActiveTab) {
+			switchToTab(newActiveTab.id);
+		} else {
+			activeTabId = null;
+			editor.setModel(null);
+			diffEditor.setModel({ original: null, modified: null });
+			document.getElementById('monaco-editor-container').style.display = 'block';
+			document.getElementById('monaco-diff-editor-container').style.display = 'none';
+			updateSaveButtonState();
+		}
+	}
+
+	renderTabs();
+	save_open_tabs_state();
+}
+
+
 export function updateSaveButtonState() {
 	const saveBtn = document.getElementById('save-active-file-btn');
 	if (!saveBtn) return;
@@ -27,13 +184,8 @@ export function updateSaveButtonState() {
 	saveBtn.disabled = !shouldBeEnabled;
 }
 
-/**
- * NEW: Saves all tabs that are currently marked as modified.
- * Intended for use when the application loses focus.
- */
 export function saveAllModifiedTabs() {
 	console.log('Attempting to save all modified files on blur...');
-	// MODIFIED: Exclude the settings file from auto-save
 	const modifiedTabs = tabs.filter(tab => tab.isModified && !tab.readOnly && tab.filePath && tab.filePath !== '.scp/settings.yaml');
 	
 	if (modifiedTabs.length > 0) {
@@ -46,16 +198,10 @@ export function saveAllModifiedTabs() {
 	}
 }
 
-
-/**
- * NEW: Saves the current list of open file tabs to the server for the current project.
- * Moved from state.js to avoid circular dependency.
- */
 function save_open_tabs_state() {
 	const project = get_current_project();
 	if (!project) return;
 	
-	// Get all tabs that have a filePath (i.e., are actual files)
 	const open_file_tabs = getTabs()
 		.map(tab => tab.filePath)
 		.filter(filePath => filePath !== null);
@@ -69,14 +215,8 @@ function save_open_tabs_state() {
 	});
 }
 
-/**
- * MODIFIED: Saves a tab's content to the filesystem. Now async and updates modification state.
- * It now includes special handling for the project settings file.
- * @param {string} tabId The ID of the tab to save.
- */
 export async function saveTabContent(tabId) {
 	const tab = findTab(tabId);
-	// Don't save if it's not a file, is read-only, is a diff view, or isn't modified
 	if (!tab || !tab.filePath || tab.readOnly || tab.isDiff || !tab.isModified) {
 		return;
 	}
@@ -89,7 +229,6 @@ export async function saveTabContent(tabId) {
 	
 	const content = tab.model.getValue();
 	
-	// NEW: Special handling for the settings file
 	if (tab.filePath === '.scp/settings.yaml') {
 		console.log('Validating and saving project settings...');
 		try {
@@ -101,22 +240,20 @@ export async function saveTabContent(tabId) {
 			
 			if (result.success) {
 				tab.isModified = false;
-				await update_project_settings(content); // Reload settings into the app
+				await update_project_settings(content);
 				renderTabs();
 				updateSaveButtonState();
 				show_alert('Project settings saved and reloaded successfully.', 'Settings Saved');
 			} else {
-				// Validation failed, show error and don't mark as saved
 				show_alert(result.error, 'Settings Validation Error');
 			}
 		} catch (error) {
 			console.error('Failed to save project settings:', error);
 			show_alert(`An error occurred while saving settings: ${error.message}`, 'Error');
 		}
-		return; // End execution here for settings file
+		return;
 	}
 	
-	// Regular file saving logic
 	console.log(`Saving ${tab.filePath}...`);
 	try {
 		await post_data({
@@ -125,7 +262,6 @@ export async function saveTabContent(tabId) {
 			file_path: tab.filePath,
 			content: content
 		});
-		// On successful save, update the tab's state and the UI
 		tab.isModified = false;
 		renderTabs();
 		updateSaveButtonState();
@@ -136,8 +272,6 @@ export async function saveTabContent(tabId) {
 	}
 }
 
-
-// NEW: Helper to get the currently active Monaco editor instance (either the standard one or the modified pane of the diff editor).
 function getActiveMonacoEditorInstance() {
 	if (!activeTabId) return null;
 	const tab = findTab(activeTabId);
@@ -150,10 +284,8 @@ function getActiveMonacoEditorInstance() {
 	}
 }
 
-// Helper to get language from filename for Monaco
 function getLanguageForFile(filename) {
 	if (!window.monaco) return 'plaintext';
-	// NEW: Treat settings file as YAML
 	if (filename.endsWith('settings.yaml')) {
 		return 'yaml';
 	}
@@ -163,7 +295,6 @@ function getLanguageForFile(filename) {
 	return lang ? lang.id : 'plaintext';
 }
 
-// Helper function to render the tab UI
 function renderTabs() {
 	const tabsContainer = document.getElementById('editor-tabs');
 	if (!tabsContainer) return;
@@ -174,7 +305,6 @@ function renderTabs() {
 		const tabEl = document.createElement('div');
 		tabEl.className = 'editor-tab';
 		tabEl.dataset.tabId = tab.id;
-		// NEW: Add the full file path as a tooltip on hover.
 		if (tab.filePath) {
 			tabEl.title = tab.filePath;
 		}
@@ -184,12 +314,10 @@ function renderTabs() {
 		
 		const titleEl = document.createElement('span');
 		titleEl.textContent = tab.title;
-		// NEW: Add a visual indicator for diff tabs.
 		if (tab.isDiff) {
 			titleEl.textContent += ' (modified)';
 			titleEl.style.fontStyle = 'italic';
 		}
-		// NEW: Add a visual indicator for unsaved changes.
 		if (tab.isModified) {
 			titleEl.innerHTML += ' <span class="modified-dot" title="Unsaved changes">•</span>';
 		}
@@ -217,31 +345,50 @@ function renderTabs() {
 			switchToTab(tab.id);
 		};
 		
+		tabEl.addEventListener('contextmenu', (e) => {
+			e.preventDefault();
+			const menu = document.getElementById('tab-context-menu');
+			if (!menu) {
+				return;
+			}
+
+			contextMenuTargetTabId = tab.id;
+
+			menu.style.top = `${e.pageY}px`;
+			menu.style.left = `${e.pageX}px`;
+			menu.classList.remove('hidden');
+
+			const closeLi = document.getElementById('context-menu-close').parentElement;
+			const closeOthersLi = document.getElementById('context-menu-close-others').parentElement;
+			const closeUnmodifiedLi = document.getElementById('context-menu-close-unmodified').parentElement;
+
+			tab.isCloseable ? closeLi.classList.remove('disabled') : closeLi.classList.add('disabled');
+
+			const otherCloseableTabsExist = tabs.some(t => t.id !== tab.id && t.isCloseable);
+			otherCloseableTabsExist ? closeOthersLi.classList.remove('disabled') : closeOthersLi.classList.add('disabled');
+			
+			const unmodifiedTabsExist = tabs.some(t => !t.isModified && t.isCloseable);
+			unmodifiedTabsExist ? closeUnmodifiedLi.classList.remove('disabled') : closeUnmodifiedLi.classList.add('disabled');
+		});
+		
 		tabsContainer.appendChild(tabEl);
 	});
 }
 
-// Helper to find a tab by its ID
 function findTab(tabId) {
 	return tabs.find(t => t.id === tabId);
 }
 
-/**
- * Switches the editor to show the content of a specific tab.
- * @param {string} tabId - The ID of the tab to switch to.
- */
 export function switchToTab(tabId) {
 	if (tabId === activeTabId) return;
-	if (!editor || !diffEditor) return; // MODIFIED: Check both editors are initialized
+	if (!editor || !diffEditor) return;
 	
 	const editorContainer = document.getElementById('monaco-editor-container');
 	const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
-	const resetSettingsBtn = document.getElementById('reset-settings-btn'); // NEW
+	const resetSettingsBtn = document.getElementById('reset-settings-btn');
 	
-	// Save view state of the old tab
 	const oldTab = findTab(activeTabId);
 	if (oldTab) {
-		// MODIFIED: Save view state based on which editor was active
 		if (oldTab.isDiff) {
 			oldTab.viewState = diffEditor.saveViewState();
 		} else {
@@ -249,12 +396,10 @@ export function switchToTab(tabId) {
 		}
 	}
 	
-	// Switch to the new tab
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
 		
-		// NEW: Update the main application window title.
 		if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
 			const project = get_current_project();
 			const projectName = project ? project.path.split(/[\\/]/).pop() : null;
@@ -272,14 +417,11 @@ export function switchToTab(tabId) {
 			window.electronAPI.updateWindowTitle(titleParts.join(' - '));
 		}
 		
-		// NEW: Show/hide the reset settings button
 		if (resetSettingsBtn) {
 			resetSettingsBtn.classList.toggle('hidden', newTab.filePath !== '.scp/settings.yaml');
 		}
 		
-		// MODIFIED: Show the correct editor and set models
 		if (newTab.isDiff) {
-			// This is a diff tab
 			editorContainer.style.display = 'none';
 			diffEditorContainer.style.display = 'block';
 			
@@ -287,15 +429,13 @@ export function switchToTab(tabId) {
 				original: newTab.originalModel,
 				modified: newTab.model
 			});
-			// The original is always read-only. Set readOnly for the modified editor.
 			diffEditor.getModifiedEditor().updateOptions({ readOnly: newTab.readOnly });
 			if (newTab.viewState) {
 				diffEditor.restoreViewState(newTab.viewState);
 			}
-			diffEditor.getModifiedEditor().focus(); // Focus the editor
+			diffEditor.getModifiedEditor().focus();
 			
 		} else {
-			// This is a regular tab
 			diffEditorContainer.style.display = 'none';
 			editorContainer.style.display = 'block';
 			
@@ -304,12 +444,11 @@ export function switchToTab(tabId) {
 			if (newTab.viewState) {
 				editor.restoreViewState(newTab.viewState);
 			}
-			editor.focus(); // Focus the editor
+			editor.focus();
 		}
 		
 		renderTabs();
 		
-		// NEW: Scroll the active tab into view if it's outside the visible area.
 		const activeTabEl = document.querySelector(`.editor-tab[data-tab-id="${tabId}"]`);
 		if (activeTabEl) {
 			activeTabEl.scrollIntoView({
@@ -319,15 +458,10 @@ export function switchToTab(tabId) {
 			});
 		}
 		
-		updateSaveButtonState(); // NEW: Update save button state on tab switch.
+		updateSaveButtonState();
 	}
 }
 
-
-/**
- * Closes a tab.
- * @param {string} tabId - The ID of the tab to close.
- */
 export function closeTab(tabId) {
 	const tabIndex = tabs.findIndex(t => t.id === tabId);
 	if (tabIndex === -1) return;
@@ -335,29 +469,25 @@ export function closeTab(tabId) {
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
 	
-	// MODIFIED: Dispose of both models to free up memory if it's a diff tab
 	tabToClose.model.dispose();
 	if (tabToClose.originalModel) {
 		tabToClose.originalModel.dispose();
 	}
 	tabs.splice(tabIndex, 1);
 	
-	// If the closed tab was the active one, switch to another tab
 	if (activeTabId === tabId) {
 		const newActiveTab = tabs[tabIndex - 1] || tabs[0];
 		if (newActiveTab) {
 			switchToTab(newActiveTab.id);
 		} else {
-			// MODIFIED: No tabs left, hide both editors
 			activeTabId = null;
 			editor.setModel(null);
 			diffEditor.setModel({ original: null, modified: null });
-			document.getElementById('monaco-editor-container').style.display = 'block'; // Show default
+			document.getElementById('monaco-editor-container').style.display = 'block';
 			document.getElementById('monaco-diff-editor-container').style.display = 'none';
-			document.getElementById('reset-settings-btn').classList.add('hidden'); // NEW: Hide reset button
-			updateSaveButtonState(); // NEW: Ensure button is disabled
+			document.getElementById('reset-settings-btn').classList.add('hidden');
+			updateSaveButtonState();
 			
-			// NEW: Reset the window title when no tabs are open.
 			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
 				const project = get_current_project();
 				const projectName = project ? project.path.split(/[\\/]/).pop() : null;
@@ -372,19 +502,9 @@ export function closeTab(tabId) {
 	}
 	
 	renderTabs();
-	save_open_tabs_state(); // NEW: Persist the new tab state.
+	save_open_tabs_state();
 }
 
-/**
- * Creates a new non-diff tab in the editor. Used for programmatic tabs like "Prompt".
- * @param {string} title - The title for the new tab.
- * @param {string} content - The initial content for the tab.
- * @param {string} language - The language for syntax highlighting.
- * @param {boolean} isCloseable - Whether the tab can be closed by the user.
- * @param {boolean} readOnly - Whether the editor should be read-only for this tab.
- * @param {string|null} filePath - The file path associated with the tab.
- * @returns {string} The ID of the newly created tab.
- */
 export function createNewTab(title, content, language = 'plaintext', isCloseable = true, readOnly = false, filePath = null) {
 	if (!monaco || !editor) return null;
 	
@@ -392,19 +512,18 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	const newTabId = `tab-${Date.now()}-${tabCounter}`;
 	const newModel = monaco.editor.createModel(content, language);
 	
-	// MODIFIED: Updated tab object structure
 	const newTab = {
 		id: newTabId,
 		title: title,
 		model: newModel,
-		originalModel: null, // Explicitly null for non-diff tabs
-		isDiff: false,       // Explicitly false for non-diff tabs
+		originalModel: null,
+		isDiff: false,
 		isCloseable: isCloseable,
 		language: language,
 		viewState: null,
 		readOnly: readOnly,
 		filePath: filePath,
-		isModified: false, // NEW: Not modified initially
+		isModified: false,
 	};
 	
 	tabs.push(newTab);
@@ -412,19 +531,11 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	return newTabId;
 }
 
-/**
- * Opens a file in a new tab (or switches to it), showing a diff view if changes are detected.
- * @param {string} filePath - The unique path of the file.
- * @param {string} currentContent - The current content of the file from disk.
- * @param {string|null} originalContent - The content from git HEAD, or null if no diff.
- */
 export function openFileInTab(filePath, currentContent, originalContent) {
 	if (!monaco || !editor) return;
 	
-	// Check if a tab for this file already exists
 	const existingTab = tabs.find(t => t.filePath === filePath);
 	if (existingTab) {
-		// For now, just switch to the existing tab. A future enhancement could be to refresh its content.
 		switchToTab(existingTab.id);
 		return;
 	}
@@ -440,7 +551,6 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 	
 	if (isDiff) {
 		originalModel = monaco.editor.createModel(originalContent, language);
-		// The original (left side) of a diff should always be read-only.
 		originalModel.updateOptions({ readOnly: true });
 	}
 	
@@ -453,42 +563,31 @@ export function openFileInTab(filePath, currentContent, originalContent) {
 		isCloseable: true,
 		language: language,
 		viewState: null,
-		// MODIFIED: Diff views are read-only; normal file views are editable.
-		// The settings file is editable but not a diff view.
 		readOnly: isDiff,
 		filePath: filePath,
-		isModified: false, // NEW: Not modified initially
+		isModified: false,
 	};
 	
-	// NEW: Add listener to track modifications for editable, non-diff tabs.
-	// This replaces the old auto-save logic.
 	if (!newTab.readOnly && !newTab.isDiff) {
 		newTab.model.onDidChangeContent(() => {
-			// Use a direct reference to the tab in the array to ensure we modify the correct one.
 			const tabInArray = findTab(newTab.id);
 			if (tabInArray && !tabInArray.isModified) {
 				tabInArray.isModified = true;
-				renderTabs(); // Re-render to show the modification indicator (dot).
-				updateSaveButtonState(); // Update the global save button state.
+				renderTabs();
+				updateSaveButtonState();
 			}
 		});
 	}
 	
 	tabs.push(newTab);
 	switchToTab(newTabId);
-	save_open_tabs_state(); // NEW: Persist the new tab state.
+	save_open_tabs_state();
 }
 
-/**
- * Appends content to a specific tab.
- * @param {string} tabId - The ID of the tab to append to.
- * @param {string} text - The text to append.
- */
 export function appendToTabContent(tabId, text) {
 	const tab = findTab(tabId);
 	if (!tab) return;
 	
-	// Appending content only makes sense for the modifiable model.
 	const model = tab.model;
 	const lastLine = model.getLineCount();
 	const lastColumn = model.getLineMaxColumn(lastLine);
@@ -497,24 +596,13 @@ export function appendToTabContent(tabId, text) {
 	model.applyEdits([{ range: range, text: text, forceMoveMarkers: true }]);
 }
 
-/**
- * Sets the entire content of a specific tab.
- * @param {string} tabId - The ID of the tab to set content for.
- * @param {string} content - The new content.
- */
 export function setTabContent(tabId, content) {
 	const tab = findTab(tabId);
 	if (tab) {
-		// Setting content only makes sense for the modifiable model.
 		tab.model.setValue(content);
 	}
 }
 
-/**
- * Initializes the Monaco Editors and the tab system.
- * @param {boolean} is_dark_mode - Whether to initialize in dark mode.
- * @returns {Promise<void>} A promise that resolves when the editors are initialized.
- */
 export function initialize_editor(is_dark_mode) {
 	return new Promise((resolve) => {
 		require(['vs/editor/editor.main'], () => {
@@ -533,7 +621,6 @@ export function initialize_editor(is_dark_mode) {
 				}
 			};
 			
-			// MODIFIED: Get both editor containers
 			const editorContainer = document.getElementById('monaco-editor-container');
 			const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
 			if (!editorContainer || !diffEditorContainer) {
@@ -544,30 +631,28 @@ export function initialize_editor(is_dark_mode) {
 			
 			const commonEditorOptions = {
 				theme: is_dark_mode ? 'vs-dark' : 'vs',
-				wordWrap: 'off',
+				wordWrap: 'on', // MODIFIED: Turn on word wrap for all editors.
 				fontFamily: 'monospace',
 				fontSize: 13,
 				minimap: { enabled: true },
-				automaticLayout: true, // Crucial for editors in hidden containers
+				automaticLayout: true,
 				scrollBeyondLastLine: false,
 				contextmenu: true,
 			};
 			
-			// Create the standard editor
 			editor = monaco.editor.create(editorContainer, {
 				...commonEditorOptions,
 				language: 'plaintext',
 				readOnly: false,
 			});
 			
-			// NEW: Create the diff editor
 			diffEditor = monaco.editor.createDiffEditor(diffEditorContainer, {
 				...commonEditorOptions,
-				originalEditable: false, // The left side is never editable.
-				readOnly: false, // This applies to the component; we control the modified editor individually.
+				renderSideBySide: false, // MODIFIED: Force inline "single view" for diffs.
+				originalEditable: false,
+				readOnly: false,
 			});
 			
-			// NEW: Add Ctrl+S (Cmd+S) keybinding to save the active tab.
 			const saveCommand = () => {
 				if (activeTabId) {
 					saveTabContent(activeTabId);
@@ -575,7 +660,6 @@ export function initialize_editor(is_dark_mode) {
 			};
 			editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
 			
-			// Ctrl+F4 to close the active tab, but if it is modified, prompt the user.
 			const closeTabCommand = () => {
 				if (activeTabId) {
 					const tab = findTab(activeTabId);
@@ -595,6 +679,7 @@ export function initialize_editor(is_dark_mode) {
 			
 			diffEditor.getModifiedEditor().addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
 			
+			initializeTabContextMenu();
 			
 			createNewTab(
 				'Prompt',
@@ -610,72 +695,40 @@ export function initialize_editor(is_dark_mode) {
 	});
 }
 
-/**
- * Sets the content of the currently active Monaco Editor tab.
- * @param {string} content - The new content to display.
- */
 export function set_editor_content(content) {
 	if (activeTabId) {
 		setTabContent(activeTabId, content);
 	}
 }
 
-/**
- * Gets the current content from the currently active Monaco Editor tab.
- * @returns {string} The active tab's content.
- */
 export function get_editor_content() {
 	const activeTab = findTab(activeTabId);
 	if (activeTab) {
-		// Always get content from the main (potentially modified) model.
 		return activeTab.model.getValue();
 	}
 	return '';
 }
 
-/**
- * Gets the current list of open tabs.
- * @returns {Array<object>} A copy of the tabs array.
- */
 export function getTabs() {
 	return [...tabs];
 }
 
-/**
- * Gets the ID of the currently active tab.
- * @returns {string|null} The active tab's ID.
- */
 export function getActiveTabId() {
 	return activeTabId;
 }
 
-/**
- * Gets the ID of the "Prompt" tab.
- * @returns {string|null} The prompt tab's ID, or null if not found.
- */
 export function getPromptTabId() {
 	const promptTab = tabs.find(t => t.title === 'Prompt' && t.isCloseable === false);
 	return promptTab ? promptTab.id : null;
 }
 
-/**
- * Toggles the theme of the Monaco Editor.
- * @param {boolean} is_dark_mode - True for dark mode, false for light mode.
- */
 export function set_editor_theme(is_dark_mode) {
-	// MODIFIED: This global call updates all editor instances.
 	if (monaco) {
 		monaco.editor.setTheme(is_dark_mode ? 'vs-dark' : 'vs');
 	}
 }
 
-/**
- * Highlights search matches in the active editor tab.
- * @param {Array<object>} matches - An array of match objects, e.g., [{start, end}, ...].
- * @param {number} current_index - The index of the currently selected match.
- */
 export function highlight_search_matches(matches, current_index) {
-	// MODIFIED: Use helper to get the correct editor instance.
 	const activeEditor = getActiveMonacoEditorInstance();
 	if (!activeEditor) return;
 	
@@ -707,11 +760,7 @@ export function highlight_search_matches(matches, current_index) {
 	}
 }
 
-/**
- * Clears all search-related highlights from the active editor tab.
- */
 export function clear_search_highlights() {
-	// MODIFIED: Use helper to get the correct editor instance.
 	const activeEditor = getActiveMonacoEditorInstance();
 	if (activeEditor) {
 		activeEditor.deltaDecorations([], []);

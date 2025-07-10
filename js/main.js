@@ -1,34 +1,33 @@
 // SmartCodePrompts/js/main.js
 
 // --- CORE & STATE IMPORTS ---
-import {post_data} from './utils.js';
-import {set_content_footer_prompt, set_last_smart_prompt, get_current_project} from './state.js';
+import { post_data } from './utils.js';
+import { set_content_footer_prompt, set_last_smart_prompt, get_current_project } from './state.js';
 import { update_project_settings } from './settings.js';
 
 // --- MODULE IMPORTS ---
-import {initialize_about_modal, open_about_modal, setup_about_modal_listeners} from './modal-about.js';
-import {initialize_analysis_modal} from './modal-analysis.js';
-import {initialize_log_modal, setup_log_modal_listeners} from './modal-log.js';
-import {initialize_search_modal, setup_search_modal_listeners} from './modal-search.js';
-// NEW: Import for API Key Modal
+import { initialize_about_modal, open_about_modal, setup_about_modal_listeners } from './modal-about.js';
+import { initialize_analysis_modal } from './modal-analysis.js';
+import { initialize_log_modal, setup_log_modal_listeners } from './modal-log.js';
+import { initialize_search_modal, setup_search_modal_listeners } from './modal-search.js';
 import { initialize_api_key_modal, setup_api_key_modal_listeners, update_api_key_status } from './modal-api-key.js';
-import {setup_analysis_actions_listener} from './analysis.js';
-import {initialize_llm_selector, setup_llm_listeners} from './llm.js';
-import {initialize_status_bar} from './status_bar.js';
-import {load_project, setup_project_listeners} from './project.js';
-import {initialize_auto_expand_textarea, setup_prompt_bar_listeners} from './prompt.js';
+import { setup_analysis_actions_listener } from './analysis.js';
+import { initialize_llm_selector, setup_llm_listeners } from './llm.js';
+import { initialize_status_bar } from './status_bar.js';
+import { load_project, setup_project_listeners } from './project.js';
+import { initialize_auto_expand_textarea, setup_prompt_bar_listeners } from './prompt.js';
 import {
 	initialize_resizers,
 	initialize_temperature_slider,
 	setup_ui_event_listeners
 } from './ui_components.js';
-import {initialize_qa_modal, setup_qa_listeners} from './qa.js';
-import {setup_direct_prompt_listeners} from './direct_prompt.js';
-import {setup_file_tree_listeners} from './file_tree.js';
-import {initialize_progress_modal} from './modal-progress.js';
-import {initialize_alert_modal, show_alert} from './modal-alert.js';
-import {initialize_confirm_modal, show_confirm} from './modal-confirm.js';
-import {setup_auto_select_listeners} from './auto_select.js';
+import { initialize_qa_modal, setup_qa_listeners } from './qa.js';
+import { setup_direct_prompt_listeners } from './direct_prompt.js';
+import { setup_file_tree_listeners } from './file_tree.js';
+import { initialize_progress_modal } from './modal-progress.js';
+import { initialize_alert_modal, show_alert } from './modal-alert.js';
+import { initialize_confirm_modal, show_confirm } from './modal-confirm.js';
+import { setup_auto_select_listeners } from './auto_select.js';
 
 import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js';
 import { initialize_tab_switcher } from './tab-switcher.js';
@@ -41,7 +40,7 @@ async function load_all_modals_html () {
 		'modal-reanalysis.html', 'modal-search.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
 		'modal-tab-switcher.html',
-		'modal-api-key.html' // NEW: Add the new modal file
+		'modal-api-key.html'
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -59,7 +58,7 @@ async function load_all_modals_html () {
 	}
 }
 
-// NEW: Handles horizontal scrolling for editor tabs with buttons and drag-to-scroll.
+// MODIFIED: Added mouse wheel scroll listener.
 function initialize_tab_scroller() {
 	const tabsContainer = document.getElementById('editor-tabs');
 	const leftScroller = document.getElementById('scroll-tabs-left');
@@ -76,13 +75,11 @@ function initialize_tab_scroller() {
 		rightScroller.classList.toggle('hidden', !hasOverflow);
 		
 		if (hasOverflow) {
-			// Use a small tolerance to handle sub-pixel rendering issues
 			leftScroller.disabled = tabsContainer.scrollLeft < 1;
 			rightScroller.disabled = tabsContainer.scrollLeft >= tabsContainer.scrollWidth - tabsContainer.clientWidth - 1;
 		}
 	};
 	
-	// Scroll with buttons
 	leftScroller.addEventListener('click', () => {
 		tabsContainer.scrollLeft -= 200;
 	});
@@ -90,15 +87,12 @@ function initialize_tab_scroller() {
 		tabsContainer.scrollLeft += 200;
 	});
 	
-	// Drag to scroll
 	let isDown = false;
 	let startX;
 	let scrollLeft;
 	
 	tabsContainer.addEventListener('mousedown', (e) => {
-		// Only activate drag with the primary mouse button
 		if (e.button !== 0) return;
-		// Prevent drag from starting on a button inside the tab (like the close button)
 		if (e.target.closest('button, i')) return;
 		
 		isDown = true;
@@ -120,18 +114,27 @@ function initialize_tab_scroller() {
 		if (!isDown) return;
 		e.preventDefault();
 		const x = e.pageX - tabsContainer.offsetLeft;
-		const walk = (x - startX); // The distance the mouse has moved
+		const walk = (x - startX);
 		tabsContainer.scrollLeft = scrollLeft - walk;
 	});
 	
-	// Update button states on scroll
 	tabsContainer.addEventListener('scroll', checkScroll);
 	
-	// Use a MutationObserver to detect when tabs are added or removed
+	// NEW: Add listener for mouse wheel scrolling on the tab bar.
+	tabsContainer.addEventListener('wheel', (e) => {
+		// If there's no overflow, do nothing.
+		if (tabsContainer.scrollWidth <= tabsContainer.clientWidth) {
+			return;
+		}
+		// Prevent the default vertical scroll of the page.
+		e.preventDefault();
+		// Scroll horizontally instead. e.deltaY is what most mouse wheels use.
+		tabsContainer.scrollLeft += e.deltaY;
+	}, { passive: false }); // `passive: false` is required to allow preventDefault.
+	
 	const observer = new MutationObserver(checkScroll);
 	observer.observe(tabsContainer, { childList: true });
 	
-	// Initial check
 	checkScroll();
 }
 
@@ -149,8 +152,6 @@ async function initialize_app() {
 	try {
 		const data = await post_data({action: 'get_main_page_data'});
 		
-		// 1. Apply UI States (Dark Mode, Sidebar, Panel Widths)
-		// Also set the correct highlight.js theme on initial load.
 		const highlight_theme_link = document.getElementById('highlight-js-theme');
 		if (data.dark_mode) {
 			document.documentElement.setAttribute('data-theme', 'dark');
@@ -166,7 +167,6 @@ async function initialize_app() {
 			}
 		}
 		
-		// Initialize the editor with the correct theme
 		await initialize_editor(data.dark_mode);
 		
 		if (data.right_sidebar_collapsed) {
@@ -175,7 +175,6 @@ async function initialize_app() {
 			document.getElementById('app-container').classList.remove('right-sidebar-collapsed');
 		}
 		
-		// Apply saved file tree width
 		if (data.file_tree_width) {
 			const main_split_pane = document.getElementById('main-split-pane');
 			if (main_split_pane) {
@@ -183,13 +182,11 @@ async function initialize_app() {
 			}
 		}
 		
-		// 2. Set global prompts from state
 		console.log('Last Smart Prompt:', data.last_smart_prompt);
 		set_last_smart_prompt(data.last_smart_prompt || '');
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
 		adjust_prompt_textarea_height();
 		
-		// 3. Initialize UI Components from their respective modules
 		const last_selected_llms = {
 			analysis: data.last_selected_llm_analysis,
 			smart_prompt: data.last_selected_llm_smart_prompt,
@@ -198,23 +195,20 @@ async function initialize_app() {
 		};
 		initialize_llm_selector(data.llms, last_selected_llms);
 		initialize_status_bar(data.session_tokens);
-		// NEW: Update the API key status indicator on startup
 		update_api_key_status(data.api_key_set);
 		
-		// 4. Populate Projects Dropdown
 		const dropdown = document.getElementById('projects-dropdown');
 		dropdown.innerHTML = '';
 		if (!data.projects || data.projects.length === 0) {
 			dropdown.innerHTML = '<option value="">No projects found</option>';
 			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please add a project to begin.</p>';
-			// NEW: Set a default window title if no projects are configured.
 			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
 				window.electronAPI.updateWindowTitle('Smart Code Prompts');
 			}
 		} else {
 			data.projects.forEach(project => {
 				const option = document.createElement('option');
-				option.value = project.path; // The full path is the value
+				option.value = project.path;
 				option.textContent = project.path;
 				dropdown.appendChild(option);
 			});
@@ -222,7 +216,6 @@ async function initialize_app() {
 		
 		dropdown.insertAdjacentHTML ('beforeend', '<option value="add_new_project" class="text-accent font-bold">Add New Project...</option>');
 		
-		// 5. Load last or first project
 		const last_project_path = data.last_selected_project;
 		if (last_project_path) {
 			const options = Array.from(dropdown.options);
@@ -243,10 +236,9 @@ async function initialize_app() {
 }
 
 /**
- * NEW: Sets up listeners related to the new save and settings functionality.
+ * Sets up listeners related to the new save and settings functionality.
  */
 function setup_save_and_settings_listeners() {
-	// Listener for the manual "Save" button click.
 	const saveBtn = document.getElementById('save-active-file-btn');
 	if (saveBtn) {
 		saveBtn.addEventListener('click', () => {
@@ -257,12 +249,10 @@ function setup_save_and_settings_listeners() {
 		});
 	}
 	
-	// Listener to save all modified files when the application window loses focus.
 	window.addEventListener('blur', () => {
 		saveAllModifiedTabs();
 	});
 	
-	// Listener for the "Configure Project Settings" button
 	document.getElementById('open-settings-file-button').addEventListener('click', async () => {
 		const project = get_current_project();
 		if (!project) {
@@ -285,7 +275,6 @@ function setup_save_and_settings_listeners() {
 		}
 	});
 	
-	// Listener for the "Reset Settings" button
 	document.getElementById('reset-settings-btn').addEventListener('click', async () => {
 		const confirmed = await show_confirm('Are you sure you want to reset the project settings to their default values? This will overwrite the current content in the editor.', 'Confirm Reset');
 		if (confirmed) {
@@ -294,7 +283,6 @@ function setup_save_and_settings_listeners() {
 				const activeTabId = getActiveTabId();
 				if (activeTabId && result.yaml) {
 					setTabContent(activeTabId, result.yaml);
-					// The content is now "modified", user can save it to apply.
 				}
 			} catch (error) {
 				show_alert(`Failed to fetch default settings: ${error.message}`, 'Error');
@@ -307,14 +295,11 @@ function setup_save_and_settings_listeners() {
 document.addEventListener('DOMContentLoaded', async function () {
 	await load_all_modals_html();
 	
-	// MODIFIED: Editor initialization is now handled inside initialize_app
-	// to ensure it gets the correct initial theme.
-	
 	initialize_about_modal();
 	initialize_analysis_modal();
 	initialize_log_modal();
 	initialize_search_modal();
-	initialize_api_key_modal(); // NEW: Initialize the API key modal
+	initialize_api_key_modal();
 	initialize_qa_modal();
 	initialize_progress_modal();
 	initialize_alert_modal();
@@ -325,19 +310,17 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_tab_scroller();
 	initialize_tab_switcher();
 	
-	// Show the about modal on first visit per session.
 	if (!sessionStorage.getItem('aboutModalShown')) {
 		open_about_modal();
 		sessionStorage.setItem('aboutModalShown', 'true');
 	}
 	
-	// Load main application data and state
 	await initialize_app();
 	
 	setup_about_modal_listeners();
 	setup_log_modal_listeners();
 	setup_search_modal_listeners();
-	setup_api_key_modal_listeners(); // NEW: Set up API key modal listeners
+	setup_api_key_modal_listeners();
 	setup_qa_listeners();
 	setup_direct_prompt_listeners();
 	setup_analysis_actions_listener();

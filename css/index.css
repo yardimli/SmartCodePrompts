@@ -194,13 +194,12 @@
 #file-tree .file, /* The file icon container */
 #file-tree .checkbox-wrapper,
 #file-tree .analysis-icon,
-#file-tree .reanalysis-alert-icon, /* NEW */
+#file-tree .reanalysis-alert-icon,
 #file-tree .diff-icon,
 #file-tree .folder-controls {
     flex-shrink: 0;
 }
 
-/* NEW: Style for the reanalysis icon */
 .reanalysis-alert-icon {
     color: hsl(var(--wa)); /* DaisyUI warning color */
     margin-left: 4px; /* Space it out from other icons */
@@ -224,7 +223,7 @@
     color: hsl(var(--pf))
 }
 
-/* MODIFIED: Styles for the editor tabs and new scroller */
+/* Styles for the editor tabs and new scroller */
 #tabs-container-wrapper {
     display: flex;
     align-items: center;
@@ -241,7 +240,6 @@
     user-select: none; /* Prevent text selection of tabs */
     scroll-behavior: smooth; /* Animate scrolling */
     cursor: grab; /* Indicate draggable area */
-    /* Note: The background color is now on the wrapper */
 }
 
 #editor-tabs.dragging {
@@ -264,7 +262,6 @@
     white-space: nowrap;
     font-size: 13px;
     transition: background-color 0.2s, color 0.2s;
-    /* The bottom border is now on the wrapper, so it's removed from here */
 }
 
 .editor-tab:hover {
@@ -275,7 +272,6 @@
 .editor-tab.active {
     background-color: hsl(var(--p) / 0.05); /* Use a subtle version of the primary color for the editor background */
     color: hsl(var(--bc));
-    /* The bottom border is now on the wrapper, so it's removed from here */
 }
 
 [data-theme="light"] .editor-tab.active {
@@ -350,4 +346,35 @@ mark.current-search-match, .current-search-match {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+/* NEW: Styles for the tab context menu */
+#tab-context-menu {
+    min-width: 200px; /* Give the menu a consistent width */
+}
+
+/* NEW: Style the divider in the context menu */
+#tab-context-menu .menu-title {
+    border-top: 1px solid hsl(var(--b3)); /* DaisyUI base-300 color */
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 0;
+}
+
+/* NEW: Style for disabled menu items */
+#tab-context-menu li.disabled {
+    pointer-events: none; /* Make it unclickable */
+    color: hsl(var(--bc) / 0.4); /* Muted text color using DaisyUI base-content at 40% opacity */
+}
+
+/* NEW: Ensure the anchor tag inside a disabled item is also styled correctly */
+#tab-context-menu li.disabled > a {
+    color: inherit; /* Inherit the muted color from the li */
+    background-color: transparent !important; /* Prevent hover/focus styles */
+}
+
+/* NEW: Ensure icons and text are vertically centered in all menu items */
+#tab-context-menu li > a {
+    display: flex;
+    align-items: center;
 }

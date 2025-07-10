@@ -166,7 +166,7 @@ ipcMain.handle('post-data', async (event, data) => {
 			
 			// --- LLM Actions (from node-llm.js) ---
 			case 'refresh_llms':
-				result = await llm_manager.refresh_llms({ api_key_override: data.api_key });
+				result = await llm_manager.refresh_llms();
 				break;
 			case 'get_llm_log':
 				result = llm_manager.get_llm_log();

@@ -1,3 +1,5 @@
+// js/editor.js:
+
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
 import { show_alert } from './modal-alert.js';
@@ -106,7 +108,8 @@ async function closeOtherTabs(keepOpenTabId) {
 	save_open_tabs_state();
 }
 
-async function closeAllTabs() {
+// MODIFIED: Exported the function to be accessible from other modules (e.g., project.js).
+export async function closeAllTabs() {
 	const tabsToClose = tabs.filter(tab => tab.isCloseable);
 	
 	for (const tab of tabsToClose) {
@@ -124,9 +127,16 @@ async function closeAllTabs() {
 				tabToRemove.originalModel.dispose();
 			}
 			tabs.splice(tabIndex, 1);
+			
+			// Also remove from MRU list.
+			const mruIndex = mruTabIds.indexOf(tab.id);
+			if (mruIndex > -1) {
+				mruTabIds.splice(mruIndex, 1);
+			}
 		}
 	}
 	
+	// After closing, try to switch to a non-closeable tab (like 'Prompt') or the first available tab.
 	const newActiveTab = tabs.find(tab => !tab.isCloseable) || tabs[0];
 	if (newActiveTab) {
 		switchToTab(newActiveTab.id);

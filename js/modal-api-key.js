@@ -74,8 +74,7 @@ export function setup_api_key_modal_listeners() {
 		feedback_div.className = 'text-sm mt-2 text-info';
 		
 		try {
-			// We use the 'refresh_llms' action and pass the key to test it.
-			const response = await post_data({ action: 'refresh_llms', api_key: api_key });
+			const response = await post_data({ action: 'refresh_llms' });
 			if (response.success) {
 				feedback_div.textContent = 'Success! Key is valid.';
 				feedback_div.className = 'text-sm mt-2 text-success';

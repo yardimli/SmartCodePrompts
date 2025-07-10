@@ -1,7 +1,8 @@
 // SmartCodePrompts/js/main.js
 
 // --- CORE & STATE IMPORTS ---
-import { post_data } from './utils.js';
+// MODIFIED: Added show_loading and hide_loading for the first-run model fetch.
+import { post_data, show_loading, hide_loading } from './utils.js';
 import { set_content_footer_prompt, set_last_smart_prompt, get_current_project } from './state.js';
 import { update_project_settings } from './settings.js';
 
@@ -14,7 +15,8 @@ import { initialize_api_key_modal, setup_api_key_modal_listeners, update_api_key
 import { setup_analysis_actions_listener } from './analysis.js';
 import { initialize_llm_selector, setup_llm_listeners } from './llm.js';
 import { initialize_status_bar } from './status_bar.js';
-import { load_project, setup_project_listeners } from './project.js';
+// MODIFIED: Added open_project_modal to be called after the about modal closes on first run.
+import { load_project, setup_project_listeners, open_project_modal } from './project.js';
 import { initialize_auto_expand_textarea, setup_prompt_bar_listeners } from './prompt.js';
 import {
 	initialize_resizers,
@@ -142,6 +144,7 @@ function initialize_tab_scroller() {
 
 /**
  * Initializes the entire application on page load.
+ * @returns {Promise<boolean>} A promise that resolves to true if projects exist, false otherwise.
  */
 async function initialize_app() {
 	function adjust_prompt_textarea_height() {
@@ -189,19 +192,74 @@ async function initialize_app() {
 		document.getElementById('prompt-input').value = data.last_smart_prompt || '';
 		adjust_prompt_textarea_height();
 		
-		const last_selected_llms = {
+		// --- NEW: First-run LLM auto-selection ---
+		let llms = data.llms;
+		let last_selected_llms = {
 			analysis: data.last_selected_llm_analysis,
 			smart_prompt: data.last_selected_llm_smart_prompt,
 			qa: data.last_selected_llm_qa,
 			direct_prompt: data.last_selected_llm_direct_prompt
 		};
-		initialize_llm_selector(data.llms, last_selected_llms);
+		
+		// Check for first run (no LLMs in DB) which implies a new install.
+		if (!llms || llms.length === 0) {
+			show_loading('Performing first-time setup: Fetching available models...');
+			try {
+				const response = await post_data({ action: 'refresh_llms' });
+				if (response.success) {
+					llms = response.llms; // Update the llms list with the fresh data
+					
+					// Find the recommended model: contains "google", "gemini", "2.5", and "flash"
+					const recommended_model = llms.find(llm => {
+						const name_lower = llm.name.toLowerCase();
+						return name_lower.includes('google') &&
+							name_lower.includes('gemini') &&
+							name_lower.includes('2.5') &&
+							name_lower.includes('flash');
+					});
+					
+					if (recommended_model) {
+						console.log('Found recommended model for first run:', recommended_model);
+						const model_id = recommended_model.id;
+						
+						// Update the selections object for all dropdowns
+						last_selected_llms.analysis = model_id;
+						last_selected_llms.smart_prompt = model_id;
+						last_selected_llms.qa = model_id;
+						last_selected_llms.direct_prompt = model_id;
+						
+						// Save these new default selections to the server
+						const save_promises = [
+							post_data({ action: 'save_selected_llm', key: 'last_selected_llm_analysis', llm_id: model_id }),
+							post_data({ action: 'save_selected_llm', key: 'last_selected_llm_smart_prompt', llm_id: model_id }),
+							post_data({ action: 'save_selected_llm', key: 'last_selected_llm_qa', llm_id: model_id }),
+							post_data({ action: 'save_selected_llm', key: 'last_selected_llm_direct_prompt', llm_id: model_id })
+						];
+						await Promise.all(save_promises);
+						
+						show_alert(`Recommended model '${recommended_model.name}' has been pre-selected for you.`);
+					}
+				} else {
+					throw new Error(response.error || 'Unknown error during initial model refresh.');
+				}
+			} catch (error) {
+				console.error('Failed to perform initial LLM refresh:', error);
+				show_alert(`Could not fetch LLM models on first run: ${error.message}`, 'Error');
+			} finally {
+				hide_loading();
+			}
+		}
+		// --- END: First-run LLM auto-selection ---
+		
+		initialize_llm_selector(llms, last_selected_llms);
 		initialize_status_bar(data.session_tokens);
 		update_api_key_status(data.api_key_set);
 		
+		let projects_exist = true;
 		const dropdown = document.getElementById('projects-dropdown');
 		dropdown.innerHTML = '';
 		if (!data.projects || data.projects.length === 0) {
+			projects_exist = false;
 			dropdown.innerHTML = '<option value="">No projects found</option>';
 			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please add a project to begin.</p>';
 			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
@@ -231,9 +289,12 @@ async function initialize_app() {
 		} else if (data.projects.length > 0) {
 			await load_project(data.projects[0].path);
 		}
+		
+		return projects_exist;
 	} catch (error) {
 		console.error('Failed to initialize app:', error);
 		show_alert('Could not load application data from the server. Please ensure the server is running and check the console.', 'Initialization Error');
+		return false; // Return false on error
 	}
 }
 
@@ -314,12 +375,27 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_tab_scroller();
 	initialize_tab_switcher();
 	
-	if (!sessionStorage.getItem('aboutModalShown')) {
+	// --- NEW: Handle first-run "About" modal and subsequent "Add Project" prompt ---
+	const is_first_run_view = !sessionStorage.getItem('aboutModalShown');
+	if (is_first_run_view) {
 		open_about_modal();
 		sessionStorage.setItem('aboutModalShown', 'true');
 	}
 	
-	await initialize_app();
+	const projects_exist = await initialize_app();
+	
+	// If this was the first time the user saw the "About" modal AND no projects are set up,
+	// then prompt them to add a project when they close the modal.
+	if (is_first_run_view && !projects_exist) {
+		const about_modal = document.getElementById('about_modal');
+		if (about_modal) {
+			about_modal.addEventListener('close', () => {
+				console.log('About modal closed on first run with no projects. Prompting to add one.');
+				open_project_modal();
+			}, { once: true }); // Only fire this listener once.
+		}
+	}
+	// --- END: New logic ---
 	
 	setup_about_modal_listeners();
 	setup_log_modal_listeners();

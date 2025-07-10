@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const {db} = require('./node-config');
-const { get_default_settings_yaml, get_default_settings_object } = require('./node-config');
+const { get_default_settings_yaml } = require('./node-config');
 
 /**
  * Adds a new project to the database.
@@ -45,7 +45,7 @@ function ensure_settings_file_exists(project_path) {
  * @returns {object} The complete settings object.
  */
 function get_project_settings(project_path) {
-	const default_settings = get_default_settings_object();
+	const default_settings = get_default_settings_yaml();
 	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 	
 	if (!fs.existsSync(settings_file_path)) {

@@ -72,29 +72,16 @@ function create_tables () {
     `);
 }
 
-// Loads the default project settings from default-settings.yaml.
-function get_default_settings_object() {
-	try {
-		const yamlPath = path.join(__dirname, 'default-settings.yaml');
-		const fileContents = fs.readFileSync(yamlPath, 'utf8');
-		const settings = yaml.load(fileContents);
-		if (!settings) {
-			throw new Error("default-settings.yaml is empty or invalid.");
-		}
-		return settings;
-	} catch (error) {
-		console.error("FATAL: Could not read or parse default-settings.yaml. Make sure the file exists and is valid YAML.", error);
-		// The application cannot function without its default settings, so we exit.
-		process.exit(1);
-	}
-}
 
 // This is used to create new project-specific settings files.
 function get_default_settings_yaml() {
 	try {
 		const yamlPath = path.join(__dirname, 'default-settings.yaml');
-		const settings_obj = get_default_settings_object();
-		return yaml.dump(settings_obj);
+		if (!fs.existsSync(yamlPath)) {
+			throw new Error("default-settings.yaml does not exist.");
+		}
+		const yamlContent = fs.readFileSync(yamlPath, 'utf8');
+		return yamlContent;
 	} catch (error) {
 		console.error("FATAL: Could not read default-settings.yaml. Make sure the file exists in the application directory.", error);
 		process.exit(1);
@@ -270,7 +257,6 @@ module.exports = {
 	initialize_database_and_config,
 	load_config_from_db,
 	get_default_settings_yaml,
-	get_default_settings_object,
 	set_dark_mode,
 	setright_sidebar_collapsed,
 	save_api_key,

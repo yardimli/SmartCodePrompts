@@ -13,27 +13,24 @@ const {reanalysis_progress, auto_select_progress} = require('./node-llm-tasks');
  * @param {string|null} [options.api_key_override=null] - An API key to test. If provided, models are not saved to the DB.
  * @returns {Promise<object>} A promise that resolves to an object containing the new list of LLMs.
  */
-async function refresh_llms ({api_key_override = null} = {}) {
-	const model_data = await fetch_open_router_models(api_key_override);
+async function refresh_llms () {
+	const model_data = await fetch_open_router_models();
 	const models = model_data.data || [];
 	
-	// Only save the models to the database if we are not just testing a key.
-	if (!api_key_override) {
-		const insert = db.prepare('INSERT OR REPLACE INTO llms (id, name, context_length, prompt_price, completion_price) VALUES (@id, @name, @context_length, @prompt_price, @completion_price)');
-		const transaction = db.transaction((models_to_insert) => {
-			db.exec('DELETE FROM llms');
-			for (const model of models_to_insert) {
-				insert.run({
-					id: model.id,
-					name: model.name,
-					context_length: model.context_length,
-					prompt_price: parseFloat(model.pricing.prompt),
-					completion_price: parseFloat(model.pricing.completion)
-				});
-			}
-		});
-		transaction(models);
-	}
+	const insert = db.prepare('INSERT OR REPLACE INTO llms (id, name, context_length, prompt_price, completion_price) VALUES (@id, @name, @context_length, @prompt_price, @completion_price)');
+	const transaction = db.transaction((models_to_insert) => {
+		db.exec('DELETE FROM llms');
+		for (const model of models_to_insert) {
+			insert.run({
+				id: model.id,
+				name: model.name,
+				context_length: model.context_length,
+				prompt_price: parseFloat(model.pricing.prompt),
+				completion_price: parseFloat(model.pricing.completion)
+			});
+		}
+	});
+	transaction(models);
 	
 	const new_llms = db.prepare('SELECT id, name FROM llms ORDER BY name ASC').all();
 	return {success: true, llms: new_llms};

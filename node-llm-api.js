@@ -35,12 +35,7 @@ function log_llm_interaction (prompt, response, is_error = false) {
  * @param {string|null} [api_key_override=null] - An optional API key to use for this call, for testing purposes.
  * @returns {Promise<object>} A promise that resolves to the parsed JSON response from OpenRouter.
  */
-async function fetch_open_router_models (api_key_override = null) {
-	const api_key = api_key_override || config.openrouter_api_key;
-	if (!api_key) {
-		throw new Error('OpenRouter API key is not configured.');
-	}
-	
+async function fetch_open_router_models () {
 	return new Promise((resolve, reject) => {
 		const options = {
 			hostname: 'openrouter.ai',
@@ -50,7 +45,6 @@ async function fetch_open_router_models (api_key_override = null) {
 				'Accept': 'application/json',
 				'HTTP-Referer': 'https://smartcodeprompts.com',
 				'X-Title': 'Smart Code Prompts',
-				'Authorization': `Bearer ${api_key}`
 			}
 		};
 		const req = https.request(options, (res) => {

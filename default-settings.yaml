@@ -9,8 +9,6 @@
 # --- LLM PROMPTS ---
 # Use ${file_path}, ${file_content}, ${user_prompt}, etc. as placeholders.
 
-openrouter_api_key: YOUR_API_KEY_HERE
-
 allowed_extensions:
   - js
   - jsx

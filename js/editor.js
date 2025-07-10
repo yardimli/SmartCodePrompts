@@ -3,6 +3,7 @@
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
 import { show_alert } from './modal-alert.js'; // NEW
+import {show_confirm} from './modal-confirm.js';
 import { update_project_settings } from './settings.js'; // NEW
 
 let editor = null;
@@ -528,6 +529,25 @@ export function initialize_editor(is_dark_mode) {
 				}
 			};
 			editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
+			
+			// Ctrl+F4 to close the active tab, but if it is modified, prompt the user.
+			const closeTabCommand = () => {
+				if (activeTabId) {
+					const tab = findTab(activeTabId);
+					if (tab && tab.isModified) {
+						show_confirm(`The file "${tab.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes')
+							.then(confirmed => {
+								if (confirmed) {
+									closeTab(activeTabId);
+								}
+							});
+					} else {
+						closeTab(activeTabId);
+					}
+				}
+			}
+			editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.F4, closeTabCommand);
+			
 			diffEditor.getModifiedEditor().addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
 			
 			

@@ -152,6 +152,11 @@
     max-width: calc(100% - 75px);
 }
 
+#right-sidebar {
+    min-width: 280px;
+    flex-basis: 280px; /* Ensures the sidebar has a minimum width */
+}
+
 #app-container.right-sidebar-collapsed #right-sidebar {
     display: none;
 }

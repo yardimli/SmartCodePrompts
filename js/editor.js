@@ -270,7 +270,7 @@ export function switchToTab(tabId) {
 			if (newTab.viewState) {
 				diffEditor.restoreViewState(newTab.viewState);
 			}
-			diffEditor.getModifiedEditor().focus();
+			diffEditor.getModifiedEditor().focus(); // Focus the editor
 			
 		} else {
 			// This is a regular tab
@@ -282,10 +282,21 @@ export function switchToTab(tabId) {
 			if (newTab.viewState) {
 				editor.restoreViewState(newTab.viewState);
 			}
-			editor.focus();
+			editor.focus(); // Focus the editor
 		}
 		
 		renderTabs();
+		
+		// NEW: Scroll the active tab into view if it's outside the visible area.
+		const activeTabEl = document.querySelector(`.editor-tab[data-tab-id="${tabId}"]`);
+		if (activeTabEl) {
+			activeTabEl.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+				inline: 'nearest'
+			});
+		}
+		
 		updateSaveButtonState(); // NEW: Update save button state on tab switch.
 	}
 }

@@ -3,11 +3,13 @@ import {show_loading, hide_loading, post_data} from './utils.js';
 import {get_current_project, save_current_project_state} from './state.js';
 import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
 import {show_alert} from './modal-alert.js';
+import { openFileInTab } from './editor.js'; // NEW: Import function to open files in tabs.
 
 let search_modal = null;
 let current_project_search_results = [];
 let current_search_matches = [];
 let current_search_match_index = -1;
+let last_search_term = ''; // NEW: To remember the last search term.
 
 /**
  * Initializes the search modal element reference.
@@ -16,12 +18,43 @@ export function initialize_search_modal () {
 	search_modal = document.getElementById('search_modal');
 };
 
+/**
+ * NEW: Opens a file from the search results in a new editor tab.
+ * @param {string} filePath The path of the file to open.
+ */
+async function open_file_from_search(filePath) {
+	search_modal.close();
+	show_loading(`Opening ${filePath}...`);
+	try {
+		const current_project = get_current_project();
+		if (!current_project) {
+			throw new Error('No project is currently selected.');
+		}
+		const data = await post_data({
+			action: 'get_file_for_editor',
+			project_path: current_project.path,
+			path: filePath
+		});
+		
+		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
+		
+		// Pass null for originalContent to ensure a normal (non-diff) tab is opened.
+		openFileInTab(filePath, currentContent, null);
+		
+	} catch (error) {
+		console.error(`Error opening file ${filePath}:`, error);
+		show_alert(`Error opening file ${filePath}: ${error.message}`, 'Error');
+	} finally {
+		hide_loading();
+	}
+}
+
 function escape_html (str) {
 	if (typeof str !== 'string') {
 		return '';
 	}
-	return str.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return str.replace(/</g, '<')
+		.replace(/>/g, '>');
 }
 
 function highlight_current_match () {
@@ -161,10 +194,15 @@ async function show_search_preview (file_path, search_term) {
  * Sets up event listeners for the project-wide search modal.
  */
 export function setup_search_modal_listeners () {
+	// MODIFIED: The listener for opening the search modal.
 	document.getElementById('project-search-button').addEventListener('click', (e) => {
 		e.preventDefault();
-		// Reset the entire search UI when opening the modal.
-		document.getElementById('search_term_input').value = '';
+		
+		// MODIFIED: Set the input value to the last search term.
+		const search_input = document.getElementById('search_term_input');
+		search_input.value = last_search_term;
+		
+		// Reset the rest of the UI, but keep the search term in the input.
 		document.getElementById('search-results-list').innerHTML = '<p class="text-base-content/60 text-center font-sans text-sm">Enter a search term and click "Find".</p>';
 		document.getElementById('search-preview-title').textContent = 'Select a file to preview';
 		document.getElementById('search-preview-content').textContent = '';
@@ -173,8 +211,15 @@ export function setup_search_modal_listeners () {
 		current_project_search_results = [];
 		current_search_matches = [];
 		current_search_match_index = -1;
+		
 		search_modal.showModal();
-		document.getElementById('search_term_input').focus();
+		search_input.focus();
+		search_input.select(); // Select the text for easy replacement.
+		
+		// NEW: Automatically perform search if there's a remembered term.
+		if (last_search_term.trim()) {
+			perform_search();
+		}
 	});
 	
 	const perform_search = async () => {
@@ -191,6 +236,8 @@ export function setup_search_modal_listeners () {
 			check_button.disabled = true;
 			return;
 		}
+		
+		last_search_term = search_term; // NEW: Remember the search term.
 		
 		results_list.innerHTML = '<div class="text-center"><span class="loading loading-spinner"></span> Searching...</div>';
 		check_button.disabled = true;
@@ -215,7 +262,8 @@ export function setup_search_modal_listeners () {
                 `).join('');
 				check_button.disabled = false;
 			} else {
-				results_list.innerHTML = `<p class="text-base-content/80 text-center">No files found containing "${search_term}".</p>`;
+				// MODIFIED: Escaped the search term to prevent potential HTML injection.
+				results_list.innerHTML = `<p class="text-base-content/80 text-center">No files found containing "${escape_html(search_term)}".</p>`;
 			}
 		} catch (error) {
 			results_list.innerHTML = `<p class="text-error text-center">Search failed: ${error.message || 'Unknown error'}</p>`;
@@ -242,6 +290,17 @@ export function setup_search_modal_listeners () {
 			
 			if (file_path && search_term) {
 				show_search_preview(file_path, search_term);
+			}
+		}
+	});
+	
+	// NEW: Add a double-click listener to open the file directly.
+	document.getElementById('search-results-list').addEventListener('dblclick', e => {
+		const item = e.target.closest('.search-result-item');
+		if (item) {
+			const file_path = item.dataset.path;
+			if (file_path) {
+				open_file_from_search(file_path);
 			}
 		}
 	});

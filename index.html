@@ -150,7 +150,7 @@
 	</div>
 	
 	<!-- Right Settings Sidebar -->
-	<aside class="w-80 p-4 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar">
+	<aside class="p-2 border-l border-base-300 bg-base-200 overflow-y-auto" id="right-sidebar">
 		<div class="space-y-4">
 			<div class="form-control">
 				<label class="label"><span class="label-text">Project</span></label>
@@ -168,19 +168,17 @@
 				        title="Scans for files changed since their last analysis and re-analyzes only those.">
 					<i class="bi bi-file-earmark-diff me-2"></i>Re-analyze Modified
 				</button>
+				<button id="api-key-modal-button" class="btn btn-primary btn-sm" title="Set API Key">
+					<i class="bi bi-key-fill"></i> Set API Key
+				</button>
+				<button id="refresh-llms" class="btn btn-info btn-sm" title="Refresh LLM List">
+					<i class="bi bi-arrow-clockwise"></i> Refresh Models
+				</button>
+			
 			</div>
 			
 			<div class="divider"></div>
 			
-			<!-- MODIFIED: Wrapped buttons for better alignment -->
-			<div class="flex justify-between items-center -mb-2">
-				<button id="api-key-modal-button" class="btn btn-xs btn-ghost" title="Set API Key">
-					<i class="bi bi-key-fill"></i> Set API Key
-				</button>
-				<button id="refresh-llms" class="btn btn-xs btn-ghost" title="Refresh LLM List">
-					<i class="bi bi-arrow-clockwise"></i> Refresh Models
-				</button>
-			</div>
 			<div class="form-control">
 				<label class="label py-1"><span class="label-text text-xs">Analysis & Re-analysis</span></label>
 				<select id="llm-dropdown-analysis" class="select select-bordered select-sm w-full" title="Select LLM for Analysis"></select>

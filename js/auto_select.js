@@ -52,7 +52,7 @@ export async function handle_auto_select_click () {
 	}
 	
 	const confirmed = await show_confirm(
-		'This will expand all folders and use an LLM to identify project-specific source files. This may incur costs. Do you want to continue?',
+		'This will expand all folders and use an LLM to identify project-specific source files from the list of unanalyzed files. This may incur costs. Do you want to continue?',
 		'Auto-Select Project Files'
 	);
 	if (!confirmed) return;
@@ -64,7 +64,18 @@ export async function handle_auto_select_click () {
 		show_alert('No files found in the project to select from.');
 		return;
 	}
-	const all_file_paths = Array.from(all_file_checkboxes).map(cb => cb.dataset.path);
+	
+	// Filter out files that have already been analyzed.
+	const unanalyzed_checkboxes = Array.from(all_file_checkboxes).filter(
+		cb => cb.dataset.has_analysis !== 'true'
+	);
+	
+	if (unanalyzed_checkboxes.length === 0) {
+		show_alert('All files in the project have already been analyzed. There are no new files for auto-selection.');
+		return;
+	}
+	
+	const unanalyzed_file_paths = unanalyzed_checkboxes.map(cb => cb.dataset.path);
 	
 	let poll_interval;
 	const stop_callback = () => {
@@ -79,7 +90,7 @@ export async function handle_auto_select_click () {
 	post_data({
 		action: 'identify_project_files',
 		project_path: current_project.path,
-		all_files: JSON.stringify(all_file_paths),
+		all_files: JSON.stringify(unanalyzed_file_paths),
 		llm_id: llm_id,
 		temperature: parseFloat(temperature)
 	}).catch(error => {

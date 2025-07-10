@@ -3,7 +3,7 @@ import { post_data } from './utils.js';
 import { show_alert } from './modal-alert.js';
 import { get_editor_content, createNewTab, setTabContent, appendToTabContent } from './editor.js';
 import { get_all_settings } from './settings.js';
-import { get_current_project } from './state.js'; // NEW: Import project state
+import { get_current_project } from './state.js';
 
 let responseTabId = null;
 let responseTabCounter = 0;
@@ -11,7 +11,7 @@ let responseTabCounter = 0;
 /**
  * Handles the direct prompt submission by taking content from the main
  * editor, sending it to the LLM, and streaming the response into a new editor tab.
- * MODIFIED: Streams response to a new Monaco Editor tab.
+ * Streams response to a new Monaco Editor tab.
  */
 async function handle_direct_prompt() {
 	const prompt_content = get_editor_content().trim(); // Get content from active editor tab
@@ -22,14 +22,13 @@ async function handle_direct_prompt() {
 	
 	const llm_id = document.getElementById('llm-dropdown-direct-prompt').value;
 	const temperature = document.getElementById('temperature-slider').value;
-	const current_project = get_current_project(); // NEW: Get the current project
+	const current_project = get_current_project()
 	
 	if (!llm_id) {
 		show_alert('Please select an LLM for Direct Prompts before sending a prompt.');
 		return;
 	}
 	
-	// NEW: A project must be selected because the API key is project-specific.
 	if (!current_project) {
 		show_alert('Please select a project before sending a direct prompt.');
 		return;
@@ -53,8 +52,7 @@ async function handle_direct_prompt() {
 			action: 'direct_prompt_stream',
 			prompt: prompt_content,
 			llm_id: llm_id,
-			project_path: current_project.path, // NEW: Pass the project path
-			// REMOVED: project_settings is no longer sent from the frontend.
+			project_path: current_project.path,
 			temperature: parseFloat(temperature)
 		});
 		

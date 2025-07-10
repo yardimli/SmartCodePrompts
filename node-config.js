@@ -1,6 +1,6 @@
 // SmartCodePrompts/node-config.js
 const path = require('path');
-const fs = require('fs'); // NEW: For reading files from the disk
+const fs = require('fs');
 const Database = require('better-sqlite3');
 const yaml = require('js-yaml');
 
@@ -81,9 +81,6 @@ function get_default_settings_object() {
 		if (!settings) {
 			throw new Error("default-settings.yaml is empty or invalid.");
 		}
-		// MODIFIED: The API key is no longer part of the project settings.
-		// It's managed globally in the app_settings table.
-		delete settings.openrouter_api_key;
 		return settings;
 	} catch (error) {
 		console.error("FATAL: Could not read or parse default-settings.yaml. Make sure the file exists and is valid YAML.", error);
@@ -96,8 +93,6 @@ function get_default_settings_object() {
 function get_default_settings_yaml() {
 	try {
 		const yamlPath = path.join(__dirname, 'default-settings.yaml');
-		// MODIFIED: We load the object and remove the key before converting back to YAML
-		// to ensure new projects don't get the old API key field.
 		const settings_obj = get_default_settings_object();
 		return yaml.dump(settings_obj);
 	} catch (error) {
@@ -124,7 +119,6 @@ function set_default_app_settings () {
 		initSettings_stmt.run('total_completion_tokens', '0');
 		initSettings_stmt.run('right_sidebar_collapsed', 'false');
 		initSettings_stmt.run('file_tree_width', '300');
-		// NEW: Add a setting for the global OpenRouter API key.
 		initSettings_stmt.run('openrouter_api_key', '');
 	});
 	transaction();
@@ -193,7 +187,7 @@ function setright_sidebar_collapsed (is_collapsed) {
 }
 
 /**
- * NEW: Saves the global OpenRouter API key to the database.
+ * Saves the global OpenRouter API key to the database.
  * @param {string} api_key - The API key to save.
  */
 function save_api_key(api_key) {
@@ -261,7 +255,6 @@ function get_main_page_data () {
 		last_selected_llm_qa: app_settings.last_selected_llm_qa || '',
 		last_selected_llm_direct_prompt: app_settings.last_selected_llm_direct_prompt || '',
 		last_smart_prompt: app_settings.last_smart_prompt || '',
-		// NEW: Send a boolean indicating if the API key is set, not the key itself.
 		api_key_set: !!app_settings.openrouter_api_key,
 		session_tokens: {
 			prompt: parseInt(prompt_tokens, 10),
@@ -275,12 +268,12 @@ module.exports = {
 	db,
 	config,
 	initialize_database_and_config,
-	load_config_from_db, // NEW: Export for use after saving settings
+	load_config_from_db,
 	get_default_settings_yaml,
 	get_default_settings_object,
 	set_dark_mode,
 	setright_sidebar_collapsed,
-	save_api_key, // NEW: Export the save function
+	save_api_key,
 	save_last_smart_prompt,
 	save_file_tree_width,
 	get_main_page_data,

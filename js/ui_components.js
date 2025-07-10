@@ -2,7 +2,6 @@
 import {post_data} from './utils.js';
 import {update_selected_content} from './file_tree.js';
 import {show_alert} from './modal-alert.js';
-// NEW: Import editor functions
 import { get_editor_content, set_editor_theme } from './editor.js';
 
 /**
@@ -120,15 +119,13 @@ export function setup_ui_event_listeners() {
 		});
 	});
 	
-	// Dark mode toggle listener.
-	// MODIFIED: Also toggles the Monaco Editor theme.
+	// Dark mode toggle listener. Also toggles the Monaco Editor theme.
 	document.getElementById('toggle-mode').addEventListener('click', function () {
 		const html = document.documentElement;
 		const is_dark_mode = html.getAttribute('data-theme') === 'dark';
 		const new_theme = is_dark_mode ? 'light' : 'dark';
 		html.setAttribute('data-theme', new_theme);
 		
-		// NEW: Update editor theme
 		set_editor_theme(!is_dark_mode);
 		
 		const highlight_theme_link = document.getElementById('highlight-js-theme');

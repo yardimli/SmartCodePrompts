@@ -7,7 +7,6 @@ import { show_diff_modal } from './modal-diff.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
 import { get_all_settings } from './settings.js';
-// NEW: Import modals for user interaction in the context menu.
 import { show_confirm } from './modal-confirm.js';
 import { show_prompt } from './modal-prompt.js';
 import { show_alert } from './modal-alert.js';
@@ -16,7 +15,7 @@ import { show_alert } from './modal-alert.js';
 let cached_file_content_string = '';
 // A handle for the file tree update polling interval.
 let file_tree_update_interval = null;
-// NEW: State for the file tree context menu.
+// State for the file tree context menu.
 let contextMenuTargetPath = null;
 
 /**
@@ -436,7 +435,35 @@ async function handle_file_click(filePath) {
 	}
 }
 
-// NEW: This function sets up all the click handlers for the file tree context menu items.
+/**
+ * Refreshes the contents of a specific folder in the file tree UI.
+ * This is used after file operations like create, delete, or rename to update the view immediately,
+ * without waiting for the polling mechanism.
+ * @param {string} folderPath - The path of the folder to refresh. Use '.' for the root.
+ */
+async function refresh_folder_view (folderPath) {
+	const pathToRefresh = folderPath || '.'; // Default to root if path is null/undefined
+	
+	// Find the DOM element for the folder.
+	const folderElement = (pathToRefresh === '.')
+		? null // For the root, there is no specific folder element, so we pass null to load_folders.
+		: document.querySelector(`#file-tree .folder[data-path="${pathToRefresh}"]`);
+	
+	// If we are refreshing a subfolder, we only need to do so if it's currently open.
+	// If it's closed, the new content will be loaded automatically when it's next opened.
+	// If we are refreshing the root, we always proceed. Note that this will collapse any open subfolders.
+	if (pathToRefresh === '.' || (folderElement && folderElement.classList.contains('open'))) {
+		try {
+			// `load_folders` will handle removing the old list of files/folders and loading the new one.
+			await load_folders(pathToRefresh, folderElement);
+		} catch (error) {
+			console.error(`Failed to refresh folder view for "${pathToRefresh}":`, error);
+			show_alert(`Could not refresh the file tree for "${pathToRefresh}".`, 'Error');
+		}
+	}
+}
+
+// This function sets up all the click handlers for the file tree context menu items.
 function initialize_file_tree_context_menu() {
 	const menu = document.getElementById('file-tree-context-menu');
 	if (!menu) return;
@@ -455,6 +482,8 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: newFilePath
 				});
+
+				await refresh_folder_view(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
 			}
@@ -471,6 +500,8 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: filename // Path is just the filename for root
 				});
+
+				await refresh_folder_view('.');
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
 			}
@@ -488,6 +519,8 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					folder_path: newFolderPath
 				});
+
+				await refresh_folder_view(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to create folder: ${error.message}`, 'Error');
 			}
@@ -500,8 +533,9 @@ function initialize_file_tree_context_menu() {
 		const currentName = contextMenuTargetPath.split('/').pop();
 		const newName = await show_prompt('Enter the new name:', 'Rename', currentName);
 		if (newName && newName !== currentName) {
-			const parentPath = get_parent_path(contextMenuTargetPath);
-			const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+			// Determine parent path, defaulting to '.' for root items.
+			const parentPath = get_parent_path(contextMenuTargetPath) || '.';
+			const newPath = parentPath === '.' ? newName : `${parentPath}/${newName}`;
 			try {
 				await post_data({
 					action: 'rename_path',
@@ -509,6 +543,8 @@ function initialize_file_tree_context_menu() {
 					old_path: contextMenuTargetPath,
 					new_path: newPath
 				});
+
+				await refresh_folder_view(parentPath);
 			} catch (error) {
 				show_alert(`Failed to rename: ${error.message}`, 'Error');
 			}
@@ -520,12 +556,16 @@ function initialize_file_tree_context_menu() {
 		if (!contextMenuTargetPath) return;
 		const confirmed = await show_confirm(`Are you sure you want to permanently delete "${contextMenuTargetPath}"? This cannot be undone.`, 'Confirm Deletion');
 		if (confirmed) {
+			// Determine parent path before deletion to use for refresh.
+			const parentPath = get_parent_path(contextMenuTargetPath) || '.';
 			try {
 				await post_data({
 					action: 'delete_path',
 					project_path: get_current_project().path,
 					path_to_delete: contextMenuTargetPath
 				});
+
+				await refresh_folder_view(parentPath);
 			} catch (error) {
 				show_alert(`Failed to delete: ${error.message}`, 'Error');
 			}
@@ -543,6 +583,9 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: contextMenuTargetPath
 				});
+
+				const parentPath = get_parent_path(contextMenuTargetPath) || '.';
+				await refresh_folder_view(parentPath);
 			} catch (error) {
 				show_alert(`Failed to reset file: ${error.message}`, 'Error');
 			}
@@ -557,7 +600,6 @@ function initialize_file_tree_context_menu() {
  */
 export function setup_file_tree_listeners () {
 	const file_tree = document.getElementById('file-tree');
-	// NEW: Initialize the context menu handlers once.
 	initialize_file_tree_context_menu();
 	
 	file_tree.addEventListener('click', async (e) => {
@@ -643,7 +685,6 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
-	// NEW: Add a context menu listener to the file tree.
 	file_tree.addEventListener('contextmenu', (e) => {
 		const target = e.target.closest('.folder, .file-entry');
 		if (!target) {
@@ -678,7 +719,6 @@ export function setup_file_tree_listeners () {
 		menu.classList.remove('hidden');
 	});
 	
-	// NEW: Add a global click listener to hide the context menu when clicking elsewhere.
 	document.addEventListener('click', () => {
 		const menu = document.getElementById('file-tree-context-menu');
 		if (menu) {

@@ -39,7 +39,7 @@ function ensure_settings_file_exists(project_path) {
 }
 
 /**
- * NEW: Reads, parses, and returns the settings for a specific project.
+ * Reads, parses, and returns the settings for a specific project.
  * Merges project-specific settings over default settings to ensure a complete object.
  * @param {string} project_path - The full path of the project.
  * @returns {object} The complete settings object.
@@ -185,5 +185,5 @@ module.exports = {
 	save_project_state,
 	save_open_tabs,
 	validate_and_save_settings,
-	get_project_settings, // NEW
+	get_project_settings,
 };

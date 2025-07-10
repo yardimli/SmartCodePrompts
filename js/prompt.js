@@ -146,7 +146,6 @@ async function handle_smart_prompt_submission(prompt_text) {
 				await perform_smart_prompt(prompt_text);
 			}, {once: true});
 			
-			// MODIFIED: Add a one-time listener to re-analyze then run, using the new polling-based function.
 			new_reanalyze_and_run_btn.addEventListener('click', async () => {
 				modal.close();
 				try {
@@ -170,7 +169,7 @@ async function handle_smart_prompt_submission(prompt_text) {
 	} catch (error) {
 		hide_loading();
 		console.error('Failed to check for modified files:', error);
-		// MODIFIED: Use custom confirm modal instead of native confirm().
+
 		const confirmed = await show_confirm(`Could not check for modified files: ${error.message}\n\nDo you want to run the prompt anyway?`, 'Error Checking Files');
 		if (confirmed) {
 			await perform_smart_prompt(prompt_text);
@@ -188,7 +187,6 @@ export function setup_prompt_bar_listeners() {
 	// Debounced listener for the prompt input to update content and save state.
 	let prompt_input_debounce_timer;
 	prompt_input.addEventListener('input', (e) => {
-		// NEW: Automatically switch to the 'Prompt' tab when the user starts typing.
 		const promptTabId = getPromptTabId();
 		if (promptTabId && getActiveTabId() !== promptTabId) {
 			switchToTab(promptTabId);

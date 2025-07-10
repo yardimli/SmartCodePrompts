@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	postData: (data) => ipcRenderer.invoke('post-data', data),
 	
 	/**
-	 * NEW: Sends a request to the main process to update the main window's title.
+	 * Sends a request to the main process to update the main window's title.
 	 * This is a one-way message and does not return a promise.
 	 * @param {string} title - The new title for the window.
 	 */

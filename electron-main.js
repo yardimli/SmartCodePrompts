@@ -297,7 +297,6 @@ ipcMain.handle('post-data', async (event, data) => {
 					project_path: data.project_path
 				});
 				break;
-			// NEW: Add cases for the new file operations.
 			case 'create_file':
 				result = node_files.create_file(data);
 				break;

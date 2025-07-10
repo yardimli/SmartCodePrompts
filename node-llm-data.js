@@ -4,8 +4,8 @@
  */
 
 const {db} = require('./node-config');
-const {fetch_open_router_models} = require('./node-llm-api'); // NEW: Import from API module
-const {reanalysis_progress, auto_select_progress} = require('./node-llm-tasks'); // NEW: Import state from tasks module
+const {fetch_open_router_models} = require('./node-llm-api');
+const {reanalysis_progress, auto_select_progress} = require('./node-llm-tasks');
 
 /**
  * Refreshes the local list of LLMs from OpenRouter. Can also be used to test a key.

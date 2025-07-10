@@ -21,7 +21,6 @@ export function initialize_prompt_modal() {
 	prompt_modal_input = document.getElementById('prompt-modal-input');
 	confirm_btn = document.getElementById('prompt-modal-confirm-btn');
 	cancel_btn = document.getElementById('prompt-modal-cancel-btn');
-	// MODIFIED: Use the form for better UX (e.g., Enter key submission).
 	form = prompt_modal ? prompt_modal.querySelector('form.modal-box-form') : null;
 	
 	if (!prompt_modal || !confirm_btn || !cancel_btn || !prompt_modal_input || !form) {

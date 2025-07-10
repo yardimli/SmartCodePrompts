@@ -319,7 +319,6 @@ function check_for_modified_files({project_path}) {
 	};
 }
 
-// NEW: Function to create a new, empty file.
 function create_file({ project_path, file_path }) {
 	const full_path = resolve_path(file_path, project_path);
 	try {
@@ -336,7 +335,6 @@ function create_file({ project_path, file_path }) {
 	}
 }
 
-// NEW: Function to create a new folder.
 function create_folder({ project_path, folder_path }) {
 	const full_path = resolve_path(folder_path, project_path);
 	try {
@@ -351,7 +349,6 @@ function create_folder({ project_path, folder_path }) {
 	}
 }
 
-// NEW: Function to rename a file or folder.
 function rename_path({ project_path, old_path, new_path }) {
 	const full_old_path = resolve_path(old_path, project_path);
 	const full_new_path = resolve_path(new_path, project_path);
@@ -372,7 +369,6 @@ function rename_path({ project_path, old_path, new_path }) {
 	}
 }
 
-// NEW: Function to delete a file or folder.
 function delete_path({ project_path, path_to_delete }) {
 	const full_path = resolve_path(path_to_delete, project_path);
 	try {
@@ -389,7 +385,6 @@ function delete_path({ project_path, path_to_delete }) {
 	}
 }
 
-// NEW: Function to reset a file's changes using Git.
 function git_reset_file({ project_path, file_path }) {
 	if (!isGitRepository(project_path)) {
 		throw new Error('Project is not a Git repository.');
@@ -420,7 +415,6 @@ module.exports = {
 	check_folder_updates,
 	check_for_modified_files,
 	get_file_for_editor,
-	// NEW: Export the new file operation functions.
 	create_file,
 	create_folder,
 	rename_path,

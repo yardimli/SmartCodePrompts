@@ -3,13 +3,13 @@ import {show_loading, hide_loading, post_data} from './utils.js';
 import {get_current_project, save_current_project_state} from './state.js';
 import {ensure_file_is_visible, update_selected_content} from './file_tree.js';
 import {show_alert} from './modal-alert.js';
-import { openFileInTab } from './editor.js'; // NEW: Import function to open files in tabs.
+import { openFileInTab } from './editor.js';
 
 let search_modal = null;
 let current_project_search_results = [];
 let current_search_matches = [];
 let current_search_match_index = -1;
-let last_search_term = ''; // NEW: To remember the last search term.
+let last_search_term = '';
 
 /**
  * Initializes the search modal element reference.
@@ -19,7 +19,7 @@ export function initialize_search_modal () {
 };
 
 /**
- * NEW: Opens a file from the search results in a new editor tab.
+ * Opens a file from the search results in a new editor tab.
  * @param {string} filePath The path of the file to open.
  */
 async function open_file_from_search(filePath) {
@@ -194,11 +194,9 @@ async function show_search_preview (file_path, search_term) {
  * Sets up event listeners for the project-wide search modal.
  */
 export function setup_search_modal_listeners () {
-	// MODIFIED: The listener for opening the search modal.
 	document.getElementById('project-search-button').addEventListener('click', (e) => {
 		e.preventDefault();
 		
-		// MODIFIED: Set the input value to the last search term.
 		const search_input = document.getElementById('search_term_input');
 		search_input.value = last_search_term;
 		
@@ -216,7 +214,6 @@ export function setup_search_modal_listeners () {
 		search_input.focus();
 		search_input.select(); // Select the text for easy replacement.
 		
-		// NEW: Automatically perform search if there's a remembered term.
 		if (last_search_term.trim()) {
 			perform_search();
 		}
@@ -237,7 +234,7 @@ export function setup_search_modal_listeners () {
 			return;
 		}
 		
-		last_search_term = search_term; // NEW: Remember the search term.
+		last_search_term = search_term;
 		
 		results_list.innerHTML = '<div class="text-center"><span class="loading loading-spinner"></span> Searching...</div>';
 		check_button.disabled = true;
@@ -262,7 +259,6 @@ export function setup_search_modal_listeners () {
                 `).join('');
 				check_button.disabled = false;
 			} else {
-				// MODIFIED: Escaped the search term to prevent potential HTML injection.
 				results_list.innerHTML = `<p class="text-base-content/80 text-center">No files found containing "${escape_html(search_term)}".</p>`;
 			}
 		} catch (error) {
@@ -294,7 +290,6 @@ export function setup_search_modal_listeners () {
 		}
 	});
 	
-	// NEW: Add a double-click listener to open the file directly.
 	document.getElementById('search-results-list').addEventListener('dblclick', e => {
 		const item = e.target.closest('.search-result-item');
 		if (item) {

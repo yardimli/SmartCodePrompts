@@ -348,12 +348,12 @@ mark.current-search-match, .current-search-match {
     user-select: none;
 }
 
-/* NEW: Styles for the tab context menu */
+/* Styles for the tab context menu */
 #tab-context-menu {
     min-width: 200px; /* Give the menu a consistent width */
 }
 
-/* NEW: Style the divider in the context menu */
+/* Style the divider in the context menu */
 #tab-context-menu .menu-title {
     border-top: 1px solid hsl(var(--b3)); /* DaisyUI base-300 color */
     margin-top: 4px;
@@ -361,19 +361,19 @@ mark.current-search-match, .current-search-match {
     padding: 0;
 }
 
-/* NEW: Style for disabled menu items */
+/* Style for disabled menu items */
 #tab-context-menu li.disabled {
     pointer-events: none; /* Make it unclickable */
     color: hsl(var(--bc) / 0.4); /* Muted text color using DaisyUI base-content at 40% opacity */
 }
 
-/* NEW: Ensure the anchor tag inside a disabled item is also styled correctly */
+/* Ensure the anchor tag inside a disabled item is also styled correctly */
 #tab-context-menu li.disabled > a {
     color: inherit; /* Inherit the muted color from the li */
     background-color: transparent !important; /* Prevent hover/focus styles */
 }
 
-/* NEW: Ensure icons and text are vertically centered in all menu items */
+/* Ensure icons and text are vertically centered in all menu items */
 #tab-context-menu li > a {
     display: flex;
     align-items: center;

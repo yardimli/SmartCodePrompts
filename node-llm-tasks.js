@@ -11,7 +11,7 @@ const path = require('path');
 const {db} = require('./node-config');
 const {get_file_content, get_raw_file_content, calculate_checksum} = require('./node-files');
 const {get_project_settings} = require('./node-projects');
-const {call_llm_sync, call_llm_stream} = require('./node-llm-api'); // MODIFIED: Import from new API module
+const {call_llm_sync, call_llm_stream} = require('./node-llm-api');
 
 // State management for long-running background tasks, allowing the UI to poll for progress.
 let reanalysis_progress = {total: 0, current: 0, running: false, message: '', cancelled: false, summary: null};
@@ -74,14 +74,12 @@ async function analyze_file ({project_path, file_path, llm_id, force = false, te
 	const overview_prompt = overview_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
-	// MODIFIED: call_llm_sync no longer needs the project_settings parameter.
 	const overview_result = await call_llm_sync(overview_prompt, llm_id, `File Overview: ${short_file_name}`, temperature);
 	
 	const functions_prompt_template = prompts.functions_logic;
 	const functions_prompt = functions_prompt_template
 		.replace(/\$\{file_path\}/g, file_path)
 		.replace(/\$\{file_content\}/g, file_content);
-	// MODIFIED: call_llm_sync no longer needs the project_settings parameter.
 	const functions_result = await call_llm_sync(functions_prompt, llm_id, `Functions/Logic: ${short_file_name}`, temperature);
 	
 	db.prepare(`
@@ -99,7 +97,7 @@ async function analyze_file ({project_path, file_path, llm_id, force = false, te
  * @param {object} params - The parameters for the operation.
  */
 async function reanalyze_modified_files ({project_path, llm_id, force = false, temperature}) {
-	// NEW: Prevent multiple re-analysis tasks from running at the same time.
+	// Prevent multiple re-analysis tasks from running at the same time.
 	if (reanalysis_progress.running) {
 		console.warn('Re-analysis is already running. Ignoring new request.');
 		return;
@@ -112,7 +110,7 @@ async function reanalyze_modified_files ({project_path, llm_id, force = false, t
 	const analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
 	
-	// MODIFIED: Mutate the existing progress object instead of reassigning it.
+	// Mutate the existing progress object instead of reassigning it.
 	// This ensures that other modules holding a reference to this object see the updates.
 	reanalysis_progress.total = analyzed_files.length;
 	reanalysis_progress.current = 0;
@@ -271,7 +269,6 @@ async function ask_question_about_code_stream ({project_path, question, relevant
 		.replace(/\$\{file_context\}/g, file_context)
 		.replace(/\$\{user_question\}/g, question);
 	
-	// MODIFIED: call_llm_stream no longer needs the project_settings parameter.
 	await call_llm_stream(final_prompt, llm_id, `QA: ${question.substring(0, 30)}...`, temperature, 'text', {onChunk, onEnd, onError});
 }
 
@@ -293,7 +290,6 @@ async function handle_direct_prompt_stream ({prompt, llm_id, temperature, onChun
 		return;
 	}
 	
-	// MODIFIED: call_llm_stream no longer needs the project_settings parameter.
 	await call_llm_stream(prompt, llm_id, `Direct Prompt`, temperature, 'text', {onChunk, onEnd, onError});
 }
 
@@ -303,7 +299,7 @@ async function handle_direct_prompt_stream ({prompt, llm_id, temperature, onChun
  * @param {object} params - The parameters for the operation.
  */
 async function identify_project_files ({project_path, all_files, llm_id, temperature}) {
-	// NEW: Prevent multiple auto-select tasks from running at the same time.
+	// Prevent multiple auto-select tasks from running at the same time.
 	if (auto_select_progress.running) {
 		console.warn('Auto-select is already running. Ignoring new request.');
 		return;
@@ -318,7 +314,7 @@ async function identify_project_files ({project_path, all_files, llm_id, tempera
 	const files_to_process = JSON.parse(all_files);
 	const BATCH_SIZE = 20;
 	
-	// MODIFIED: Mutate the existing progress object instead of reassigning it.
+	// Mutate the existing progress object instead of reassigning it.
 	auto_select_progress.total = files_to_process.length;
 	auto_select_progress.current = 0;
 	auto_select_progress.running = true;
@@ -386,7 +382,7 @@ async function identify_project_files ({project_path, all_files, llm_id, tempera
 }
 
 module.exports = {
-	// NEW: Export state variables for use by the data module.
+	// Export state variables for use by the data module.
 	reanalysis_progress,
 	auto_select_progress,
 	// Public Task Functions

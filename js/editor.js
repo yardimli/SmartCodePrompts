@@ -142,7 +142,6 @@ async function closeAllTabs() {
 	save_open_tabs_state();
 }
 
-// MODIFIED: This function now checks both in-editor and Git modification status.
 function closeUnmodifiedTabs() {
 	// A tab is considered "unmodified" for closing if it has no unsaved changes AND its underlying file is not modified in Git.
 	const tabsToClose = tabs.filter(tab => !tab.isModified && !tab.isGitModified && tab.isCloseable);
@@ -500,7 +499,7 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		readOnly: readOnly,
 		filePath: filePath,
 		isModified: false,
-		isGitModified: false, // NEW: New tabs are not modified in git.
+		isGitModified: false,
 	};
 	
 	tabs.push(newTab);
@@ -508,7 +507,6 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	return newTabId;
 }
 
-// MODIFIED: Added isGitModified parameter to track version control status.
 export function openFileInTab(filePath, currentContent, originalContent, isGitModified = false) {
 	if (!monaco || !editor) return;
 	
@@ -552,7 +550,7 @@ export function openFileInTab(filePath, currentContent, originalContent, isGitMo
 		readOnly: isDiff,
 		filePath: filePath,
 		isModified: false,
-		isGitModified: gitModifiedStatus, // NEW: Store the git modification status.
+		isGitModified: gitModifiedStatus
 	};
 	
 	if (!newTab.readOnly && !newTab.isDiff) {
@@ -630,7 +628,7 @@ export function initialize_editor(is_dark_mode) {
 			
 			const commonEditorOptions = {
 				theme: is_dark_mode ? 'vs-dark' : 'vs',
-				wordWrap: 'on', // MODIFIED: Turn on word wrap for all editors.
+				wordWrap: 'on',
 				fontFamily: 'monospace',
 				fontSize: 13,
 				minimap: { enabled: true },

@@ -1,7 +1,7 @@
 // SmartCodePrompts/js/tab-switcher.js
 
 // --- MODULE IMPORTS ---
-import { getTabs, getActiveTabId, switchToTab } from './editor.js';
+import { getMruTabs, switchToTab } from './editor.js';
 
 // --- STATE VARIABLES ---
 let isSwitcherVisible = false;
@@ -9,6 +9,7 @@ let switcherTabs = [];
 let switcherCurrentIndex = 0;
 let tabSwitcherOverlay = null;
 let tabSwitcherList = null;
+let tabSwitcherContainer = null;
 
 /**
  * Renders and displays the tab switcher UI.
@@ -16,19 +17,22 @@ let tabSwitcherList = null;
 function showTabSwitcher() {
 	if (!tabSwitcherOverlay || !tabSwitcherList) return;
 	
-	switcherTabs = getTabs();
+	switcherTabs = getMruTabs();
 	if (switcherTabs.length < 2) return; // No need to switch if less than 2 tabs
 	
-	const currentActiveTabId = getActiveTabId();
-	const activeTabIndex = switcherTabs.findIndex(t => t.id === currentActiveTabId);
-	
-	// On first press, highlight the next tab in the list, wrapping around.
-	switcherCurrentIndex = (activeTabIndex + 1) % switcherTabs.length;
+	// On first press, highlight the next tab in the MRU list (the previously active one).
+	switcherCurrentIndex = 1;
 	
 	renderTabSwitcher();
 	tabSwitcherOverlay.classList.remove('hidden');
 	tabSwitcherOverlay.classList.add('flex'); // Use flex for centering
 	isSwitcherVisible = true;
+	
+	// Ensure the selected item is visible when the switcher first opens.
+	const selectedElement = tabSwitcherList.children[switcherCurrentIndex];
+	if (selectedElement) {
+		selectedElement.scrollIntoView({ block: 'nearest' });
+	}
 }
 
 /**
@@ -49,24 +53,41 @@ function renderTabSwitcher() {
 	tabSwitcherList.innerHTML = '';
 	switcherTabs.forEach((tab, index) => {
 		const li = document.createElement('li');
-		li.className = 'p-2 rounded-md text-base-content w-full';
+		li.className = 'p-2 rounded-md text-base-content w-full flex items-center gap-2 cursor-pointer';
+		li.dataset.tabId = tab.id;
+		
 		if (index === switcherCurrentIndex) {
 			li.classList.add('bg-primary', 'text-primary-content');
 		} else {
-			li.classList.add('bg-base-300');
+			li.classList.add('hover:bg-base-300');
 		}
 		
+		const icon = document.createElement('span');
+		const filetype = tab.filePath ? tab.filePath.split('.').pop() : '';
+		icon.className = `file filetype-${filetype} text-lg`;
+		li.appendChild(icon);
+		
+		const textWrapper = document.createElement('div');
+		textWrapper.className = 'flex-grow overflow-hidden';
+		
 		const titleSpan = document.createElement('span');
-		titleSpan.className = 'font-bold block truncate';
+		titleSpan.className = 'font-semibold block truncate text-sm';
 		titleSpan.textContent = tab.title;
-		li.appendChild(titleSpan);
+		textWrapper.appendChild(titleSpan);
 		
 		if (tab.filePath) {
 			const pathSpan = document.createElement('span');
-			pathSpan.className = 'text-sm opacity-70 block truncate';
+			pathSpan.className = 'text-xs opacity-70 block truncate';
 			pathSpan.textContent = tab.filePath;
-			li.appendChild(pathSpan);
+			textWrapper.appendChild(pathSpan);
 		}
+		
+		li.appendChild(textWrapper);
+		
+		li.addEventListener('click', () => {
+			switchToTab(tab.id);
+			hideTabSwitcher();
+		});
 		
 		tabSwitcherList.appendChild(li);
 	});
@@ -81,12 +102,19 @@ function navigateSwitcher(direction) {
 	const numTabs = switcherTabs.length;
 	switcherCurrentIndex = (switcherCurrentIndex + direction + numTabs) % numTabs;
 	renderTabSwitcher();
+	
+	// MODIFIED: Scroll the newly selected item into view. This is triggered on each Ctrl+Tab press
+	// while the switcher is visible, ensuring the highlighted item is always visible within the scrollable area.
+	const selectedElement = tabSwitcherList.children[switcherCurrentIndex];
+	if (selectedElement) {
+		selectedElement.scrollIntoView({ block: 'nearest' });
+	}
 }
 
 /**
  * Sets up global event listeners for the Ctrl+Tab functionality.
  */
-	function setupTabSwitcherListeners() {
+function setupTabSwitcherListeners() {
 	document.addEventListener('keydown', (e) => {
 		// Use `e.code` for layout-independent key checks
 		if (e.ctrlKey && e.code === 'Tab') {
@@ -128,8 +156,9 @@ export function initialize_tab_switcher() {
 	// Get elements once the DOM is ready
 	tabSwitcherOverlay = document.getElementById('tab-switcher-overlay');
 	tabSwitcherList = document.getElementById('tab-switcher-list');
+	tabSwitcherContainer = document.getElementById('tab-switcher-container');
 	
-	if (!tabSwitcherOverlay || !tabSwitcherList) {
+	if (!tabSwitcherOverlay || !tabSwitcherList || !tabSwitcherContainer) {
 		console.error('Tab switcher UI elements not found in the DOM. Was modal-tab-switcher.html loaded?');
 		return;
 	}

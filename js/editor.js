@@ -1,5 +1,3 @@
-// SmartCodePrompts/js/editor.js
-
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
 import { show_alert } from './modal-alert.js';
@@ -8,6 +6,7 @@ import { update_project_settings } from './settings.js';
 
 let editor = null;
 let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified }
+let mruTabIds = []; // NEW: Track Most Recently Used tab IDs.
 let activeTabId = null;
 let tabCounter = 0;
 let contextMenuTargetTabId = null;
@@ -17,12 +16,12 @@ function initializeTabContextMenu() {
 	if (!menu) {
 		return;
 	}
-
+	
 	const closeBtn = document.getElementById('context-menu-close');
 	const closeOthersBtn = document.getElementById('context-menu-close-others');
 	const closeUnmodifiedBtn = document.getElementById('context-menu-close-unmodified');
 	const closeAllBtn = document.getElementById('context-menu-close-all');
-
+	
 	document.addEventListener('click', () => {
 		menu.classList.add('hidden');
 		contextMenuTargetTabId = null;
@@ -36,11 +35,11 @@ function initializeTabContextMenu() {
 			}
 		}
 	});
-
+	
 	menu.addEventListener('click', (e) => {
 		e.stopPropagation();
 	});
-
+	
 	closeBtn.addEventListener('click', async (e) => {
 		e.preventDefault();
 		if (contextMenuTargetTabId) {
@@ -56,7 +55,7 @@ function initializeTabContextMenu() {
 		}
 		menu.classList.add('hidden');
 	});
-
+	
 	closeOthersBtn.addEventListener('click', (e) => {
 		e.preventDefault();
 		if (contextMenuTargetTabId) {
@@ -64,13 +63,13 @@ function initializeTabContextMenu() {
 		}
 		menu.classList.add('hidden');
 	});
-
+	
 	closeUnmodifiedBtn.addEventListener('click', (e) => {
 		e.preventDefault();
 		closeUnmodifiedTabs();
 		menu.classList.add('hidden');
 	});
-
+	
 	closeAllBtn.addEventListener('click', (e) => {
 		e.preventDefault();
 		closeAllTabs();
@@ -80,7 +79,7 @@ function initializeTabContextMenu() {
 
 async function closeOtherTabs(keepOpenTabId) {
 	const tabsToClose = tabs.filter(tab => tab.id !== keepOpenTabId && tab.isCloseable);
-
+	
 	for (const tab of tabsToClose) {
 		if (tab.isModified) {
 			const confirmed = await show_confirm(`The file "${tab.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
@@ -98,18 +97,18 @@ async function closeOtherTabs(keepOpenTabId) {
 			tabs.splice(tabIndex, 1);
 		}
 	}
-
+	
 	if (activeTabId !== keepOpenTabId && findTab(keepOpenTabId)) {
 		switchToTab(keepOpenTabId);
 	}
-
+	
 	renderTabs();
 	save_open_tabs_state();
 }
 
 async function closeAllTabs() {
 	const tabsToClose = tabs.filter(tab => tab.isCloseable);
-
+	
 	for (const tab of tabsToClose) {
 		if (tab.isModified) {
 			const confirmed = await show_confirm(`The file "${tab.title}" has unsaved changes. Do you want to close it anyway?`, 'Unsaved Changes');
@@ -127,7 +126,7 @@ async function closeAllTabs() {
 			tabs.splice(tabIndex, 1);
 		}
 	}
-
+	
 	const newActiveTab = tabs.find(tab => !tab.isCloseable) || tabs[0];
 	if (newActiveTab) {
 		switchToTab(newActiveTab.id);
@@ -137,7 +136,7 @@ async function closeAllTabs() {
 		document.getElementById('monaco-editor-container').style.display = 'block';
 		updateSaveButtonState();
 	}
-
+	
 	renderTabs();
 	save_open_tabs_state();
 }
@@ -146,7 +145,7 @@ function closeUnmodifiedTabs() {
 	// A tab is considered "unmodified" for closing if it has no unsaved changes AND its underlying file is not modified in Git.
 	const tabsToClose = tabs.filter(tab => !tab.isModified && !tab.isGitModified && tab.isCloseable);
 	let activeTabWasClosed = false;
-
+	
 	for (const tab of tabsToClose) {
 		if (tab.id === activeTabId) {
 			activeTabWasClosed = true;
@@ -161,7 +160,7 @@ function closeUnmodifiedTabs() {
 			tabs.splice(tabIndex, 1);
 		}
 	}
-
+	
 	if (activeTabWasClosed) {
 		const newActiveTab = tabs[0];
 		if (newActiveTab) {
@@ -173,7 +172,7 @@ function closeUnmodifiedTabs() {
 			updateSaveButtonState();
 		}
 	}
-
+	
 	renderTabs();
 	save_open_tabs_state();
 }
@@ -351,19 +350,19 @@ function renderTabs() {
 			if (!menu) {
 				return;
 			}
-
+			
 			contextMenuTargetTabId = tab.id;
-
+			
 			menu.style.top = `${e.pageY}px`;
 			menu.style.left = `${e.pageX}px`;
 			menu.classList.remove('hidden');
-
+			
 			const closeLi = document.getElementById('context-menu-close').parentElement;
 			const closeOthersLi = document.getElementById('context-menu-close-others').parentElement;
 			const closeUnmodifiedLi = document.getElementById('context-menu-close-unmodified').parentElement;
-
+			
 			tab.isCloseable ? closeLi.classList.remove('disabled') : closeLi.classList.add('disabled');
-
+			
 			const otherCloseableTabsExist = tabs.some(t => t.id !== tab.id && t.isCloseable);
 			otherCloseableTabsExist ? closeOthersLi.classList.remove('disabled') : closeOthersLi.classList.add('disabled');
 			
@@ -388,12 +387,19 @@ export function switchToTab(tabId) {
 	
 	const oldTab = findTab(activeTabId);
 	if (oldTab) {
-			oldTab.viewState = editor.saveViewState();
+		oldTab.viewState = editor.saveViewState();
 	}
 	
 	const newTab = findTab(tabId);
 	if (newTab) {
 		activeTabId = tabId;
+		
+		// NEW: Update MRU list. Remove from current position and add to the front.
+		const mruIndex = mruTabIds.indexOf(tabId);
+		if (mruIndex > -1) {
+			mruTabIds.splice(mruIndex, 1);
+		}
+		mruTabIds.unshift(tabId);
 		
 		if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
 			const project = get_current_project();
@@ -416,13 +422,13 @@ export function switchToTab(tabId) {
 			resetSettingsBtn.classList.toggle('hidden', newTab.filePath !== '.scp/settings.yaml');
 		}
 		
-			editorContainer.style.display = 'block';
-			
-			editor.setModel(newTab.model);
-			if (newTab.viewState) {
-				editor.restoreViewState(newTab.viewState);
-			}
-			editor.focus();
+		editorContainer.style.display = 'block';
+		
+		editor.setModel(newTab.model);
+		if (newTab.viewState) {
+			editor.restoreViewState(newTab.viewState);
+		}
+		editor.focus();
 		
 		renderTabs();
 		
@@ -446,6 +452,12 @@ export function closeTab(tabId) {
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
 	
+	// NEW: Remove the closed tab from the MRU list.
+	const mruIndex = mruTabIds.indexOf(tabId);
+	if (mruIndex > -1) {
+		mruTabIds.splice(mruIndex, 1);
+	}
+	
 	tabToClose.model.dispose();
 	if (tabToClose.originalModel) {
 		tabToClose.originalModel.dispose();
@@ -453,9 +465,10 @@ export function closeTab(tabId) {
 	tabs.splice(tabIndex, 1);
 	
 	if (activeTabId === tabId) {
-		const newActiveTab = tabs[tabIndex - 1] || tabs[0];
-		if (newActiveTab) {
-			switchToTab(newActiveTab.id);
+		// MODIFIED: Switch to the most recently used tab that is still open.
+		const newActiveTabId = mruTabIds[0] || (tabs.length > 0 ? tabs[0].id : null);
+		if (newActiveTabId) {
+			switchToTab(newActiveTabId);
 		} else {
 			activeTabId = null;
 			editor.setModel(null);
@@ -699,6 +712,14 @@ export function get_editor_content() {
 
 export function getTabs() {
 	return [...tabs];
+}
+
+/**
+ * NEW: Gets all open tabs, sorted by most-recently-used.
+ * @returns {Array<object>} An array of tab objects.
+ */
+export function getMruTabs() {
+	return mruTabIds.map(id => findTab(id)).filter(tab => !!tab);
 }
 
 export function getActiveTabId() {

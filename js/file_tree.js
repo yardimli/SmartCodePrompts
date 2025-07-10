@@ -3,17 +3,21 @@
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
-// NEW: Import for the diff modal.
 import { show_diff_modal } from './modal-diff.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
-// MODIFIED: Import the new function to update tab status.
 import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
 import { get_all_settings } from './settings.js';
+// NEW: Import modals for user interaction in the context menu.
+import { show_confirm } from './modal-confirm.js';
+import { show_prompt } from './modal-prompt.js';
+import { show_alert } from './modal-alert.js';
 
 // A cache for the content of all selected files to avoid re-fetching on prompt changes.
 let cached_file_content_string = '';
 // A handle for the file tree update polling interval.
 let file_tree_update_interval = null;
+// NEW: State for the file tree context menu.
+let contextMenuTargetPath = null;
 
 /**
  * Gets a specific filetype class for styling based on the filename's extension.
@@ -92,7 +96,6 @@ export function load_folders (path, element) {
 				action: 'get_folders',
 				path: path,
 				project_path: current_project.path
-				// REMOVED: project_settings is no longer sent from the frontend.
 			});
 			const file_tree = document.getElementById('file-tree');
 			if (element) {
@@ -297,7 +300,6 @@ export async function ensure_file_is_visible (file_path) {
  * This function is called by the polling mechanism and updates icons based on file status.
  * @param {object} updates - An object with `updates` and `deleted` file path arrays.
  */
-// MODIFIED: This function now also updates the Git status of any corresponding open editor tab.
 function handle_modification_status_updates (updates) {
 	const file_tree = document.getElementById('file-tree');
 	if (!file_tree) return;
@@ -306,7 +308,6 @@ function handle_modification_status_updates (updates) {
 	
 	// Handle files that were updated (modified or not)
 	updates.updates.forEach(file_update => {
-		// NEW: Update the git status of any open tab for this file to keep it in sync.
 		updateTabGitStatus(file_update.file_path, file_update.has_git_diff);
 		
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_update.file_path}"]`)?.closest('li');
@@ -388,7 +389,6 @@ export function start_file_tree_polling () {
 			const updates = await post_data({
 				action: 'check_folder_updates',
 				project_path: current_project.path
-				// REMOVED: project_settings is no longer sent from the frontend.
 			});
 			
 			handle_modification_status_updates(updates);
@@ -399,11 +399,9 @@ export function start_file_tree_polling () {
 	console.log('File tree polling started for modification status.');
 }
 
-// MODIFIED: Handler for clicking the diff icon to open a file in a diff modal.
 async function handle_diff_icon_click(filePath) {
 	show_loading(`Opening diff for ${filePath}...`);
 	try {
-		// The new show_diff_modal function handles all logic, including data fetching and display.
 		await show_diff_modal(filePath);
 	} catch (error) {
 		console.error(`Error opening diff modal for file ${filePath}:`, error);
@@ -413,7 +411,6 @@ async function handle_diff_icon_click(filePath) {
 }
 
 
-// MODIFIED: This handler now determines the Git status and passes it to the editor.
 async function handle_file_click(filePath) {
 	show_loading(`Opening ${filePath}...`);
 	try {
@@ -428,11 +425,8 @@ async function handle_file_click(filePath) {
 		});
 		
 		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
-		// NEW: Determine if the file is modified in git by checking for original content from HEAD.
 		const isGitModified = data.originalContent !== null;
 		
-		// Pass null for originalContent to ensure a normal (non-diff) tab is opened,
-		// but pass the git status flag so the editor knows about it.
 		openFileInTab(filePath, currentContent, null, isGitModified);
 		
 	} catch (error) {
@@ -442,11 +436,158 @@ async function handle_file_click(filePath) {
 	}
 }
 
+// NEW: This function sets up all the click handlers for the file tree context menu items.
+function initialize_file_tree_context_menu() {
+	const menu = document.getElementById('file-tree-context-menu');
+	if (!menu) return;
+	
+	/**
+	 * A helper function to refresh the parent folder of a given path after a file operation.
+	 * @param {string} targetPath - The path of the file/folder that was acted upon.
+	 */
+	async function refreshParent(targetPath) {
+		show_loading('Refreshing file tree...');
+		try {
+			const parentPath = get_parent_path(targetPath) || '.';
+			const parentElement = parentPath === '.' ? null : document.querySelector(`.folder[data-path="${parentPath}"]`);
+			
+			if (!parentElement) {
+				// If the parent is the root, we need to clear the entire tree and reload from the top.
+				document.getElementById('file-tree').innerHTML = '';
+			} else {
+				// Ensure the parent folder is visually open before reloading its contents.
+				if (!parentElement.classList.contains('open')) {
+					parentElement.classList.add('open');
+				}
+			}
+			// load_folders handles both root (element=null) and sub-folder reloads.
+			await load_folders(parentPath, parentElement);
+		} catch (error) {
+			console.error('Failed to refresh file tree:', error);
+			show_alert(`Could not refresh file tree: ${error.message}`, 'Error');
+		} finally {
+			hide_loading();
+		}
+	}
+	
+	// --- Menu Item Event Listeners ---
+	
+	document.getElementById('context-menu-new-file').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const filename = await show_prompt('Enter the new file name:', 'New File');
+		if (filename) {
+			const newFilePath = `${contextMenuTargetPath}/${filename}`;
+			try {
+				await post_data({
+					action: 'create_file',
+					project_path: get_current_project().path,
+					file_path: newFilePath
+				});
+				await refreshParent(newFilePath);
+			} catch (error) {
+				show_alert(`Failed to create file: ${error.message}`, 'Error');
+			}
+		}
+	});
+	
+	document.getElementById('context-menu-new-file-root').addEventListener('click', async () => {
+		const filename = await show_prompt('Enter file name for project root:', 'New File in Root');
+		if (filename) {
+			try {
+				await post_data({
+					action: 'create_file',
+					project_path: get_current_project().path,
+					file_path: filename // Path is just the filename for root
+				});
+				await refreshParent(filename); // Refresh from root
+			} catch (error) {
+				show_alert(`Failed to create file: ${error.message}`, 'Error');
+			}
+		}
+	});
+	
+	document.getElementById('context-menu-new-folder').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const folderName = await show_prompt('Enter the new folder name:', 'New Folder');
+		if (folderName) {
+			const newFolderPath = `${contextMenuTargetPath}/${folderName}`;
+			try {
+				await post_data({
+					action: 'create_folder',
+					project_path: get_current_project().path,
+					folder_path: newFolderPath
+				});
+				await refreshParent(newFolderPath);
+			} catch (error) {
+				show_alert(`Failed to create folder: ${error.message}`, 'Error');
+			}
+		}
+	});
+	
+	document.getElementById('context-menu-rename').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const currentName = contextMenuTargetPath.split('/').pop();
+		const newName = await show_prompt('Enter the new name:', 'Rename', currentName);
+		if (newName && newName !== currentName) {
+			const parentPath = get_parent_path(contextMenuTargetPath);
+			const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+			try {
+				await post_data({
+					action: 'rename_path',
+					project_path: get_current_project().path,
+					old_path: contextMenuTargetPath,
+					new_path: newPath
+				});
+				await refreshParent(contextMenuTargetPath);
+			} catch (error) {
+				show_alert(`Failed to rename: ${error.message}`, 'Error');
+			}
+		}
+	});
+	
+	document.getElementById('context-menu-delete').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const confirmed = await show_confirm(`Are you sure you want to permanently delete "${contextMenuTargetPath}"? This cannot be undone.`, 'Confirm Deletion');
+		if (confirmed) {
+			try {
+				await post_data({
+					action: 'delete_path',
+					project_path: get_current_project().path,
+					path_to_delete: contextMenuTargetPath
+				});
+				await refreshParent(contextMenuTargetPath);
+			} catch (error) {
+				show_alert(`Failed to delete: ${error.message}`, 'Error');
+			}
+		}
+	});
+	
+	document.getElementById('context-menu-git-reset').addEventListener('click', async (e) => {
+		if (!contextMenuTargetPath || e.currentTarget.parentElement.classList.contains('disabled')) return;
+		const confirmed = await show_confirm(`Are you sure you want to reset all changes to "${contextMenuTargetPath}"? This will discard your local modifications.`, 'Confirm Git Reset');
+		if (confirmed) {
+			try {
+				await post_data({
+					action: 'git_reset_file',
+					project_path: get_current_project().path,
+					file_path: contextMenuTargetPath
+				});
+				await refreshParent(contextMenuTargetPath);
+			} catch (error) {
+				show_alert(`Failed to reset file: ${error.message}`, 'Error');
+			}
+		}
+	});
+}
+
+
 /**
  * Sets up delegated event listeners for the file tree container and its controls.
  */
 export function setup_file_tree_listeners () {
 	const file_tree = document.getElementById('file-tree');
+	// NEW: Initialize the context menu handlers once.
+	initialize_file_tree_context_menu();
 	
 	file_tree.addEventListener('click', async (e) => {
 		const folder = e.target.closest('.folder');
@@ -461,14 +602,12 @@ export function setup_file_tree_listeners () {
 			return;
 		}
 		
-		// If the diff icon is clicked, open the diff view and stop.
 		if (diff_icon) {
 			e.stopPropagation();
 			await handle_diff_icon_click(diff_icon.dataset.path);
 			return;
 		}
 		
-		// This block handles opening files in a normal tab.
 		if (file_entry) {
 			e.stopPropagation();
 			await handle_file_click(file_entry.dataset.path);
@@ -529,6 +668,60 @@ export function setup_file_tree_listeners () {
 						hide_loading();
 					}
 				}
+			}
+		}
+	});
+	
+	// NEW: Add a context menu listener to the file tree.
+	file_tree.addEventListener('contextmenu', (e) => {
+		const target = e.target.closest('.folder, .file-entry');
+		if (!target) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		
+		contextMenuTargetPath = target.dataset.path;
+		
+		const menu = document.getElementById('file-tree-context-menu');
+		const isFolder = target.classList.contains('folder');
+		
+		// Show/hide menu items based on whether a file or folder was clicked.
+		document.getElementById('context-menu-new-file-li').style.display = isFolder ? 'block' : 'none';
+		document.getElementById('context-menu-new-folder-li').style.display = isFolder ? 'block' : 'none';
+		document.getElementById('context-menu-new-file-root-li').style.display = isFolder ? 'block' : 'none';
+		document.getElementById('context-menu-git-reset-li').style.display = isFolder ? 'none' : 'block';
+		document.getElementById('context-menu-delete-li').style.display = 'block'; // Allow deleting both
+		document.getElementById('context-menu-rename-li').style.display = 'block'; // Allow renaming both
+		
+		// Special handling for the 'Git Reset' item.
+		if (!isFolder) {
+			const gitResetLi = document.getElementById('context-menu-git-reset-li');
+			const fileLiElement = target.closest('li');
+			const hasDiff = fileLiElement && fileLiElement.querySelector('.diff-icon');
+			gitResetLi.classList.toggle('disabled', !hasDiff);
+		}
+		
+		menu.style.top = `${e.pageY}px`;
+		menu.style.left = `${e.pageX}px`;
+		menu.classList.remove('hidden');
+	});
+	
+	// NEW: Add a global click listener to hide the context menu when clicking elsewhere.
+	document.addEventListener('click', () => {
+		const menu = document.getElementById('file-tree-context-menu');
+		if (menu) {
+			menu.classList.add('hidden');
+		}
+		contextMenuTargetPath = null;
+	});
+	
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			const menu = document.getElementById('file-tree-context-menu');
+			if (menu && !menu.classList.contains('hidden')) {
+				menu.classList.add('hidden');
+				contextMenuTargetPath = null;
 			}
 		}
 	});

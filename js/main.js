@@ -27,7 +27,8 @@ import { setup_file_tree_listeners } from './file_tree.js';
 import { initialize_progress_modal } from './modal-progress.js';
 import { initialize_alert_modal, show_alert } from './modal-alert.js';
 import { initialize_confirm_modal, show_confirm } from './modal-confirm.js';
-// NEW: Import for the diff modal.
+// NEW: Import for the new prompt modal.
+import { initialize_prompt_modal } from './modal-prompt.js';
 import { initialize_diff_modal } from './modal-diff.js';
 import { setup_auto_select_listeners } from './auto_select.js';
 
@@ -41,9 +42,11 @@ async function load_all_modals_html () {
 		'modal-log.html', 'modal-qa.html',
 		'modal-reanalysis.html', 'modal-search.html',
 		'modal-progress.html', 'modal-alert.html', 'modal-confirm.html',
+		// NEW: Add the prompt modal to the list.
+		'modal-prompt.html',
 		'modal-tab-switcher.html',
 		'modal-api-key.html',
-		'modal-diff.html' // NEW: Add the diff modal HTML.
+		'modal-diff.html'
 	];
 	const modal_container = document.getElementById('modal-container');
 	
@@ -302,7 +305,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 	initialize_analysis_modal();
 	initialize_api_key_modal();
 	initialize_confirm_modal();
-	initialize_diff_modal(); // NEW: Initialize the diff modal.
+	// NEW: Initialize the prompt modal.
+	initialize_prompt_modal();
+	initialize_diff_modal();
 	initialize_log_modal();
 	initialize_progress_modal();
 	initialize_qa_modal();

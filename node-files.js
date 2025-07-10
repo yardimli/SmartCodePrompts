@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const {db} = require('./node-config');
-const { get_project_settings } = require('./node-projects'); // NEW: Import settings helper
+const { get_project_settings } = require('./node-projects');
 
 function resolve_path(relative_path, project_full_path) {
 	const full_path = path.resolve(project_full_path, relative_path);
@@ -19,9 +19,8 @@ function calculate_checksum(data) {
 	return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-// MODIFIED: Function signature changed; no longer accepts project_settings.
 function get_folders({ input_path, project_path }) {
-	const settings = get_project_settings(project_path); // NEW: Get settings internally.
+	const settings = get_project_settings(project_path);
 	const { allowed_extensions, excluded_folders } = settings;
 	
 	const full_path = resolve_path(input_path, project_path);
@@ -93,7 +92,6 @@ function get_folders({ input_path, project_path }) {
 	return {folders, files};
 }
 
-// MODIFIED: Now handles content compression based on project settings.
 function get_file_content(input_path, project_path) {
 	const full_path = resolve_path(input_path, project_path);
 	try {
@@ -177,9 +175,8 @@ function get_file_for_editor({ project_path, file_path }) {
 	return { currentContent, originalContent };
 }
 
-// MODIFIED: Function signature changed; no longer accepts project_settings.
 function search_files({ start_path, search_term, project_path }) {
-	const settings = get_project_settings(project_path); // NEW: Get settings internally.
+	const settings = get_project_settings(project_path);
 	const { allowed_extensions, excluded_folders } = settings;
 	
 	const absolute_start_path = resolve_path(start_path, project_path);
@@ -236,14 +233,6 @@ function get_file_analysis({project_path, file_path}) {
 	return data || {file_overview: null, functions_overview: null};
 }
 
-/**
- * Checks the modification status of all *analyzed* files within a project
- * by comparing their current checksums against those stored in the database.
- * @param {object} params - The parameters for the function.
- * @param {string} params.project_path - The absolute path of the project.
- * @returns {object} An object containing arrays of file paths for `updates` and `deleted` files.
- */
-// MODIFIED: Function signature changed; no longer accepts project_settings.
 function check_folder_updates({ project_path }) {
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
 	const analyzed_files = stmt.all(project_path);
@@ -330,4 +319,111 @@ function check_for_modified_files({project_path}) {
 	};
 }
 
-module.exports = {get_folders, get_file_content, save_file_content, get_raw_file_content, search_files, get_file_analysis, calculate_checksum, check_folder_updates, check_for_modified_files, get_file_for_editor};
+// NEW: Function to create a new, empty file.
+function create_file({ project_path, file_path }) {
+	const full_path = resolve_path(file_path, project_path);
+	try {
+		if (fs.existsSync(full_path)) {
+			throw new Error(`File already exists: ${file_path}`);
+		}
+		// Ensure parent directory exists
+		fs.mkdirSync(path.dirname(full_path), { recursive: true });
+		fs.writeFileSync(full_path, '', 'utf8');
+		return { success: true };
+	} catch (error) {
+		console.error(`Error creating file ${full_path}:`, error);
+		throw error;
+	}
+}
+
+// NEW: Function to create a new folder.
+function create_folder({ project_path, folder_path }) {
+	const full_path = resolve_path(folder_path, project_path);
+	try {
+		if (fs.existsSync(full_path)) {
+			throw new Error(`Folder already exists: ${folder_path}`);
+		}
+		fs.mkdirSync(full_path, { recursive: true });
+		return { success: true };
+	} catch (error) {
+		console.error(`Error creating folder ${full_path}:`, error);
+		throw error;
+	}
+}
+
+// NEW: Function to rename a file or folder.
+function rename_path({ project_path, old_path, new_path }) {
+	const full_old_path = resolve_path(old_path, project_path);
+	const full_new_path = resolve_path(new_path, project_path);
+	try {
+		if (fs.existsSync(full_new_path)) {
+			throw new Error(`Destination path already exists: ${new_path}`);
+		}
+		fs.renameSync(full_old_path, full_new_path);
+		// Update database entries for the renamed path to maintain state.
+		db.prepare('UPDATE file_metadata SET file_path = ? WHERE project_path = ? AND file_path = ?')
+			.run(new_path, project_path, old_path);
+		db.prepare('UPDATE project_open_tabs SET file_path = ? WHERE project_path = ? AND file_path = ?')
+			.run(new_path, project_path, old_path);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error renaming ${old_path} to ${new_path}:`, error);
+		throw error;
+	}
+}
+
+// NEW: Function to delete a file or folder.
+function delete_path({ project_path, path_to_delete }) {
+	const full_path = resolve_path(path_to_delete, project_path);
+	try {
+		fs.rmSync(full_path, { recursive: true, force: true });
+		// Also remove any associated records from the database.
+		db.prepare('DELETE FROM file_metadata WHERE project_path = ? AND file_path LIKE ?')
+			.run(project_path, `${path_to_delete}%`);
+		db.prepare('DELETE FROM project_open_tabs WHERE project_path = ? AND file_path LIKE ?')
+			.run(project_path, `${path_to_delete}%`);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error deleting ${path_to_delete}:`, error);
+		throw error;
+	}
+}
+
+// NEW: Function to reset a file's changes using Git.
+function git_reset_file({ project_path, file_path }) {
+	if (!isGitRepository(project_path)) {
+		throw new Error('Project is not a Git repository.');
+	}
+	const sanitized_path = file_path.replace(/\\/g, '/');
+	if (sanitized_path.includes('"') || sanitized_path.includes(';')) {
+		throw new Error(`Invalid characters in file path for git command: ${sanitized_path}`);
+	}
+	try {
+		const gitCommand = `git checkout HEAD -- "${sanitized_path}"`;
+		execSync(gitCommand, { cwd: project_path, encoding: 'utf8', timeout: 2000 });
+		return { success: true };
+	} catch (error) {
+		console.error(`Error resetting file ${file_path}:`, error);
+		throw error;
+	}
+}
+
+
+module.exports = {
+	get_folders,
+	get_file_content,
+	save_file_content,
+	get_raw_file_content,
+	search_files,
+	get_file_analysis,
+	calculate_checksum,
+	check_folder_updates,
+	check_for_modified_files,
+	get_file_for_editor,
+	// NEW: Export the new file operation functions.
+	create_file,
+	create_folder,
+	rename_path,
+	delete_path,
+	git_reset_file,
+};

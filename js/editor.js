@@ -7,8 +7,6 @@ import { show_confirm } from './modal-confirm.js';
 import { update_project_settings } from './settings.js';
 
 let editor = null;
-let diffEditor = null;
-// MODIFIED: Added isGitModified to the tab object definition.
 let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified }
 let activeTabId = null;
 let tabCounter = 0;
@@ -28,6 +26,15 @@ function initializeTabContextMenu() {
 	document.addEventListener('click', () => {
 		menu.classList.add('hidden');
 		contextMenuTargetTabId = null;
+	});
+	
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			if (menu && !menu.classList.contains('hidden')) {
+				menu.classList.add('hidden');
+				contextMenuTargetTabId = null;
+			}
+		}
 	});
 
 	menu.addEventListener('click', (e) => {
@@ -127,9 +134,7 @@ async function closeAllTabs() {
 	} else {
 		activeTabId = null;
 		editor.setModel(null);
-		diffEditor.setModel({ original: null, modified: null });
 		document.getElementById('monaco-editor-container').style.display = 'block';
-		document.getElementById('monaco-diff-editor-container').style.display = 'none';
 		updateSaveButtonState();
 	}
 
@@ -165,9 +170,7 @@ function closeUnmodifiedTabs() {
 		} else {
 			activeTabId = null;
 			editor.setModel(null);
-			diffEditor.setModel({ original: null, modified: null });
 			document.getElementById('monaco-editor-container').style.display = 'block';
-			document.getElementById('monaco-diff-editor-container').style.display = 'none';
 			updateSaveButtonState();
 		}
 	}
@@ -280,11 +283,7 @@ function getActiveMonacoEditorInstance() {
 	const tab = findTab(activeTabId);
 	if (!tab) return null;
 	
-	if (tab.isDiff) {
-		return diffEditor ? diffEditor.getModifiedEditor() : null;
-	} else {
-		return editor;
-	}
+	return editor;
 }
 
 function getLanguageForFile(filename) {
@@ -318,7 +317,6 @@ function renderTabs() {
 		const titleEl = document.createElement('span');
 		titleEl.textContent = tab.title;
 		if (tab.isDiff) {
-			titleEl.textContent += ' (modified)';
 			titleEl.style.fontStyle = 'italic';
 		}
 		if (tab.isModified) {
@@ -384,19 +382,14 @@ function findTab(tabId) {
 
 export function switchToTab(tabId) {
 	if (tabId === activeTabId) return;
-	if (!editor || !diffEditor) return;
+	if (!editor) return;
 	
 	const editorContainer = document.getElementById('monaco-editor-container');
-	const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
 	const resetSettingsBtn = document.getElementById('reset-settings-btn');
 	
 	const oldTab = findTab(activeTabId);
 	if (oldTab) {
-		if (oldTab.isDiff) {
-			oldTab.viewState = diffEditor.saveViewState();
-		} else {
 			oldTab.viewState = editor.saveViewState();
-		}
 	}
 	
 	const newTab = findTab(tabId);
@@ -424,31 +417,13 @@ export function switchToTab(tabId) {
 			resetSettingsBtn.classList.toggle('hidden', newTab.filePath !== '.scp/settings.yaml');
 		}
 		
-		if (newTab.isDiff) {
-			editorContainer.style.display = 'none';
-			diffEditorContainer.style.display = 'block';
-			
-			diffEditor.setModel({
-				original: newTab.originalModel,
-				modified: newTab.model
-			});
-			diffEditor.getModifiedEditor().updateOptions({ readOnly: newTab.readOnly });
-			if (newTab.viewState) {
-				diffEditor.restoreViewState(newTab.viewState);
-			}
-			diffEditor.getModifiedEditor().focus();
-			
-		} else {
-			diffEditorContainer.style.display = 'none';
 			editorContainer.style.display = 'block';
 			
 			editor.setModel(newTab.model);
-			editor.updateOptions({ readOnly: newTab.readOnly });
 			if (newTab.viewState) {
 				editor.restoreViewState(newTab.viewState);
 			}
 			editor.focus();
-		}
 		
 		renderTabs();
 		
@@ -485,9 +460,7 @@ export function closeTab(tabId) {
 		} else {
 			activeTabId = null;
 			editor.setModel(null);
-			diffEditor.setModel({ original: null, modified: null });
 			document.getElementById('monaco-editor-container').style.display = 'block';
-			document.getElementById('monaco-diff-editor-container').style.display = 'none';
 			document.getElementById('reset-settings-btn').classList.add('hidden');
 			updateSaveButtonState();
 			
@@ -649,8 +622,7 @@ export function initialize_editor(is_dark_mode) {
 			};
 			
 			const editorContainer = document.getElementById('monaco-editor-container');
-			const diffEditorContainer = document.getElementById('monaco-diff-editor-container');
-			if (!editorContainer || !diffEditorContainer) {
+			if (!editorContainer) {
 				console.error('Monaco editor container(s) not found!');
 				resolve();
 				return;
@@ -670,13 +642,6 @@ export function initialize_editor(is_dark_mode) {
 			editor = monaco.editor.create(editorContainer, {
 				...commonEditorOptions,
 				language: 'plaintext',
-				readOnly: false,
-			});
-			
-			diffEditor = monaco.editor.createDiffEditor(diffEditorContainer, {
-				...commonEditorOptions,
-				renderSideBySide: false, // MODIFIED: Force inline "single view" for diffs.
-				originalEditable: false,
 				readOnly: false,
 			});
 			
@@ -703,8 +668,6 @@ export function initialize_editor(is_dark_mode) {
 				}
 			}
 			editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.F4, closeTabCommand);
-			
-			diffEditor.getModifiedEditor().addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveCommand);
 			
 			initializeTabContextMenu();
 			

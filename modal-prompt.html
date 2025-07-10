@@ -1,0 +1,17 @@
+<!-- SmartCodePrompts/modal-prompt.html -->
+<dialog id="prompt_modal" class="modal">
+	<div class="modal-box">
+		<form method="dialog" class="modal-box-form">
+			<h3 id="prompt-modal-title" class="font-bold text-lg">Input Required</h3>
+			<p id="prompt-modal-message" class="py-4">Please enter a value:</p>
+			<input type="text" id="prompt-modal-input" class="input input-bordered w-full" autocomplete="off" />
+			<div class="modal-action">
+				<button id="prompt-modal-confirm-btn" type="submit" class="btn btn-primary">Confirm</button>
+				<button id="prompt-modal-cancel-btn" type="button" class="btn">Cancel</button>
+			</div>
+		</form>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>

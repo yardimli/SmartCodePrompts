@@ -34,12 +34,10 @@ function createWindow () {
 		width: 1600,
 		height: 1000,
 		icon: path.join(__dirname, 'assets/icon.png'),
-		title: "Smart Code Prompts", // MODIFIED: Simplified default title. The renderer will add more details.
+		title: "Smart Code Prompts",
 		autoHideMenuBar: true,
 		webPreferences: {
-			// Attach the preload script to the renderer process
 			preload: path.join(__dirname, 'electron-preload.js'),
-			// Security best practices:
 			contextIsolation: true,
 			nodeIntegration: false,
 		}
@@ -47,11 +45,9 @@ function createWindow () {
 	
 	mainWindow.loadURL(`http://localhost:${PORT}`);
 	
-	// Create context menu
 	mainWindow.webContents.on('context-menu', (event, params) => {
 		const menu = new Menu();
 		
-		// Add each spelling suggestion
 		for (const suggestion of params.dictionarySuggestions) {
 			menu.append(new MenuItem({
 				label: suggestion,
@@ -59,7 +55,6 @@ function createWindow () {
 			}));
 		}
 		
-		// Allow users to add the misspelled word to the dictionary
 		if (params.misspelledWord) {
 			menu.append(
 				new MenuItem({
@@ -69,7 +64,6 @@ function createWindow () {
 			);
 		}
 		
-		// Add standard editor actions
 		if (params.isEditable) {
 			if (menu.items.length > 0) {
 				menu.append(new MenuItem({type: 'separator'}));
@@ -92,14 +86,12 @@ function createWindow () {
 
 // --- IPC Handlers ---
 
-// NEW: Handle request from renderer to update the window title.
 ipcMain.on('update-window-title', (event, title) => {
 	if (mainWindow) {
 		mainWindow.setTitle(title);
 	}
 });
 
-// Handle request from the renderer process to open a native directory selection dialog.
 ipcMain.handle('dialog:openDirectory', async () => {
 	const {canceled, filePaths} = await dialog.showOpenDialog(mainWindow, {
 		properties: ['openDirectory'],
@@ -111,17 +103,13 @@ ipcMain.handle('dialog:openDirectory', async () => {
 	return null;
 });
 
-// Central IPC handler for all data requests from the renderer process.
-// This replaces the entire HTTP POST request handling from the old node-server.js.
 ipcMain.handle('post-data', async (event, data) => {
 	const action = data.action;
 	console.log('IPC Request Action:', action);
 	let result;
 	try {
-		// A helper function for streaming actions
 		const handle_stream_action = (action_handler) => {
 			const streamId = crypto.randomUUID();
-			// Don't await this; let it run in the background.
 			action_handler({
 				...data,
 				onChunk: (content) => mainWindow.webContents.send('llm-stream', {type: 'chunk', streamId, content}),
@@ -132,7 +120,6 @@ ipcMain.handle('post-data', async (event, data) => {
 					message: error.message
 				}),
 			});
-			// Immediately return the streamId to the renderer.
 			return {success: true, streamId};
 		};
 		
@@ -160,10 +147,8 @@ ipcMain.handle('post-data', async (event, data) => {
 					.run(data.llm_id, data.key);
 				result = {success: true};
 				break;
-			// NEW: Handle saving the global API key
 			case 'save_api_key':
 				config_manager.save_api_key(data.api_key);
-				// Reload config into memory after saving
 				config_manager.load_config_from_db();
 				result = { success: true };
 				break;
@@ -181,8 +166,6 @@ ipcMain.handle('post-data', async (event, data) => {
 			
 			// --- LLM Actions (from node-llm.js) ---
 			case 'refresh_llms':
-				// MODIFIED: This action can now be used to test a key by passing it in the data.
-				// If no key is passed, it uses the saved one.
 				result = await llm_manager.refresh_llms({ api_key_override: data.api_key });
 				break;
 			case 'get_llm_log':
@@ -313,6 +296,22 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = node_files.check_folder_updates({
 					project_path: data.project_path
 				});
+				break;
+			// NEW: Add cases for the new file operations.
+			case 'create_file':
+				result = node_files.create_file(data);
+				break;
+			case 'create_folder':
+				result = node_files.create_folder(data);
+				break;
+			case 'rename_path':
+				result = node_files.rename_path(data);
+				break;
+			case 'delete_path':
+				result = node_files.delete_path(data);
+				break;
+			case 'git_reset_file':
+				result = node_files.git_reset_file(data);
 				break;
 			default:
 				throw new Error(`Unknown action: ${action}`);

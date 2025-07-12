@@ -90,6 +90,10 @@ export function load_folders (path, element) {
 		const current_project = get_current_project();
 		if (!current_project) return reject(new Error('No project selected'));
 		
+		// Get settings to check for excluded folders.
+		const project_settings = get_all_settings();
+		const excluded_folders_list = project_settings.excluded_folders || [];
+		
 		try {
 			const response = await post_data({
 				action: 'get_folders',
@@ -112,13 +116,19 @@ export function load_folders (path, element) {
 			ul.style.display = 'none';
 			ul.className = 'pl-4'; // Tailwind class for padding-left
 			let content = '';
+			
+			// Helper to check if a path is in an excluded folder.
+			const is_path_excluded = (p) => excluded_folders_list.some(ex => p === ex || p.startsWith(ex + '/'));
+			
 			response.folders.sort((a, b) => a.localeCompare(b));
 			response.files.sort((a, b) => a.name.localeCompare(b.name));
+			
 			response.folders.forEach(folder => {
 				const full_path = (path === '.') ? folder : `${path}/${folder}`;
+				const is_excluded = is_path_excluded(full_path);
 				content += `
                     <li>
-                        <span class="folder" data-path="${full_path}">
+                        <span class="folder ${is_excluded ? 'italic text-base-content/50' : ''}" data-path="${full_path}" data-excluded="${is_excluded}">
                             <span class="folder-name" title="${full_path}">${folder}</span>
                             <span class="folder-controls inline-block align-middle ml-2">
                                 <i class="bi bi-check2-square folder-toggle-select-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Toggle selection in this folder"></i>
@@ -127,6 +137,7 @@ export function load_folders (path, element) {
                     </li>`;
 			});
 			response.files.forEach(file_info => {
+				const is_excluded = is_path_excluded(file_info.path);
 				const filetype_class = get_filetype_class(file_info.name);
 				const analysis_icon = file_info.has_analysis ? `<i class="bi bi-info-circle analysis-icon text-info hover:text-info-focus cursor-pointer align-middle mr-1" data-path="${file_info.path}" title="View Analysis"></i>` : '';
 				
@@ -143,10 +154,10 @@ export function load_folders (path, element) {
 				content += `
                     <li>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" data-path="${file_info.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has_analysis="${file_info.has_analysis ? 'true' : 'false'}">
+                            <input type="checkbox" data-path="${file_info.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has_analysis="${file_info.has_analysis ? 'true' : 'false'}" ${is_excluded ? 'disabled' : ''}>
                         </div>
                         ${analysis_icon}
-                        <div class="file-entry align-middle" data-path="${file_info.path}">
+                        <div class="file-entry ${is_excluded ? 'italic text-base-content/50' : ''} align-middle" data-path="${file_info.path}">
                             <span class="file ${filetype_class}"></span>
                             <span class="file-name" title="${title_attr}">${file_info.name}</span>
                         </div>
@@ -482,7 +493,7 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: newFilePath
 				});
-
+				
 				await refresh_folder_view(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
@@ -500,7 +511,7 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: filename // Path is just the filename for root
 				});
-
+				
 				await refresh_folder_view('.');
 			} catch (error) {
 				show_alert(`Failed to create file: ${error.message}`, 'Error');
@@ -519,7 +530,7 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					folder_path: newFolderPath
 				});
-
+				
 				await refresh_folder_view(contextMenuTargetPath);
 			} catch (error) {
 				show_alert(`Failed to create folder: ${error.message}`, 'Error');
@@ -543,7 +554,7 @@ function initialize_file_tree_context_menu() {
 					old_path: contextMenuTargetPath,
 					new_path: newPath
 				});
-
+				
 				await refresh_folder_view(parentPath);
 			} catch (error) {
 				show_alert(`Failed to rename: ${error.message}`, 'Error');
@@ -564,7 +575,7 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					path_to_delete: contextMenuTargetPath
 				});
-
+				
 				await refresh_folder_view(parentPath);
 			} catch (error) {
 				show_alert(`Failed to delete: ${error.message}`, 'Error');
@@ -583,7 +594,7 @@ function initialize_file_tree_context_menu() {
 					project_path: get_current_project().path,
 					file_path: contextMenuTargetPath
 				});
-
+				
 				const parentPath = get_parent_path(contextMenuTargetPath) || '.';
 				await refresh_folder_view(parentPath);
 			} catch (error) {
@@ -656,6 +667,9 @@ export function setup_file_tree_listeners () {
 		}
 		
 		if (folder) {
+			// CORRECTED: The check that prevented excluded folders from opening has been removed.
+			// Now, even italicized/excluded folders can be clicked to view their contents.
+			
 			e.stopPropagation();
 			const li = folder.closest('li');
 			const ul = li.nextElementSibling;
@@ -753,12 +767,12 @@ export function setup_file_tree_listeners () {
 	document.getElementById('select-unanalyzed').addEventListener('click', function () {
 		let checked_count = 0;
 		document.querySelectorAll('#file-tree input[type="checkbox"]').forEach(cb => {
-			if (!cb.checked && cb.dataset.has_analysis === 'false') {
-				cb.checked = true;
-				checked_count++;
-			} else
-			{
-				if (cb.checked && cb.dataset.has_analysis === 'true') {
+			// Only interact with non-disabled checkboxes (which filters out excluded files).
+			if (!cb.disabled) {
+				if (!cb.checked && cb.dataset.has_analysis === 'false') {
+					cb.checked = true;
+					checked_count++;
+				} else if (cb.checked && cb.dataset.has_analysis === 'true') {
 					cb.checked = false;
 				}
 			}

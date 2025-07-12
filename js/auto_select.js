@@ -9,15 +9,15 @@ import {perform_selection_analysis} from './analysis.js';
 import { get_all_settings } from './settings.js';
 
 /**
- * Recursively expands all folders in the file tree UI.
+ * Recursively expands all folders in the file tree UI, skipping excluded ones.
  * @returns {Promise<void>}
  */
 async function expand_all_folders () {
 	show_loading('Expanding all folders...');
 	try {
 		let closed_folders;
-		// Keep looping as long as we find closed folders to open.
-		while ((closed_folders = document.querySelectorAll('#file-tree .folder:not(.open)')).length > 0) {
+		// Keep looping as long as we find closed, non-excluded folders to open.
+		while ((closed_folders = document.querySelectorAll('#file-tree .folder:not(.open):not([data-excluded="true"])')).length > 0) {
 			// Create a promise for each folder to be opened at the current depth.
 			const expansion_promises = Array.from(closed_folders).map(folder_element => {
 				folder_element.classList.add('open'); // Mark as open immediately to avoid re-processing in the same loop
@@ -70,12 +70,17 @@ export async function handle_auto_select_click () {
 		cb => cb.dataset.has_analysis !== 'true'
 	);
 	
-	if (unanalyzed_checkboxes.length === 0) {
-		show_alert('All files in the project have already been analyzed. There are no new files for auto-selection.');
+	// Also filter out files from excluded folders (which are disabled).
+	const non_excluded_unanalyzed_checkboxes = unanalyzed_checkboxes.filter(
+		cb => !cb.disabled
+	);
+	
+	if (non_excluded_unanalyzed_checkboxes.length === 0) {
+		show_alert('All non-excluded files in the project have already been analyzed. There are no new files for auto-selection.');
 		return;
 	}
 	
-	const unanalyzed_file_paths = unanalyzed_checkboxes.map(cb => cb.dataset.path);
+	const unanalyzed_file_paths = non_excluded_unanalyzed_checkboxes.map(cb => cb.dataset.path);
 	
 	let poll_interval;
 	const stop_callback = () => {

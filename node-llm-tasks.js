@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const {db} = require('./node-config');
 const {get_file_content, get_raw_file_content, calculate_checksum} = require('./node-files');
-const {get_project_settings} = require('./node-projects');
+const {get_project_settings, is_path_excluded} = require('./node-projects');
 const {call_llm_sync, call_llm_stream} = require('./node-llm-api');
 
 // State management for long-running background tasks, allowing the UI to poll for progress.
@@ -107,8 +107,14 @@ async function reanalyze_modified_files ({project_path, llm_id, force = false, t
 		return;
 	}
 	
-	const analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
+	const project_settings = get_project_settings(project_path);
+	const all_analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
+	
+	// Filter out files from excluded folders before processing.
+	const analyzed_files = all_analyzed_files.filter(
+		file => !is_path_excluded(file.file_path, project_settings)
+	);
 	
 	// Mutate the existing progress object instead of reassigning it.
 	// This ensures that other modules holding a reference to this object see the updates.
@@ -184,15 +190,20 @@ async function get_relevant_files_from_prompt ({project_path, user_prompt, llm_i
 	
 	const project_settings = get_project_settings(project_path);
 	
-	const analyzed_files = db.prepare(`
+	const all_analyzed_files = db.prepare(`
         SELECT file_path, file_overview, functions_overview
         FROM file_metadata
         WHERE project_path = ?
           AND ((file_overview IS NOT NULL AND file_overview != '') OR (functions_overview IS NOT NULL AND functions_overview != ''))
     `).all(project_path);
 	
+	// Filter out files from excluded folders before sending to the LLM.
+	const analyzed_files = all_analyzed_files.filter(
+		file => !is_path_excluded(file.file_path, project_settings)
+	);
+	
 	if (!analyzed_files || analyzed_files.length === 0) {
-		throw new Error('No files have been analyzed in this project. Please analyze files before using this feature.');
+		throw new Error("No non-excluded files have been analyzed in this project. Please analyze files before using 'Smart Prompt'.");
 	}
 	
 	let analysis_data_string = '';

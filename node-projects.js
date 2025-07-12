@@ -54,7 +54,8 @@ function ensure_settings_file_exists(project_path) {
  * @returns {object} The complete settings object.
  */
 function get_project_settings(project_path) {
-	const default_settings = get_default_settings_yaml();
+	const default_settings_string = get_default_settings_yaml();
+	const default_settings = yaml.load(default_settings_string);
 	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 	
 	if (!fs.existsSync(settings_file_path)) {
@@ -83,6 +84,21 @@ function get_project_settings(project_path) {
 		console.error(`[${project_path}] Error reading or parsing settings.yaml. Using default settings. Error: ${error.message}`);
 		return default_settings;
 	}
+}
+
+/**
+ * Checks if a given file or folder path is within an excluded directory as per project settings.
+ * @param {string} relative_path - The relative path of the file or folder within the project.
+ * @param {object} project_settings - The parsed settings object for the project.
+ * @returns {boolean} True if the path should be excluded, false otherwise.
+ */
+function is_path_excluded(relative_path, project_settings) {
+	const excluded_folders = project_settings?.excluded_folders || [];
+	// Normalize path to use forward slashes for consistent matching
+	const normalized_path = relative_path.replace(/\\/g, '/');
+	return excluded_folders.some(excluded =>
+		normalized_path === excluded || normalized_path.startsWith(excluded + '/')
+	);
 }
 
 /**
@@ -195,4 +211,5 @@ module.exports = {
 	save_open_tabs,
 	validate_and_save_settings,
 	get_project_settings,
+	is_path_excluded
 };

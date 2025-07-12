@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const {db} = require('./node-config');
-const { get_project_settings } = require('./node-projects');
+const { get_project_settings, is_path_excluded } = require('./node-projects');
 
 function resolve_path(relative_path, project_full_path) {
 	const full_path = path.resolve(project_full_path, relative_path);
@@ -21,7 +21,8 @@ function calculate_checksum(data) {
 
 function get_folders({ input_path, project_path }) {
 	const settings = get_project_settings(project_path);
-	const { allowed_extensions, excluded_folders } = settings;
+	// CORRECTED: We no longer need `excluded_folders` here. The frontend handles the visual logic.
+	const { allowed_extensions } = settings;
 	
 	const full_path = resolve_path(input_path, project_path);
 	const folders = [];
@@ -44,15 +45,15 @@ function get_folders({ input_path, project_path }) {
 				continue;
 			}
 			if (stats.isDirectory()) {
-				if (!excluded_folders.includes(item)) {
-					folders.push(item);
-				}
+				// CORRECTED: Always add the folder to the list. The frontend will decide how to render it.
+				folders.push(item);
 			} else if (stats.isFile()) {
 				const ext = path.extname(item_full_path).slice(1);
 				let base = path.basename(item_full_path);
 				if (base.startsWith('.')) {
 					base = base.slice(1);
 				}
+				// We still respect allowed_extensions for files.
 				if (allowed_extensions.includes(ext) || (ext === '' && allowed_extensions.includes(base))) {
 					const relative_file_path = path.join(input_path, item).replace(/\\/g, '/');
 					const has_analysis = analyzed_files_map.has(relative_file_path);
@@ -177,7 +178,7 @@ function get_file_for_editor({ project_path, file_path }) {
 
 function search_files({ start_path, search_term, project_path }) {
 	const settings = get_project_settings(project_path);
-	const { allowed_extensions, excluded_folders } = settings;
+	const { allowed_extensions } = settings;
 	
 	const absolute_start_path = resolve_path(start_path, project_path);
 	const matching_files = [];
@@ -202,7 +203,8 @@ function search_files({ start_path, search_term, project_path }) {
 				continue;
 			}
 			if (stats.isDirectory()) {
-				if (!excluded_folders.includes(item)) {
+				// We don't search inside excluded folders.
+				if (!is_path_excluded(path.relative(project_path, item_full_path), settings)) {
 					search_in_directory(item_full_path);
 				}
 			} else if (stats.isFile()) {
@@ -283,8 +285,14 @@ function check_folder_updates({ project_path }) {
 }
 
 function check_for_modified_files({project_path}) {
+	const project_settings = get_project_settings(project_path);
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const analyzed_files = stmt.all(project_path);
+	const all_analyzed_files = stmt.all(project_path);
+	
+	// Filter out files from excluded folders.
+	const analyzed_files = all_analyzed_files.filter(
+		file => !is_path_excluded(file.file_path, project_settings)
+	);
 	
 	if (analyzed_files.length === 0) {
 		return {needs_reanalysis: false, count: 0};

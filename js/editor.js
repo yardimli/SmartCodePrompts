@@ -7,11 +7,13 @@ import { show_confirm } from './modal-confirm.js';
 import { update_project_settings } from './settings.js';
 
 let editor = null;
-let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified }
-let mruTabIds = []; // NEW: Track Most Recently Used tab IDs.
+// MODIFIED: Added lastMtime and isShowingReloadConfirm to tab state documentation.
+let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified, lastMtime, isShowingReloadConfirm }
+let mruTabIds = []; // Track Most Recently Used tab IDs.
 let activeTabId = null;
 let tabCounter = 0;
 let contextMenuTargetTabId = null;
+let fileChangeWatcherInterval = null; // Interval for checking file changes on disk.
 
 function initializeTabContextMenu() {
 	const menu = document.getElementById('tab-context-menu');
@@ -404,7 +406,7 @@ export function switchToTab(tabId) {
 	if (newTab) {
 		activeTabId = tabId;
 		
-		// NEW: Update MRU list. Remove from current position and add to the front.
+		// Update MRU list. Remove from current position and add to the front.
 		const mruIndex = mruTabIds.indexOf(tabId);
 		if (mruIndex > -1) {
 			mruTabIds.splice(mruIndex, 1);
@@ -462,7 +464,7 @@ export function closeTab(tabId) {
 	const tabToClose = tabs[tabIndex];
 	if (!tabToClose.isCloseable) return;
 	
-	// NEW: Remove the closed tab from the MRU list.
+	// Remove the closed tab from the MRU list.
 	const mruIndex = mruTabIds.indexOf(tabId);
 	if (mruIndex > -1) {
 		mruTabIds.splice(mruIndex, 1);
@@ -530,7 +532,8 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 	return newTabId;
 }
 
-export function openFileInTab(filePath, currentContent, originalContent, isGitModified = false) {
+// MODIFIED: Added mtimeMs to the function signature to store the file's modification time.
+export function openFileInTab(filePath, currentContent, originalContent, isGitModified = false, mtimeMs = null) {
 	if (!monaco || !editor) return;
 	
 	const existingTab = tabs.find(t => t.filePath === filePath);
@@ -538,6 +541,10 @@ export function openFileInTab(filePath, currentContent, originalContent, isGitMo
 		// If the tab already exists, update its git status if a new status is provided.
 		if (isGitModified !== undefined) {
 			existingTab.isGitModified = isGitModified;
+		}
+		// Also update mtime if provided (e.g., from a refresh or re-open).
+		if (mtimeMs !== null) {
+			existingTab.lastMtime = mtimeMs;
 		}
 		switchToTab(existingTab.id);
 		return;
@@ -573,7 +580,9 @@ export function openFileInTab(filePath, currentContent, originalContent, isGitMo
 		readOnly: isDiff,
 		filePath: filePath,
 		isModified: false,
-		isGitModified: gitModifiedStatus
+		isGitModified: gitModifiedStatus,
+		lastMtime: mtimeMs, // Store the initial modification time.
+		isShowingReloadConfirm: false // Flag to prevent multiple reload prompts.
 	};
 	
 	if (!newTab.readOnly && !newTab.isDiff) {
@@ -621,6 +630,122 @@ export function setTabContent(tabId, content) {
 	const tab = findTab(tabId);
 	if (tab) {
 		tab.model.setValue(content);
+	}
+}
+
+// Checks for files that have been modified on disk outside the editor.
+async function checkForExternalFileChanges() {
+	const project = get_current_project();
+	if (!project) {
+		return; // Don't check if no project is open.
+	}
+	
+	// Get all open tabs that correspond to a file and are not already in a confirmation state.
+	const openFileTabs = tabs.filter(t => t.filePath && t.lastMtime && !t.isShowingReloadConfirm);
+	if (openFileTabs.length === 0) {
+		return;
+	}
+	
+	for (const tab of openFileTabs) {
+		try {
+			const result = await post_data({
+				action: 'get_file_mtime',
+				project_path: project.path,
+				file_path: tab.filePath
+			});
+			
+			// Handle case where file was deleted.
+			if (result.exists === false) {
+				tab.isShowingReloadConfirm = true; // Use flag to prevent re-checks.
+				const confirmed = await show_confirm(`The file "${tab.title}" has been deleted from the disk. Do you want to close the tab?`, 'File Deleted');
+				if (confirmed) {
+					closeTab(tab.id);
+				} else {
+					// User wants to keep the tab, so we stop checking it for changes.
+					const deletedTab = findTab(tab.id);
+					if (deletedTab) {
+						deletedTab.lastMtime = null;
+						deletedTab.isShowingReloadConfirm = false;
+					}
+				}
+				continue; // Move to the next tab.
+			}
+			
+			// Handle case where file was modified.
+			if (result.mtimeMs && result.mtimeMs > tab.lastMtime) {
+				tab.isShowingReloadConfirm = true; // Prevent re-triggering while confirm is open.
+				
+				let message = `The file "${tab.title}" has been modified outside of the editor.`;
+				if (tab.isModified) {
+					message += '\n\nReloading the file will discard your unsaved changes in the editor.';
+				}
+				message += '\n\nDo you want to reload it from the disk?';
+				
+				const confirmed = await show_confirm(message, 'File Changed on Disk');
+				
+				const tabToUpdate = findTab(tab.id); // Re-find tab in case it was closed.
+				if (!tabToUpdate) continue;
+				
+				if (confirmed) {
+					console.log(`Reloading ${tabToUpdate.filePath} from disk.`);
+					// Fetch the new content and mtime.
+					const newData = await post_data({
+						action: 'get_file_for_editor',
+						project_path: project.path,
+						path: tabToUpdate.filePath
+					});
+					
+					const finalTab = findTab(tabToUpdate.id);
+					if (finalTab && newData.currentContent !== null) {
+						const currentViewState = (activeTabId === finalTab.id) ? editor.saveViewState() : finalTab.viewState;
+						
+						finalTab.model.setValue(newData.currentContent);
+						finalTab.isModified = false;
+						finalTab.lastMtime = newData.mtimeMs;
+						
+						// If it's the active tab, restore view state to keep cursor/scroll position.
+						if (activeTabId === finalTab.id) {
+							editor.restoreViewState(currentViewState);
+						} else {
+							finalTab.viewState = currentViewState;
+						}
+						
+						renderTabs();
+						if (activeTabId === finalTab.id) {
+							updateSaveButtonState();
+						}
+					}
+				} else {
+					// User chose not to reload. Update mtime to prevent asking again for this specific change.
+					console.log(`User chose not to reload ${tabToUpdate.filePath}. Updating mtime to prevent re-prompting.`);
+					tabToUpdate.lastMtime = result.mtimeMs;
+				}
+				tabToUpdate.isShowingReloadConfirm = false;
+			}
+		} catch (error) {
+			console.error(`Error checking for file changes for ${tab.filePath}:`, error);
+			// To prevent spamming errors, disable checking for this tab for this session.
+			tab.lastMtime = null;
+		}
+	}
+}
+
+// Starts the file change watcher.
+function startFileChangeWatcher() {
+	if (fileChangeWatcherInterval) {
+		clearInterval(fileChangeWatcherInterval);
+	}
+	// Check every 3 seconds.
+	fileChangeWatcherInterval = setInterval(checkForExternalFileChanges, 3000);
+	console.log('File change watcher started.');
+}
+
+// Stops the file change watcher.
+function stopFileChangeWatcher() {
+	if (fileChangeWatcherInterval) {
+		clearInterval(fileChangeWatcherInterval);
+		fileChangeWatcherInterval = null;
+		console.log('File change watcher stopped.');
 	}
 }
 
@@ -699,6 +824,11 @@ export function initialize_editor(is_dark_mode) {
 				false, // isCloseable
 				false // readOnly
 			);
+			
+			// Start watching for external file changes and manage it on window focus/blur.
+			startFileChangeWatcher();
+			window.addEventListener('focus', startFileChangeWatcher);
+			window.addEventListener('blur', stopFileChangeWatcher);
 			
 			console.log('Monaco editors with tabs initialized.');
 			resolve();

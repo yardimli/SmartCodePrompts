@@ -283,6 +283,10 @@ ipcMain.handle('post-data', async (event, data) => {
 					file_path: data.path
 				});
 				break;
+			// Handle request for file modification time.
+			case 'get_file_mtime':
+				result = node_files.get_file_mtime(data);
+				break;
 			case 'search_files':
 				result = node_files.search_files({
 					start_path: data.folder_path,

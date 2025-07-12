@@ -6,7 +6,7 @@ import {handle_analysis_icon_click} from './modal-analysis.js';
 import { show_diff_modal } from './modal-diff.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
-// MODIFIED: Imported update_project_settings to refresh frontend state after changing settings.yaml
+// Imported update_project_settings to refresh frontend state after changing settings.yaml
 import { get_all_settings, update_project_settings } from './settings.js';
 import { show_confirm } from './modal-confirm.js';
 import { show_prompt } from './modal-prompt.js';
@@ -438,7 +438,8 @@ async function handle_file_click(filePath) {
 		const currentContent = data.currentContent ?? `/* File not found or is empty: ${filePath} */`;
 		const isGitModified = data.originalContent !== null;
 		
-		openFileInTab(filePath, currentContent, null, isGitModified);
+		// Pass the file's modification time to the tab for external change detection.
+		openFileInTab(filePath, currentContent, null, isGitModified, data.mtimeMs);
 		
 	} catch (error) {
 		console.error(`Error opening file ${filePath}:`, error);
@@ -475,11 +476,8 @@ async function refresh_folder_view (folderPath) {
 	}
 }
 
-// MODIFIED: Added documentation for new HTML elements and new event listeners.
+// Added documentation for new HTML elements and new event listeners.
 // This function sets up all the click handlers for the file tree context menu items.
-// Assumes the following new items exist in index.html inside #file-tree-context-menu:
-// <li id="context-menu-exclude-folder-li"><a id="context-menu-exclude-folder">Exclude Folder</a></li>
-// <li id="context-menu-include-folder-li"><a id="context-menu-include-folder">Include Folder</a></li>
 function initialize_file_tree_context_menu() {
 	const menu = document.getElementById('file-tree-context-menu');
 	if (!menu) return;
@@ -669,29 +667,21 @@ export function setup_file_tree_listeners () {
 		const diff_icon = e.target.closest('.diff-icon');
 		
 		if (analysis_icon) {
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			handle_analysis_icon_click(analysis_icon);
 			return;
 		}
 		
 		if (diff_icon) {
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			await handle_diff_icon_click(diff_icon.dataset.path);
 			return;
 		}
 		
 		if (file_entry) {
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			await handle_file_click(file_entry.dataset.path);
 			return;
 		}
 		
 		if (toggle_select_icon) {
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			const folder_path = toggle_select_icon.closest('.folder').dataset.path;
 			if (!folder_path) return;
 			
@@ -719,11 +709,6 @@ export function setup_file_tree_listeners () {
 		}
 		
 		if (folder) {
-			// CORRECTED: The check that prevented excluded folders from opening has been removed.
-			// Now, even italicized/excluded folders can be clicked to view their contents.
-			
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			const li = folder.closest('li');
 			const ul = li.nextElementSibling;
 			
@@ -752,7 +737,7 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
-	// MODIFIED: Refactored context menu logic for clarity and to handle exclusion.
+	// Refactored context menu logic for clarity and to handle exclusion.
 	file_tree.addEventListener('contextmenu', (e) => {
 		const target = e.target.closest('.folder, .file-entry');
 		if (!target) {
@@ -832,8 +817,6 @@ export function setup_file_tree_listeners () {
 	
 	file_tree.addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
-			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
-			// e.stopPropagation();
 			update_selected_content();
 			save_current_project_state();
 		}

@@ -1,7 +1,6 @@
 // SmartCodePrompts/js/main.js
 
 // --- CORE & STATE IMPORTS ---
-// MODIFIED: Added show_loading and hide_loading for the first-run model fetch.
 import { post_data, show_loading, hide_loading } from './utils.js';
 import { set_content_footer_prompt, set_last_smart_prompt, get_current_project } from './state.js';
 import { update_project_settings } from './settings.js';
@@ -15,7 +14,7 @@ import { initialize_api_key_modal, setup_api_key_modal_listeners, update_api_key
 import { setup_analysis_actions_listener } from './analysis.js';
 import { initialize_llm_selector, setup_llm_listeners } from './llm.js';
 import { initialize_status_bar } from './status_bar.js';
-// MODIFIED: Added open_project_modal to be called after the about modal closes on first run.
+// open_project_modal to be called after the about modal closes on first run.
 import { load_project, setup_project_listeners, open_project_modal } from './project.js';
 import { initialize_auto_expand_textarea, setup_prompt_bar_listeners } from './prompt.js';
 import {
@@ -338,7 +337,8 @@ function setup_save_and_settings_listeners() {
 				path: '.scp/settings.yaml'
 			});
 			if (data.currentContent !== null) {
-				openFileInTab('.scp/settings.yaml', data.currentContent, data.originalContent);
+				// MODIFIED: Pass the file's modification time to the tab for external change detection.
+				openFileInTab('.scp/settings.yaml', data.currentContent, data.originalContent, undefined, data.mtimeMs);
 			} else {
 				show_alert('Could not find or create the settings file for this project.', 'Error');
 			}
@@ -393,8 +393,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 	
 	const projects_exist = await initialize_app();
 	
-	// If this was the first time the user saw the "About" modal AND no projects are set up,
-	// then prompt them to add a project when they close the modal.
+	// If this was the first time the user saw the "About" modal AND no projects are set up, then prompt them to add a project when they close the modal.
 	if (is_first_run_view && !projects_exist) {
 		const about_modal = document.getElementById('about_modal');
 		if (about_modal) {

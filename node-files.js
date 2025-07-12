@@ -154,26 +154,51 @@ function getGitModifiedFiles(project_full_path) {
 	}
 }
 
+// MODIFIED: This function now also returns the file's last modification time (mtime).
 function get_file_for_editor({ project_path, file_path }) {
 	let currentContent;
+	let mtimeMs;
 	try {
-		currentContent = get_raw_file_content(file_path, project_path);
+		const full_path = resolve_path(file_path, project_path);
+		const stats = fs.statSync(full_path);
+		mtimeMs = stats.mtimeMs;
+		currentContent = fs.readFileSync(full_path, 'utf8');
 	} catch (e) {
 		if (e.code === 'ENOENT') {
 			console.warn(`File not found while opening for editor: ${file_path}`);
-			return { currentContent: null, originalContent: null };
+			return { currentContent: null, originalContent: null, mtimeMs: null };
 		}
 		console.error(`Error reading file for editor ${file_path}:`, e);
-		return { currentContent: `/* ERROR: Could not read file: ${file_path}. Reason: ${e.message} */`, originalContent: null };
+		return { currentContent: `/* ERROR: Could not read file: ${file_path}. Reason: ${e.message} */`, originalContent: null, mtimeMs: null };
 	}
+	
 	let originalContent = null;
 	if (isGitRepository(project_path)) {
 		originalContent = getGitHeadContent(file_path, project_path);
 	}
+	
+	// Normalize line endings for a more reliable comparison.
 	if (originalContent && currentContent.replace(/\r/g, '') === originalContent.replace(/\r/g, '')) {
 		originalContent = null;
 	}
-	return { currentContent, originalContent };
+	
+	return { currentContent, originalContent, mtimeMs };
+}
+
+// Gets the modification time of a file to check for external changes.
+function get_file_mtime({ project_path, file_path }) {
+	try {
+		const full_path = resolve_path(file_path, project_path);
+		if (!fs.existsSync(full_path)) {
+			return { mtimeMs: null, exists: false };
+		}
+		const stats = fs.statSync(full_path);
+		return { mtimeMs: stats.mtimeMs, exists: true };
+	} catch (error) {
+		// This can happen if the file is deleted between the check and the stat call, which is fine.
+		console.warn(`Could not get mtime for ${file_path}:`, error.message);
+		return { mtimeMs: null, exists: false };
+	}
 }
 
 function search_files({ start_path, search_term, project_path }) {
@@ -423,6 +448,7 @@ module.exports = {
 	check_folder_updates,
 	check_for_modified_files,
 	get_file_for_editor,
+	get_file_mtime, // NEW
 	create_file,
 	create_folder,
 	rename_path,

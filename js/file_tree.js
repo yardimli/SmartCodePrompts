@@ -213,7 +213,7 @@ export async function update_selected_content () {
 				if (firstLine && firstLine.includes(path)) {
 					return `${response.content}\n\n`;
 				} else {
-					return `// ${path}:\n\n${response.content}\n\n`;
+					return `${path}:\n\n${response.content}\n\n`;
 				}
 			})
 			.catch(error => `/* --- ERROR loading ${path}: ${error.message || 'Unknown error'} --- */\n\n`);

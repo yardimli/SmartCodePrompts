@@ -669,25 +669,29 @@ export function setup_file_tree_listeners () {
 		const diff_icon = e.target.closest('.diff-icon');
 		
 		if (analysis_icon) {
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			handle_analysis_icon_click(analysis_icon);
 			return;
 		}
 		
 		if (diff_icon) {
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			await handle_diff_icon_click(diff_icon.dataset.path);
 			return;
 		}
 		
 		if (file_entry) {
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			await handle_file_click(file_entry.dataset.path);
 			return;
 		}
 		
 		if (toggle_select_icon) {
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			const folder_path = toggle_select_icon.closest('.folder').dataset.path;
 			if (!folder_path) return;
 			
@@ -718,7 +722,8 @@ export function setup_file_tree_listeners () {
 			// CORRECTED: The check that prevented excluded folders from opening has been removed.
 			// Now, even italicized/excluded folders can be clicked to view their contents.
 			
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			const li = folder.closest('li');
 			const ul = li.nextElementSibling;
 			
@@ -827,7 +832,8 @@ export function setup_file_tree_listeners () {
 	
 	file_tree.addEventListener('change', (e) => {
 		if (e.target.matches('input[type="checkbox"]')) {
-			e.stopPropagation();
+			// MODIFIED: Removed to allow the document-level click listener to close the context menu.
+			// e.stopPropagation();
 			update_selected_content();
 			save_current_project_state();
 		}

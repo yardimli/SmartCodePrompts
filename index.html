@@ -223,15 +223,21 @@
 	</ul>
 </div>
 
-<!-- NEW: Context menu for file tree items. It is hidden by default and positioned by JS. -->
+<!-- Context menu for file tree items. It is hidden by default and positioned by JS. -->
 <div id="file-tree-context-menu" class="absolute z-50 hidden bg-base-100 border border-base-300 rounded-md shadow-lg text-sm">
 	<ul class="menu p-1 [--menu-item-padding:0.5rem]">
 		<!-- Folder-specific items -->
 		<li id="context-menu-new-file-li"><a id="context-menu-new-file"><i class="bi bi-file-earmark-plus w-4 me-2"></i> New File</a></li>
 		<li id="context-menu-new-folder-li"><a id="context-menu-new-folder"><i class="bi bi-folder-plus w-4 me-2"></i> New Folder</a></li>
 		<li id="context-menu-new-file-root-li"><a id="context-menu-new-file-root"><i class="bi bi-file-earmark-plus w-4 me-2"></i> New File in Root</a></li>
+		
+		<!-- MODIFIED: Added Exclude/Include options -->
+		<li id="context-menu-exclude-folder-li"><a id="context-menu-exclude-folder"><i class="bi bi-eye-slash w-4 me-2"></i> Exclude Folder</a></li>
+		<li id="context-menu-include-folder-li"><a id="context-menu-include-folder"><i class="bi bi-eye w-4 me-2"></i> Include Folder</a></li>
+		
 		<!-- File-specific items -->
 		<li id="context-menu-git-reset-li"><a id="context-menu-git-reset"><i class="bi bi-git w-4 me-2"></i> Reset Changes</a></li>
+		
 		<!-- Common items -->
 		<li id="context-menu-rename-li"><a id="context-menu-rename"><i class="bi bi-pencil-square w-4 me-2"></i> Rename</a></li>
 		<li id="context-menu-delete-li"><a id="context-menu-delete" class="text-error hover:text-error-content"><i class="bi bi-trash w-4 me-2"></i> Delete</a></li>

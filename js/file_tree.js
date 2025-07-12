@@ -6,7 +6,8 @@ import {handle_analysis_icon_click} from './modal-analysis.js';
 import { show_diff_modal } from './modal-diff.js';
 import {update_estimated_prompt_tokens} from './status_bar.js';
 import { openFileInTab, setTabContent, getPromptTabId, updateTabGitStatus } from './editor.js';
-import { get_all_settings } from './settings.js';
+// MODIFIED: Imported update_project_settings to refresh frontend state after changing settings.yaml
+import { get_all_settings, update_project_settings } from './settings.js';
 import { show_confirm } from './modal-confirm.js';
 import { show_prompt } from './modal-prompt.js';
 import { show_alert } from './modal-alert.js';
@@ -474,7 +475,11 @@ async function refresh_folder_view (folderPath) {
 	}
 }
 
+// MODIFIED: Added documentation for new HTML elements and new event listeners.
 // This function sets up all the click handlers for the file tree context menu items.
+// Assumes the following new items exist in index.html inside #file-tree-context-menu:
+// <li id="context-menu-exclude-folder-li"><a id="context-menu-exclude-folder">Exclude Folder</a></li>
+// <li id="context-menu-include-folder-li"><a id="context-menu-include-folder">Include Folder</a></li>
 function initialize_file_tree_context_menu() {
 	const menu = document.getElementById('file-tree-context-menu');
 	if (!menu) return;
@@ -603,6 +608,49 @@ function initialize_file_tree_context_menu() {
 		}
 		contextMenuTargetPath = null;
 	});
+	
+	// --- NEW: Listeners for folder exclusion ---
+	document.getElementById('context-menu-exclude-folder').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const parentPath = get_parent_path(contextMenuTargetPath) || '.';
+		try {
+			const result = await post_data({
+				action: 'add_to_excluded_folders',
+				project_path: get_current_project().path,
+				folder_path: contextMenuTargetPath
+			});
+			if (result.success && result.new_settings_yaml) {
+				await update_project_settings(result.new_settings_yaml);
+				await refresh_folder_view(parentPath);
+			} else {
+				throw new Error(result.error || 'Backend did not return new settings.');
+			}
+		} catch (error) {
+			show_alert(`Failed to exclude folder: ${error.message}`, 'Error');
+		}
+		contextMenuTargetPath = null;
+	});
+	
+	document.getElementById('context-menu-include-folder').addEventListener('click', async () => {
+		if (!contextMenuTargetPath) return;
+		const parentPath = get_parent_path(contextMenuTargetPath) || '.';
+		try {
+			const result = await post_data({
+				action: 'remove_from_excluded_folders',
+				project_path: get_current_project().path,
+				folder_path: contextMenuTargetPath
+			});
+			if (result.success && result.new_settings_yaml) {
+				await update_project_settings(result.new_settings_yaml);
+				await refresh_folder_view(parentPath);
+			} else {
+				throw new Error(result.error || 'Backend did not return new settings.');
+			}
+		} catch (error) {
+			show_alert(`Failed to include folder: ${error.message}`, 'Error');
+		}
+		contextMenuTargetPath = null;
+	});
 }
 
 
@@ -699,6 +747,7 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
+	// MODIFIED: Refactored context menu logic for clarity and to handle exclusion.
 	file_tree.addEventListener('contextmenu', (e) => {
 		const target = e.target.closest('.folder, .file-entry');
 		if (!target) {
@@ -711,21 +760,47 @@ export function setup_file_tree_listeners () {
 		
 		const menu = document.getElementById('file-tree-context-menu');
 		const isFolder = target.classList.contains('folder');
+		const isExcluded = target.dataset.excluded === 'true';
 		
-		// Show/hide menu items based on whether a file or folder was clicked.
-		document.getElementById('context-menu-new-file-li').style.display = isFolder ? 'block' : 'none';
-		document.getElementById('context-menu-new-folder-li').style.display = isFolder ? 'block' : 'none';
-		document.getElementById('context-menu-new-file-root-li').style.display = isFolder ? 'block' : 'none';
-		document.getElementById('context-menu-git-reset-li').style.display = isFolder ? 'none' : 'block';
-		document.getElementById('context-menu-delete-li').style.display = 'block'; // Allow deleting both
-		document.getElementById('context-menu-rename-li').style.display = 'block'; // Allow renaming both
+		// Define all menu items for easier management
+		const menuItems = {
+			newFile: document.getElementById('context-menu-new-file-li'),
+			newFolder: document.getElementById('context-menu-new-folder-li'),
+			newFileRoot: document.getElementById('context-menu-new-file-root-li'),
+			rename: document.getElementById('context-menu-rename-li'),
+			delete: document.getElementById('context-menu-delete-li'),
+			gitReset: document.getElementById('context-menu-git-reset-li'),
+			excludeFolder: document.getElementById('context-menu-exclude-folder-li'),
+			includeFolder: document.getElementById('context-menu-include-folder-li')
+		};
+		
+		// Hide all by default, then show relevant ones
+		Object.values(menuItems).forEach(item => item && (item.style.display = 'none'));
+		
+		if (isFolder) {
+			if (isExcluded) {
+				// If folder is excluded, only show "Include" option
+				menuItems.includeFolder.style.display = 'block';
+			} else {
+				// If folder is not excluded, show normal folder options
+				menuItems.newFile.style.display = 'block';
+				menuItems.newFolder.style.display = 'block';
+				menuItems.newFileRoot.style.display = 'block';
+				menuItems.rename.style.display = 'block';
+				menuItems.delete.style.display = 'block';
+				menuItems.excludeFolder.style.display = 'block';
+			}
+		} else { // It's a file-entry
+			menuItems.rename.style.display = 'block';
+			menuItems.delete.style.display = 'block';
+			menuItems.gitReset.style.display = 'block';
+		}
 		
 		// Special handling for the 'Git Reset' item.
 		if (!isFolder) {
-			const gitResetLi = document.getElementById('context-menu-git-reset-li');
 			const fileLiElement = target.closest('li');
 			const hasDiff = fileLiElement && fileLiElement.querySelector('.diff-icon');
-			gitResetLi.classList.toggle('disabled', !hasDiff);
+			menuItems.gitReset.classList.toggle('disabled', !hasDiff);
 		}
 		
 		menu.style.top = `${e.pageY}px`;

@@ -245,6 +245,13 @@ ipcMain.handle('post-data', async (event, data) => {
 					content: data.content
 				});
 				break;
+			// MODIFIED: Added new actions for folder exclusion
+			case 'add_to_excluded_folders':
+				result = project_manager.add_to_excluded_folders(data);
+				break;
+			case 'remove_from_excluded_folders':
+				result = project_manager.remove_from_excluded_folders(data);
+				break;
 			
 			// --- File Actions (from node-files.js) ---
 			case 'get_folders':

@@ -218,13 +218,22 @@ async function initialize_app() {
 							name_lower.includes('flash');
 					});
 					
-					if (recommended_model) {
+					const recommended_model_file_selection = llms.find(llm => {
+						const name_lower = llm.name.toLowerCase();
+						return name_lower.includes('google') &&
+							name_lower.includes('gemini') &&
+							name_lower.includes('2.5') &&
+							name_lower.includes('thinking') &&
+							name_lower.includes('flash');
+					});
+					
+					if (recommended_model && recommended_model_file_selection) {
 						console.log('Found recommended model for first run:', recommended_model);
 						const model_id = recommended_model.id;
 						
 						// Update the selections object for all dropdowns
 						last_selected_llms.analysis = model_id;
-						last_selected_llms.smart_prompt = model_id;
+						last_selected_llms.smart_prompt = recommended_model_file_selection;
 						last_selected_llms.qa = model_id;
 						last_selected_llms.direct_prompt = model_id;
 						

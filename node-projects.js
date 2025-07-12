@@ -203,6 +203,75 @@ function validate_and_save_settings({ project_path, content }) {
 	}
 }
 
+// --- NEW: Functions for modifying folder exclusion ---
+
+/**
+ * A helper function to safely read, modify, and write the settings.yaml file.
+ * @param {string} project_path - The path of the project.
+ * @param {function(object): void} modification_callback - A function that receives the parsed settings object and modifies it.
+ * @returns {{success: boolean, new_settings_yaml: string}} The result and the new YAML content.
+ * @throws {Error} If the file cannot be read, parsed, or written.
+ */
+function modify_settings_yaml(project_path, modification_callback) {
+	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
+	if (!fs.existsSync(settings_file_path)) {
+		throw new Error('settings.yaml not found for this project.');
+	}
+	
+	try {
+		const yaml_content = fs.readFileSync(settings_file_path, 'utf8');
+		const settings = yaml.load(yaml_content);
+		
+		if (typeof settings !== 'object' || settings === null) {
+			throw new Error('settings.yaml is malformed.');
+		}
+		
+		modification_callback(settings);
+		
+		const new_yaml_content = yaml.dump(settings, { indent: 2, lineWidth: -1 });
+		fs.writeFileSync(settings_file_path, new_yaml_content, 'utf8');
+		
+		return { success: true, new_settings_yaml: new_yaml_content };
+	} catch (error) {
+		console.error(`Error modifying settings.yaml for ${project_path}:`, error);
+		throw error;
+	}
+}
+
+/**
+ * Adds a folder to the 'excluded_folders' list in settings.yaml.
+ * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
+ * @returns {{success: boolean, new_settings_yaml: string}}
+ */
+function add_to_excluded_folders({ project_path, folder_path }) {
+	return modify_settings_yaml(project_path, (settings) => {
+		if (!settings.excluded_folders) {
+			settings.excluded_folders = [];
+		}
+		if (!Array.isArray(settings.excluded_folders)) {
+			throw new Error("'excluded_folders' in settings.yaml is not an array.");
+		}
+		if (!settings.excluded_folders.includes(folder_path)) {
+			settings.excluded_folders.push(folder_path);
+			settings.excluded_folders.sort();
+		}
+	});
+}
+
+/**
+ * Removes a folder from the 'excluded_folders' list in settings.yaml.
+ * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
+ * @returns {{success: boolean, new_settings_yaml: string}}
+ */
+function remove_from_excluded_folders({ project_path, folder_path }) {
+	return modify_settings_yaml(project_path, (settings) => {
+		if (settings.excluded_folders && Array.isArray(settings.excluded_folders)) {
+			settings.excluded_folders = settings.excluded_folders.filter(
+				(p) => p !== folder_path
+			);
+		}
+	});
+}
 
 module.exports = {
 	add_project,
@@ -211,5 +280,7 @@ module.exports = {
 	save_open_tabs,
 	validate_and_save_settings,
 	get_project_settings,
-	is_path_excluded
+	is_path_excluded,
+	add_to_excluded_folders,
+	remove_from_excluded_folders
 };

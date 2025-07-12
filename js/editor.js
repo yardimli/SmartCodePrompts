@@ -1,5 +1,3 @@
-// js/editor.js:
-
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
 import { show_alert } from './modal-alert.js';
@@ -671,23 +669,24 @@ async function checkForExternalFileChanges() {
 				continue; // Move to the next tab.
 			}
 			
-			// Handle case where file was modified.
+			// MODIFIED: Handle case where file was modified on disk.
+			// The file will be automatically reloaded without a confirmation dialog.
 			if (result.mtimeMs && result.mtimeMs > tab.lastMtime) {
-				tab.isShowingReloadConfirm = true; // Prevent re-triggering while confirm is open.
+				tab.isShowingReloadConfirm = true; // Prevent re-triggering while the async reload happens.
 				
-				let message = `The file "${tab.title}" has been modified outside of the editor.`;
+				// If the file in the editor has unsaved changes, log a warning before overwriting them.
 				if (tab.isModified) {
-					message += '\n\nReloading the file will discard your unsaved changes in the editor.';
+					console.warn(`File "${tab.filePath}" was modified on disk and in the editor. Auto-reloading from disk and discarding editor changes.`);
 				}
-				message += '\n\nDo you want to reload it from the disk?';
 				
-				const confirmed = await show_confirm(message, 'File Changed on Disk');
+				const tabToUpdate = findTab(tab.id);
+				if (!tabToUpdate) {
+					// Tab was closed in the meantime, nothing to do.
+					continue;
+				}
 				
-				const tabToUpdate = findTab(tab.id); // Re-find tab in case it was closed.
-				if (!tabToUpdate) continue;
-				
-				if (confirmed) {
-					console.log(`Reloading ${tabToUpdate.filePath} from disk.`);
+				try {
+					console.log(`Auto-reloading ${tabToUpdate.filePath} from disk.`);
 					// Fetch the new content and mtime.
 					const newData = await post_data({
 						action: 'get_file_for_editor',
@@ -695,12 +694,13 @@ async function checkForExternalFileChanges() {
 						path: tabToUpdate.filePath
 					});
 					
+					// Re-find tab again after await, just in case it was closed.
 					const finalTab = findTab(tabToUpdate.id);
 					if (finalTab && newData.currentContent !== null) {
 						const currentViewState = (activeTabId === finalTab.id) ? editor.saveViewState() : finalTab.viewState;
 						
 						finalTab.model.setValue(newData.currentContent);
-						finalTab.isModified = false;
+						finalTab.isModified = false; // The reloaded content is now the "saved" state.
 						finalTab.lastMtime = newData.mtimeMs;
 						
 						// If it's the active tab, restore view state to keep cursor/scroll position.
@@ -715,12 +715,20 @@ async function checkForExternalFileChanges() {
 							updateSaveButtonState();
 						}
 					}
-				} else {
-					// User chose not to reload. Update mtime to prevent asking again for this specific change.
-					console.log(`User chose not to reload ${tabToUpdate.filePath}. Updating mtime to prevent re-prompting.`);
-					tabToUpdate.lastMtime = result.mtimeMs;
+				} catch (error) {
+					console.error(`Failed to auto-reload file ${tabToUpdate.filePath}:`, error);
+					// If reload fails, stop trying for this file to avoid loops.
+					const failedTab = findTab(tabToUpdate.id);
+					if (failedTab) {
+						failedTab.lastMtime = null;
+					}
+				} finally {
+					// Ensure we reset the flag so it can be checked again later.
+					const finalTab = findTab(tabToUpdate.id);
+					if (finalTab) {
+						finalTab.isShowingReloadConfirm = false;
+					}
 				}
-				tabToUpdate.isShowingReloadConfirm = false;
 			}
 		} catch (error) {
 			console.error(`Error checking for file changes for ${tab.filePath}:`, error);

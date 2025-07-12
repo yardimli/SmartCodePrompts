@@ -46,7 +46,12 @@ export async function open_project_modal() {
 					await load_project(result.project.path);
 				} else {
 					// Show an error if the backend failed to add the project.
+					console.error('Failed to add project:', result);
 					show_alert(result.message || 'Failed to add project.', 'Error');
+					if (result.project) {
+						// If the project was returned, we can still load it.
+						await load_project(result.project.path);
+					}
 				}
 			} catch (error) {
 				console.error('Failed to add project:', error);

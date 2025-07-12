@@ -6,16 +6,25 @@ const {db} = require('./node-config');
 const { get_default_settings_yaml } = require('./node-config');
 
 /**
- * Adds a new project to the database.
+ * Adds a new project to the database. If the project already exists, it returns a failure message.
  * @param {object} params - The parameters.
  * @param {string} params.path - The full, absolute path of the project to add.
- * @returns {object} A success object.
+ * @returns {object} On success, returns `{ success: true, project: { path: string } }`. On failure (e.g., project exists), returns `{ success: false, message: string }`.
  */
 function add_project ({path}) {
-	db.prepare('INSERT OR IGNORE INTO projects (path) VALUES (?)').run(path);
+	// First, check if the project already exists.
+	const existing_project = db.prepare('SELECT path FROM projects WHERE path = ?').get(path);
+	if (existing_project) {
+		return { success: false, message: 'Project already exists.', project: { path: existing_project.path } };
+	}
+	
+	// If it doesn't exist, insert it.
+	db.prepare('INSERT INTO projects (path) VALUES (?)').run(path);
 	// Ensure settings file exists when adding a project
 	ensure_settings_file_exists(path);
-	return {success: true};
+	
+	// Return success along with the project object.
+	return {success: true, project: { path: path }};
 }
 
 /**

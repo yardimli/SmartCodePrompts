@@ -1,7 +1,7 @@
 // SmartCodePrompts/js/settings.js
 import { set_content_footer_prompt } from './state.js';
 import { show_alert } from './modal-alert.js';
-import jsyaml from '../vendor/js-yaml.mjs'; // Ensure js-yaml is imported correctly
+import jsyaml from '../vendor/js-yaml.mjs';
 
 // This module-level variable will hold the settings for the currently loaded project.
 let current_settings = {};

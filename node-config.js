@@ -2,7 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
-const yaml = require('js-yaml');
+const yaml = require('yaml');
 
 const isElectron = !!process.env.ELECTRON_RUN;
 const appDataPath = isElectron ? process.env.APP_DATA_PATH : __dirname;

@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const http = require('http');
-const yaml = require('js-yaml');
+const yaml = require('yaml');
 
 process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');

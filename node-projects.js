@@ -1,7 +1,7 @@
 // SmartCodePrompts/node-projects.js
 const fs = require('fs');
 const path = require('path');
-const yaml = require('js-yaml');
+const yaml = require('yaml'); // MODIFIED: Switched to the 'yaml' package
 const {db} = require('./node-config');
 const { get_default_settings_yaml } = require('./node-config');
 
@@ -55,7 +55,7 @@ function ensure_settings_file_exists(project_path) {
  */
 function get_project_settings(project_path) {
 	const default_settings_string = get_default_settings_yaml();
-	const default_settings = yaml.load(default_settings_string);
+	const default_settings = yaml.parse(default_settings_string); // MODIFIED: Use yaml.parse
 	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 	
 	if (!fs.existsSync(settings_file_path)) {
@@ -65,7 +65,7 @@ function get_project_settings(project_path) {
 	
 	try {
 		const yaml_content = fs.readFileSync(settings_file_path, 'utf8');
-		const project_specific_settings = yaml.load(yaml_content);
+		const project_specific_settings = yaml.parse(yaml_content); // MODIFIED: Use yaml.parse
 		
 		if (typeof project_specific_settings !== 'object' || project_specific_settings === null) {
 			console.warn(`[${project_path}] settings.yaml is not a valid object. Using default settings.`);
@@ -175,7 +175,7 @@ function save_open_tabs({ project_path, open_tabs_json }) {
  */
 function validate_and_save_settings({ project_path, content }) {
 	try {
-		const parsed_content = yaml.load(content);
+		const parsed_content = yaml.parse(content); // MODIFIED: Use yaml.parse
 		if (typeof parsed_content !== 'object' || parsed_content === null) {
 			throw new Error('Root of YAML must be an object.');
 		}
@@ -206,9 +206,9 @@ function validate_and_save_settings({ project_path, content }) {
 // --- NEW: Functions for modifying folder exclusion ---
 
 /**
- * A helper function to safely read, modify, and write the settings.yaml file.
+ * A helper function to safely read, modify, and write the settings.yaml file while preserving comments.
  * @param {string} project_path - The path of the project.
- * @param {function(object): void} modification_callback - A function that receives the parsed settings object and modifies it.
+ * @param {function(object): void} modification_callback - A function that receives the parsed YAML document object and modifies it.
  * @returns {{success: boolean, new_settings_yaml: string}} The result and the new YAML content.
  * @throws {Error} If the file cannot be read, parsed, or written.
  */
@@ -220,15 +220,15 @@ function modify_settings_yaml(project_path, modification_callback) {
 	
 	try {
 		const yaml_content = fs.readFileSync(settings_file_path, 'utf8');
-		const settings = yaml.load(yaml_content);
+		const doc = yaml.parseDocument(yaml_content);
 		
-		if (typeof settings !== 'object' || settings === null) {
-			throw new Error('settings.yaml is malformed.');
+		if (doc.errors && doc.errors.length > 0) {
+			throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
 		}
 		
-		modification_callback(settings);
+		modification_callback(doc);
 		
-		const new_yaml_content = yaml.dump(settings, { indent: 2, lineWidth: -1 });
+		const new_yaml_content = doc.toString();
 		fs.writeFileSync(settings_file_path, new_yaml_content, 'utf8');
 		
 		return { success: true, new_settings_yaml: new_yaml_content };
@@ -239,36 +239,49 @@ function modify_settings_yaml(project_path, modification_callback) {
 }
 
 /**
- * Adds a folder to the 'excluded_folders' list in settings.yaml.
+ * Adds a folder to the 'excluded_folders' list in settings.yaml, preserving comments.
  * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
  * @returns {{success: boolean, new_settings_yaml: string}}
  */
 function add_to_excluded_folders({ project_path, folder_path }) {
-	return modify_settings_yaml(project_path, (settings) => {
-		if (!settings.excluded_folders) {
-			settings.excluded_folders = [];
+	return modify_settings_yaml(project_path, (doc) => {
+		const key = 'excluded_folders';
+		let excludedFoldersNode = doc.getIn([key]);
+		
+		if (!excludedFoldersNode) {
+			doc.set(key, [folder_path]);
+			return;
 		}
-		if (!Array.isArray(settings.excluded_folders)) {
+		
+		if (!yaml.isSeq(excludedFoldersNode)) {
 			throw new Error("'excluded_folders' in settings.yaml is not an array.");
 		}
-		if (!settings.excluded_folders.includes(folder_path)) {
-			settings.excluded_folders.push(folder_path);
-			settings.excluded_folders.sort();
+		
+		if (!excludedFoldersNode.has(folder_path)) {
+			excludedFoldersNode.add(folder_path);
+			excludedFoldersNode.items.sort((a, b) => String(a.value).localeCompare(String(b.value)));
 		}
 	});
 }
 
 /**
- * Removes a folder from the 'excluded_folders' list in settings.yaml.
+ * Removes a folder from the 'excluded_folders' list in settings.yaml, preserving comments.
  * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
  * @returns {{success: boolean, new_settings_yaml: string}}
  */
 function remove_from_excluded_folders({ project_path, folder_path }) {
-	return modify_settings_yaml(project_path, (settings) => {
-		if (settings.excluded_folders && Array.isArray(settings.excluded_folders)) {
-			settings.excluded_folders = settings.excluded_folders.filter(
-				(p) => p !== folder_path
-			);
+	return modify_settings_yaml(project_path, (doc) => {
+		const key = 'excluded_folders';
+		if (doc.has(key)) {
+			const excludedFoldersNode = doc.getIn([key]);
+			if (yaml.isSeq(excludedFoldersNode)) {
+				const index = excludedFoldersNode.items.findIndex(
+					(item) => item.value === folder_path
+				);
+				if (index !== -1) {
+					excludedFoldersNode.delete(index);
+				}
+			}
 		}
 	});
 }

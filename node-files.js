@@ -1,5 +1,3 @@
-// node-files.js:
-
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -21,7 +19,6 @@ function calculate_checksum(data) {
 
 function get_folders({ input_path, project_path }) {
 	const settings = get_project_settings(project_path);
-	// CORRECTED: We no longer need `excluded_folders` here. The frontend handles the visual logic.
 	const { allowed_extensions } = settings;
 	
 	const full_path = resolve_path(input_path, project_path);
@@ -45,7 +42,6 @@ function get_folders({ input_path, project_path }) {
 				continue;
 			}
 			if (stats.isDirectory()) {
-				// CORRECTED: Always add the folder to the list. The frontend will decide how to render it.
 				folders.push(item);
 			} else if (stats.isFile()) {
 				const ext = path.extname(item_full_path).slice(1);
@@ -53,7 +49,6 @@ function get_folders({ input_path, project_path }) {
 				if (base.startsWith('.')) {
 					base = base.slice(1);
 				}
-				// We still respect allowed_extensions for files.
 				if (allowed_extensions.includes(ext) || (ext === '' && allowed_extensions.includes(base))) {
 					const relative_file_path = path.join(input_path, item).replace(/\\/g, '/');
 					const has_analysis = analyzed_files_map.has(relative_file_path);
@@ -90,6 +85,8 @@ function get_folders({ input_path, project_path }) {
 		console.error(`Error reading directory ${full_path}:`, error);
 		return {folders: [], files: []};
 	}
+	
+	// MODIFIED: Removed sorting, as it's now handled on the client-side for better consistency.
 	return {folders, files};
 }
 
@@ -154,7 +151,6 @@ function getGitModifiedFiles(project_full_path) {
 	}
 }
 
-// MODIFIED: This function now also returns the file's last modification time (mtime).
 function get_file_for_editor({ project_path, file_path }) {
 	let currentContent;
 	let mtimeMs;
@@ -177,7 +173,6 @@ function get_file_for_editor({ project_path, file_path }) {
 		originalContent = getGitHeadContent(file_path, project_path);
 	}
 	
-	// Normalize line endings for a more reliable comparison.
 	if (originalContent && currentContent.replace(/\r/g, '') === originalContent.replace(/\r/g, '')) {
 		originalContent = null;
 	}
@@ -185,7 +180,6 @@ function get_file_for_editor({ project_path, file_path }) {
 	return { currentContent, originalContent, mtimeMs };
 }
 
-// Gets the modification time of a file to check for external changes.
 function get_file_mtime({ project_path, file_path }) {
 	try {
 		const full_path = resolve_path(file_path, project_path);
@@ -195,7 +189,6 @@ function get_file_mtime({ project_path, file_path }) {
 		const stats = fs.statSync(full_path);
 		return { mtimeMs: stats.mtimeMs, exists: true };
 	} catch (error) {
-		// This can happen if the file is deleted between the check and the stat call, which is fine.
 		console.warn(`Could not get mtime for ${file_path}:`, error.message);
 		return { mtimeMs: null, exists: false };
 	}
@@ -228,7 +221,6 @@ function search_files({ start_path, search_term, project_path }) {
 				continue;
 			}
 			if (stats.isDirectory()) {
-				// We don't search inside excluded folders.
 				if (!is_path_excluded(path.relative(project_path, item_full_path), settings)) {
 					search_in_directory(item_full_path);
 				}
@@ -260,53 +252,122 @@ function get_file_analysis({project_path, file_path}) {
 	return data || {file_overview: null, functions_overview: null};
 }
 
-function check_folder_updates({ project_path }) {
-	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const analyzed_files = stmt.all(project_path);
+/**
+ * Recursively walks the project directory to get a set of all valid, non-excluded file paths.
+ * @param {string} project_path - The absolute path to the project root.
+ * @param {object} settings - The project's settings object.
+ * @returns {Set<string>} A set of relative file paths.
+ */
+function get_all_project_files(project_path, settings) {
+	const { allowed_extensions } = settings;
+	const all_files = new Set();
 	
-	const results = {
-		updates: [],
-		deleted: []
-	};
-	
-	if (analyzed_files.length === 0) {
-		return results;
-	}
-	
-	const modifiedGitFiles = getGitModifiedFiles(project_path);
-	
-	for (const file of analyzed_files) {
+	function walk(directory) {
+		let items;
 		try {
-			const full_path = resolve_path(file.file_path, project_path);
+			items = fs.readdirSync(directory);
+		} catch (e) {
+			console.warn(`Could not read directory, skipping: ${directory}`);
+			return;
+		}
+		
+		for (const item of items) {
+			const full_path = path.join(directory, item);
+			const relative_path = path.relative(project_path, full_path).replace(/\\/g, '/');
 			
-			if (!fs.existsSync(full_path)) {
-				results.deleted.push(file.file_path);
+			if (is_path_excluded(relative_path, settings)) {
 				continue;
 			}
 			
-			const file_content = fs.readFileSync(full_path);
-			const current_checksum = calculate_checksum(file_content);
+			let stats;
+			try {
+				stats = fs.statSync(full_path);
+			} catch (e) {
+				continue;
+			}
 			
-			const needs_reanalysis = current_checksum !== file.last_checksum;
-			const has_git_diff = modifiedGitFiles.has(file.file_path);
-			
-			results.updates.push({
-				file_path: file.file_path,
-				needs_reanalysis: needs_reanalysis,
-				has_git_diff: has_git_diff
-			});
-			
-		} catch (error) {
-			console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
-			results.updates.push({
-				file_path: file.file_path,
-				needs_reanalysis: true,
-				has_git_diff: false
-			});
+			if (stats.isDirectory()) {
+				walk(full_path);
+			} else if (stats.isFile()) {
+				const ext = path.extname(item).slice(1);
+				let base = path.basename(item);
+				if (base.startsWith('.')) base = base.slice(1);
+				
+				if (allowed_extensions.includes(ext) || (ext === '' && allowed_extensions.includes(base))) {
+					all_files.add(relative_path);
+				}
+			}
 		}
 	}
 	
-	return results;
+	walk(project_path);
+	return all_files;
+}
+
+/**
+ * Checks for file system changes by comparing tracked files with the actual file system.
+ * Detects new files, deleted files, and modifications to existing files.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The full path of the project.
+ * @returns {object} An object containing arrays of added, deleted, and updated files.
+ */
+function check_folder_updates({ project_path }) {
+	// 1. Get all files currently tracked in the DB
+	const db_files_stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const db_files_list = db_files_stmt.all(project_path);
+	const db_files_map = new Map(db_files_list.map(r => [r.file_path, r.last_checksum]));
+	
+	// 2. Get all valid files from the filesystem
+	const settings = get_project_settings(project_path);
+	const fs_files_set = get_all_project_files(project_path, settings);
+	
+	// 3. Compare sets to find added and deleted files
+	const added_files_paths = [...fs_files_set].filter(p => !db_files_map.has(p));
+	const deleted_files_paths = [...db_files_map.keys()].filter(p => !fs_files_set.has(p));
+	
+	// 4. Process existing files for updates (checksum, git status)
+	const updates = [];
+	const modifiedGitFiles = getGitModifiedFiles(project_path);
+	
+	db_files_list.forEach(file => {
+		// Only process files that still exist on the filesystem
+		if (fs_files_set.has(file.file_path)) {
+			try {
+				const full_path = resolve_path(file.file_path, project_path);
+				const file_content = fs.readFileSync(full_path);
+				const current_checksum = calculate_checksum(file_content);
+				
+				const needs_reanalysis = current_checksum !== file.last_checksum;
+				const has_git_diff = modifiedGitFiles.has(file.file_path);
+				
+				updates.push({
+					file_path: file.file_path,
+					needs_reanalysis: needs_reanalysis,
+					has_git_diff: has_git_diff
+				});
+			} catch (error) {
+				console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
+				updates.push({
+					file_path: file.file_path,
+					needs_reanalysis: true,
+					has_git_diff: false
+				});
+			}
+		}
+	});
+	
+	// 5. Format added files with details needed by the frontend
+	const added_files_details = added_files_paths.map(p => ({
+		path: p,
+		name: path.basename(p),
+		parent_path: path.dirname(p).replace(/\\/g, '/') || '.'
+	}));
+	
+	return {
+		updates: updates,
+		deleted: deleted_files_paths,
+		added: added_files_details
+	};
 }
 
 function check_for_modified_files({project_path}) {
@@ -314,7 +375,6 @@ function check_for_modified_files({project_path}) {
 	const stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
 	const all_analyzed_files = stmt.all(project_path);
 	
-	// Filter out files from excluded folders.
 	const analyzed_files = all_analyzed_files.filter(
 		file => !is_path_excluded(file.file_path, project_settings)
 	);
@@ -358,7 +418,6 @@ function create_file({ project_path, file_path }) {
 		if (fs.existsSync(full_path)) {
 			throw new Error(`File already exists: ${file_path}`);
 		}
-		// Ensure parent directory exists
 		fs.mkdirSync(path.dirname(full_path), { recursive: true });
 		fs.writeFileSync(full_path, '', 'utf8');
 		return { success: true };
@@ -390,7 +449,6 @@ function rename_path({ project_path, old_path, new_path }) {
 			throw new Error(`Destination path already exists: ${new_path}`);
 		}
 		fs.renameSync(full_old_path, full_new_path);
-		// Update database entries for the renamed path to maintain state.
 		db.prepare('UPDATE file_metadata SET file_path = ? WHERE project_path = ? AND file_path = ?')
 			.run(new_path, project_path, old_path);
 		db.prepare('UPDATE project_open_tabs SET file_path = ? WHERE project_path = ? AND file_path = ?')
@@ -406,7 +464,6 @@ function delete_path({ project_path, path_to_delete }) {
 	const full_path = resolve_path(path_to_delete, project_path);
 	try {
 		fs.rmSync(full_path, { recursive: true, force: true });
-		// Also remove any associated records from the database.
 		db.prepare('DELETE FROM file_metadata WHERE project_path = ? AND file_path LIKE ?')
 			.run(project_path, `${path_to_delete}%`);
 		db.prepare('DELETE FROM project_open_tabs WHERE project_path = ? AND file_path LIKE ?')
@@ -448,7 +505,7 @@ module.exports = {
 	check_folder_updates,
 	check_for_modified_files,
 	get_file_for_editor,
-	get_file_mtime, // NEW
+	get_file_mtime,
 	create_file,
 	create_folder,
 	rename_path,

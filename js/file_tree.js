@@ -1,5 +1,3 @@
-// SmartCodePrompts/js/file_tree.js
-
 import {show_loading, hide_loading, get_parent_path, post_data, estimate_tokens} from './utils.js';
 import {get_current_project, get_content_footer_prompt, get_last_smart_prompt, save_current_project_state} from './state.js';
 import {handle_analysis_icon_click} from './modal-analysis.js';
@@ -83,7 +81,7 @@ function _updateEditorWithCachedContent () {
 /**
  * Fetches and displays the contents of a folder in the file tree.
  * @param {string} path - The path of the folder to load.
- * @param {HTMLElement|null} element - The folder element that was clicked.
+ * @param {HTMLElement|null} element - The folder element that was clicked. For root load, this is null.
  * @returns {Promise<void>}
  */
 export function load_folders (path, element) {
@@ -102,27 +100,51 @@ export function load_folders (path, element) {
 				project_path: current_project.path
 			});
 			const file_tree = document.getElementById('file-tree');
+			
+			// MODIFIED: Handle initial root load by creating a root folder element.
 			if (element) {
+				// This is a subfolder expansion/refresh. Remove its old content.
 				const next_ul = element.closest('li').nextElementSibling;
 				if (next_ul && next_ul.tagName === 'UL') {
 					next_ul.remove();
 				}
-			} else {
+			} else if (path === '.') {
+				// This is the root load. Clear the entire tree.
 				file_tree.innerHTML = '';
 			}
-			if (!response || (!response.folders.length && !response.files.length)) {
-				return resolve();
+			
+			// MODIFIED: If this is the root load, create the main project folder structure first.
+			// The content will be appended to it.
+			if (!element && path === '.') {
+				const project_name = current_project.path.split(/[\\/]/).pop();
+				const root_html = `
+					<ul>
+						<li>
+							<span class="folder open" data-path="." data-excluded="false">
+								<span class="folder-name" title="${current_project.path}">${project_name}</span>
+								<span class="folder-controls inline-block align-middle ml-2">
+									<i class="bi bi-check2-square folder-toggle-select-icon text-base-content/40 hover:text-base-content/80 cursor-pointer" title="Toggle selection in this folder"></i>
+								</span>
+							</span>
+						</li>
+					</ul>`;
+				file_tree.innerHTML = root_html;
+				// Now, find this newly created element to append content to it.
+				element = file_tree.querySelector('.folder[data-path="."]');
 			}
+			
+			if (!response || (!response.folders.length && !response.files.length)) {
+				return resolve(); // Nothing to display in this folder.
+			}
+			
 			const ul = document.createElement('ul');
 			ul.style.display = 'none';
-			ul.className = 'pl-4'; // Tailwind class for padding-left
+			// MODIFIED: The list of files/folders is always a sub-list, so it's always indented.
+			ul.className = 'pl-4';
 			let content = '';
 			
 			// Helper to check if a path is in an excluded folder.
 			const is_path_excluded = (p) => excluded_folders_list.some(ex => p === ex || p.startsWith(ex + '/'));
-			
-			response.folders.sort((a, b) => a.localeCompare(b));
-			response.files.sort((a, b) => a.name.localeCompare(b.name));
 			
 			response.folders.forEach(folder => {
 				const full_path = (path === '.') ? folder : `${path}/${folder}`;
@@ -167,12 +189,17 @@ export function load_folders (path, element) {
                     </li>`;
 			});
 			ul.innerHTML = content;
+			
+			// MODIFIED: Append content to an existing folder element (which now includes the root).
 			if (element) {
 				element.closest('li').after(ul);
+				ul.style.display = 'block';
 			} else {
-				file_tree.appendChild(ul);
+				// This case should not be hit anymore.
+				console.error('load_folders: Could not find an element to append content to.');
+				return reject(new Error('Could not find an element to append content to.'));
 			}
-			ul.style.display = 'block';
+			
 			resolve();
 		} catch (error) {
 			console.error(`Error loading folders for path ${path}:`, error);
@@ -308,17 +335,18 @@ export async function ensure_file_is_visible (file_path) {
 }
 
 /**
- * This function is called by the polling mechanism and updates icons based on file status.
- * @param {object} updates - An object with `updates` and `deleted` file path arrays.
+ * This function is called by the polling mechanism and performs surgical DOM updates
+ * to reflect filesystem changes (added, deleted, modified files) without a full refresh.
+ * @param {object} updates - An object with `updates`, `deleted`, and `added` file arrays.
  */
-function handle_modification_status_updates (updates) {
+function handle_file_system_updates (updates) {
 	const file_tree = document.getElementById('file-tree');
 	if (!file_tree) return;
 	
-	let has_changes = false;
+	let content_needs_update = false;
 	
-	// Handle files that were updated (modified or not)
-	updates.updates.forEach(file_update => {
+	// 1. Handle icon/status UPDATES on existing files
+	(updates.updates || []).forEach(file_update => {
 		updateTabGitStatus(file_update.file_path, file_update.has_git_diff);
 		
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_update.file_path}"]`)?.closest('li');
@@ -327,47 +355,73 @@ function handle_modification_status_updates (updates) {
 		// --- Handle Reanalysis Icon (stale analysis) ---
 		const existing_reanalysis_icon = file_li.querySelector('.reanalysis-alert-icon');
 		if (file_update.needs_reanalysis && !existing_reanalysis_icon) {
-			// Add reanalysis icon
 			file_li.querySelector('.file-entry')?.insertAdjacentHTML('afterend', ' <i class="bi bi-exclamation-triangle-fill reanalysis-alert-icon align-middle" title="File has been modified since last analysis"></i>');
-			has_changes = true;
 		} else if (!file_update.needs_reanalysis && existing_reanalysis_icon) {
-			// Remove reanalysis icon
 			existing_reanalysis_icon.remove();
-			has_changes = true;
 		}
 		
 		// --- Handle Git Diff Icon ---
 		const existing_diff_icon = file_li.querySelector('.diff-icon');
 		if (file_update.has_git_diff && !existing_diff_icon) {
-			// Add diff icon to the end of the li
 			file_li.insertAdjacentHTML('beforeend', ` <i class="bi bi-git diff-icon text-info hover:text-info-focus cursor-pointer align-middle ml-1" data-path="${file_update.file_path}" title="View Changes (Diff)"></i>`);
-			has_changes = true;
 		} else if (!file_update.has_git_diff && existing_diff_icon) {
-			// Remove diff icon
 			existing_diff_icon.remove();
-			has_changes = true;
 		}
 	});
 	
-	// Handle files that were deleted
-	updates.deleted.forEach(file_path => {
+	// 2. Handle DELETED files
+	(updates.deleted || []).forEach(file_path => {
 		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
 		if (file_li) {
 			const checkbox = file_li.querySelector('input[type="checkbox"]');
-			const was_checked = checkbox && checkbox.checked;
-			
-			file_li.remove();
-			has_changes = true;
-			
-			if (was_checked) {
-				update_selected_content();
+			if (checkbox && checkbox.checked) {
+				content_needs_update = true;
 			}
+			file_li.remove();
 		}
 	});
 	
-	if (has_changes) {
-		console.log('File tree icons updated due to filesystem changes.');
+	// 3. Handle ADDED files
+	(updates.added || []).forEach(file_info => {
+		const parent_folder_element = file_tree.querySelector(`.folder[data-path="${file_info.parent_path}"]`);
+		console.log(file_info);
+		
+		// Only add the file to the DOM if its parent folder is currently open
+		if (parent_folder_element && parent_folder_element.classList.contains('open')) {
+			const parent_li = parent_folder_element.closest('li');
+			let parent_ul = parent_li.nextElementSibling;
+			
+			if (!parent_ul || parent_ul.tagName !== 'UL') {
+				parent_ul = document.createElement('ul');
+				parent_ul.className = 'pl-4';
+				parent_li.after(parent_ul);
+			}
+			
+			if (parent_ul.querySelector(`[data-path="${file_info.path}"]`)) {
+				return; // Avoid duplicating if already present
+			}
+			
+			const filetype_class = get_filetype_class(file_info.name);
+			const new_li_html = `
+                <li>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" data-path="${file_info.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has_analysis="false">
+                    </div>
+                    <div class="file-entry align-middle" data-path="${file_info.path}">
+                        <span class="file ${filetype_class}"></span>
+                        <span class="file-name" title="${file_info.path}">${file_info.name}</span>
+                    </div>
+                </li>`;
+			
+			// Append the new file. Imperfect sorting is acceptable to avoid the blink.
+			parent_ul.insertAdjacentHTML('beforeend', new_li_html);
+		}
+	});
+	
+	if (content_needs_update) {
+		update_selected_content();
 	}
+	console.log('end');
 }
 
 /**
@@ -382,12 +436,13 @@ export function stop_file_tree_polling () {
 }
 
 /**
- * Starts the periodic polling for file tree updates.
+ * Starts periodic polling for file system changes.
+ * This uses a surgical update approach to avoid UI flickering.
  */
 export function start_file_tree_polling () {
 	stop_file_tree_polling();
 	
-	const poll_interval = 10000; // Poll every 10 seconds.
+	const poll_interval = 5000; // Poll every 5 seconds for better responsiveness
 	
 	file_tree_update_interval = setInterval(async () => {
 		const current_project = get_current_project();
@@ -402,12 +457,16 @@ export function start_file_tree_polling () {
 				project_path: current_project.path
 			});
 			
-			handle_modification_status_updates(updates);
+			// Only process if there are actual changes to report
+			if (updates.added.length > 0 || updates.deleted.length > 0 || updates.updates.length > 0) {
+				console.log('File system changes detected:', updates);
+				handle_file_system_updates(updates);
+			}
 		} catch (error) {
 			console.error('Error polling for file tree updates:', error);
 		}
 	}, poll_interval);
-	console.log('File tree polling started for modification status.');
+	console.log('File tree polling started for surgical updates.');
 }
 
 async function handle_diff_icon_click(filePath) {
@@ -503,23 +562,6 @@ function initialize_file_tree_context_menu() {
 			}
 		}
 		contextMenuTargetPath = null;
-	});
-	
-	document.getElementById('context-menu-new-file-root').addEventListener('click', async () => {
-		const filename = await show_prompt('Enter file name for project root:', 'New File in Root');
-		if (filename) {
-			try {
-				await post_data({
-					action: 'create_file',
-					project_path: get_current_project().path,
-					file_path: filename // Path is just the filename for root
-				});
-				
-				await refresh_folder_view('.');
-			} catch (error) {
-				show_alert(`Failed to create file: ${error.message}`, 'Error');
-			}
-		}
 	});
 	
 	document.getElementById('context-menu-new-folder').addEventListener('click', async () => {
@@ -737,79 +779,86 @@ export function setup_file_tree_listeners () {
 		}
 	});
 	
-	// Refactored context menu logic for clarity and to handle exclusion.
+	// MODIFIED: Context menu logic now handles clicks on empty space vs. items.
 	file_tree.addEventListener('contextmenu', (e) => {
 		const target = e.target.closest('.folder, .file-entry');
-		if (!target) {
-			return;
-		}
+		
 		e.preventDefault();
 		e.stopPropagation();
 		
-		contextMenuTargetPath = target.dataset.path;
+		// Hide both menus to start fresh
+		document.getElementById('file-tree-context-menu').classList.add('hidden');
 		
-		const menu = document.getElementById('file-tree-context-menu');
-		const isFolder = target.classList.contains('folder');
-		const isExcluded = target.dataset.excluded === 'true';
-		
-		// Define all menu items for easier management
-		const menuItems = {
-			newFile: document.getElementById('context-menu-new-file-li'),
-			newFolder: document.getElementById('context-menu-new-folder-li'),
-			newFileRoot: document.getElementById('context-menu-new-file-root-li'),
-			rename: document.getElementById('context-menu-rename-li'),
-			delete: document.getElementById('context-menu-delete-li'),
-			gitReset: document.getElementById('context-menu-git-reset-li'),
-			excludeFolder: document.getElementById('context-menu-exclude-folder-li'),
-			includeFolder: document.getElementById('context-menu-include-folder-li')
-		};
-		
-		// Hide all by default, then show relevant ones
-		Object.values(menuItems).forEach(item => item && (item.style.display = 'none'));
-		
-		if (isFolder) {
-			if (isExcluded) {
-				// If folder is excluded, only show "Include" option
-				menuItems.includeFolder.style.display = 'block';
-			} else {
-				// If folder is not excluded, show normal folder options
-				menuItems.newFile.style.display = 'block';
-				menuItems.newFolder.style.display = 'block';
-				menuItems.newFileRoot.style.display = 'block';
+		if (target) {
+			// User right-clicked on a file or folder
+			contextMenuTargetPath = target.dataset.path;
+			
+			const menu = document.getElementById('file-tree-context-menu');
+			const isFolder = target.classList.contains('folder');
+			const isExcluded = target.dataset.excluded === 'true';
+			
+			// Define all menu items for easier management
+			const menuItems = {
+				newFile: document.getElementById('context-menu-new-file-li'),
+				newFolder: document.getElementById('context-menu-new-folder-li'),
+				rename: document.getElementById('context-menu-rename-li'),
+				delete: document.getElementById('context-menu-delete-li'),
+				gitReset: document.getElementById('context-menu-git-reset-li'),
+				excludeFolder: document.getElementById('context-menu-exclude-folder-li'),
+				includeFolder: document.getElementById('context-menu-include-folder-li')
+			};
+			
+			// Hide all by default, then show relevant ones
+			Object.values(menuItems).forEach(item => item && (item.style.display = 'none'));
+			
+			if (isFolder) {
+				if (isExcluded) {
+					// If folder is excluded, only show "Include" option
+					menuItems.includeFolder.style.display = 'block';
+				} else {
+					// If folder is not excluded, show normal folder options
+					menuItems.newFile.style.display = 'block';
+					menuItems.newFolder.style.display = 'block';
+					menuItems.rename.style.display = 'block';
+					menuItems.delete.style.display = 'block';
+					menuItems.excludeFolder.style.display = 'block';
+				}
+			} else { // It's a file-entry
 				menuItems.rename.style.display = 'block';
 				menuItems.delete.style.display = 'block';
-				menuItems.excludeFolder.style.display = 'block';
+				menuItems.gitReset.style.display = 'block';
 			}
-		} else { // It's a file-entry
-			menuItems.rename.style.display = 'block';
-			menuItems.delete.style.display = 'block';
-			menuItems.gitReset.style.display = 'block';
+			
+			// Special handling for the 'Git Reset' item.
+			if (!isFolder) {
+				const fileLiElement = target.closest('li');
+				const hasDiff = fileLiElement && fileLiElement.querySelector('.diff-icon');
+				menuItems.gitReset.classList.toggle('disabled', !hasDiff);
+			}
+			
+			menu.style.top = `${e.pageY}px`;
+			menu.style.left = `${e.pageX}px`;
+			menu.classList.remove('hidden');
 		}
-		
-		// Special handling for the 'Git Reset' item.
-		if (!isFolder) {
-			const fileLiElement = target.closest('li');
-			const hasDiff = fileLiElement && fileLiElement.querySelector('.diff-icon');
-			menuItems.gitReset.classList.toggle('disabled', !hasDiff);
-		}
-		
-		menu.style.top = `${e.pageY}px`;
-		menu.style.left = `${e.pageX}px`;
-		menu.classList.remove('hidden');
 	});
 	
+	// MODIFIED: Global click listener now hides both context menus.
 	document.addEventListener('click', () => {
-		const menu = document.getElementById('file-tree-context-menu');
-		if (menu) {
-			menu.classList.add('hidden');
-		}
+		document.getElementById('file-tree-context-menu')?.classList.add('hidden');
 	});
 	
+	// MODIFIED: Global keydown listener now hides both context menus on 'Escape'.
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
-			const menu = document.getElementById('file-tree-context-menu');
-			if (menu && !menu.classList.contains('hidden')) {
-				menu.classList.add('hidden');
+			const menu1 = document.getElementById('file-tree-context-menu');
+			let menuWasVisible = false;
+			
+			if (menu1 && !menu1.classList.contains('hidden')) {
+				menu1.classList.add('hidden');
+				menuWasVisible = true;
+			}
+			
+			if (menuWasVisible) {
 				contextMenuTargetPath = null;
 			}
 		}

@@ -1,8 +1,7 @@
-// SmartCodePrompts/js/analysis.js
-import {post_data} from './utils.js';
-import {get_current_project} from './state.js';
-import {show_progress_modal, hide_progress_modal, update_progress} from './modal-progress.js';
-import {show_alert} from './modal-alert.js';
+import { post_data } from './utils.js';
+import { get_current_project } from './state.js';
+import { show_progress_modal, hide_progress_modal, update_progress } from './modal-progress.js';
+import { show_alert } from './modal-alert.js';
 import { get_all_settings } from './settings.js';
 
 let is_selection_analysis_cancelled = false;
@@ -28,7 +27,7 @@ export async function perform_selection_analysis () {
 	const total_files = checked_boxes.length;
 	let files_analyzed = 0;
 	let files_skipped = 0;
-	let errors = [];
+	const errors = [];
 	const current_project = get_current_project();
 	
 	// Setup for progress modal and cancellation
@@ -64,6 +63,10 @@ export async function perform_selection_analysis () {
 			
 			if (response.status === 'analyzed') {
 				files_analyzed++;
+				// MODIFIED: Update the checkbox's data attribute to reflect its new analysis state.
+				// This ensures the "Select Unanalyzed" button works correctly without a UI refresh.
+				checkbox.dataset.has_analysis = 'true';
+				
 				const li = checkbox.closest('li');
 				if (li && !li.querySelector('.analysis-icon')) {
 					const icon = document.createElement('i');
@@ -113,7 +116,7 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		const stop_callback = () => {
 			console.log('Requesting re-analysis cancellation.');
-			post_data({action: 'cancel_analysis'}).catch(err => console.error('Failed to send cancel signal:', err));
+			post_data({ action: 'cancel_analysis' }).catch(err => console.error('Failed to send cancel signal:', err));
 			// The rejection will be handled by the polling loop when it sees the process is no longer running.
 		};
 		
@@ -135,7 +138,7 @@ export function perform_reanalysis (force_reanalysis) {
 		
 		const poll_interval = setInterval(async () => {
 			try {
-				const stats = await post_data({action: 'get_session_stats'});
+				const stats = await post_data({ action: 'get_session_stats' });
 				const progress = stats.reanalysis;
 				
 				if (progress && progress.running) {
@@ -183,11 +186,11 @@ export function setup_analysis_actions_listener () {
 	}
 	
 	if (reanalyze_modified_btn) {
-		//The event listener is now async to handle the promise returned by perform_reanalysis.
+		// The event listener is now async to handle the promise returned by perform_reanalysis.
 		reanalyze_modified_btn.addEventListener('click', async () => {
 			try {
 				const summary = await perform_reanalysis(false);
-				let summary_message = `Re-analysis complete.\n` +
+				const summary_message = `Re-analysis complete.\n` +
 					`- Files re-analyzed: ${summary.analyzed}\n` +
 					`- Files skipped (up-to-date): ${summary.skipped}`;
 				show_alert(summary_message, 'Re-analysis Complete');

@@ -86,7 +86,11 @@ function get_folders({ input_path, project_path }) {
 		return {folders: [], files: []};
 	}
 	
-	// MODIFIED: Removed sorting, as it's now handled on the client-side for better consistency.
+	// MODIFIED: Sort folders and files alphabetically (case-insensitive) to ensure a consistent and user-friendly order.
+	// This ensures that within a directory listing, folders are grouped together and sorted, and files are grouped together and sorted.
+	folders.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+	files.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+	
 	return {folders, files};
 }
 

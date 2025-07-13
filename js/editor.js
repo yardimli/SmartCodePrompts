@@ -1,3 +1,5 @@
+// js/editor.js
+
 import { post_data } from './utils.js';
 import { get_current_project } from './state.js';
 import { show_alert } from './modal-alert.js';
@@ -6,7 +8,7 @@ import { update_project_settings } from './settings.js';
 
 let editor = null;
 // MODIFIED: Added lastMtime and isShowingReloadConfirm to tab state documentation.
-let tabs = []; // Array of { id, title, model, originalModel, isDiff, isCloseable, language, viewState, readOnly, filePath, isModified, isGitModified, lastMtime, isShowingReloadConfirm }
+let tabs = []; // Array of { id, title, model, originalModel, isCloseable, language, viewState, filePath, isModified, isGitModified, lastMtime, isShowingReloadConfirm }
 let mruTabIds = []; // Track Most Recently Used tab IDs.
 let activeTabId = null;
 let tabCounter = 0;
@@ -193,14 +195,14 @@ export function updateSaveButtonState() {
 	if (!saveBtn) return;
 	
 	const activeTab = findTab(activeTabId);
-	const shouldBeEnabled = activeTab && activeTab.isModified && !activeTab.readOnly && !activeTab.isDiff;
+	const shouldBeEnabled = activeTab && activeTab.isModified;
 	
 	saveBtn.disabled = !shouldBeEnabled;
 }
 
 export function saveAllModifiedTabs() {
 	console.log('Attempting to save all modified files on blur...');
-	const modifiedTabs = tabs.filter(tab => tab.isModified && !tab.readOnly && tab.filePath && tab.filePath !== '.scp/settings.yaml');
+	const modifiedTabs = tabs.filter(tab => tab.isModified && tab.filePath && tab.filePath !== '.scp/settings.yaml');
 	
 	if (modifiedTabs.length > 0) {
 		const savePromises = modifiedTabs.map(tab => saveTabContent(tab.id));
@@ -231,13 +233,13 @@ function save_open_tabs_state() {
 
 export async function saveTabContent(tabId) {
 	const tab = findTab(tabId);
-	if (!tab || !tab.filePath || tab.readOnly || tab.isDiff || !tab.isModified) {
+	if (!tab || !tab.filePath || !tab.isModified) {
 		return;
 	}
 	
 	const project = get_current_project();
 	if (!project) {
-		console.error("Cannot save file: No project selected.");
+		console.error('Cannot save file: No project selected.');
 		return;
 	}
 	
@@ -254,6 +256,10 @@ export async function saveTabContent(tabId) {
 			
 			if (result.success) {
 				tab.isModified = false;
+				// MODIFIED: Update the tab's last known modification time to prevent an immediate-reload race condition.
+				if (result.mtimeMs) {
+					tab.lastMtime = result.mtimeMs;
+				}
 				await update_project_settings(content);
 				renderTabs();
 				updateSaveButtonState();
@@ -270,16 +276,28 @@ export async function saveTabContent(tabId) {
 	
 	console.log(`Saving ${tab.filePath}...`);
 	try {
-		await post_data({
+		// MODIFIED: Capture the result to get the new modification time.
+		const result = await post_data({
 			action: 'save_file_content',
 			project_path: project.path,
 			file_path: tab.filePath,
 			content: content
 		});
-		tab.isModified = false;
-		renderTabs();
-		updateSaveButtonState();
-		console.log(`${tab.filePath} saved successfully.`);
+		
+		// MODIFIED: Check for success and update the tab's state.
+		if (result.success) {
+			tab.isModified = false;
+			// MODIFIED: Update the tab's last known modification time to prevent an immediate-reload race condition.
+			if (result.mtimeMs) {
+				tab.lastMtime = result.mtimeMs;
+			}
+			renderTabs();
+			updateSaveButtonState();
+			console.log(`${tab.filePath} saved successfully.`);
+		} else {
+			// This case is unlikely if post_data throws on error, but good to have.
+			throw new Error(result.message || 'Unknown save error');
+		}
 	} catch (error) {
 		console.error(`Failed to save ${tab.filePath}:`, error);
 		show_alert(`Failed to save ${tab.filePath}: ${error.message}`, 'Save Error');
@@ -324,9 +342,6 @@ function renderTabs() {
 		
 		const titleEl = document.createElement('span');
 		titleEl.textContent = tab.title;
-		if (tab.isDiff) {
-			titleEl.style.fontStyle = 'italic';
-		}
 		if (tab.isModified) {
 			titleEl.innerHTML += ' <span class="modified-dot" title="Unsaved changes">•</span>';
 		}
@@ -503,7 +518,7 @@ export function closeTab(tabId) {
 	save_open_tabs_state();
 }
 
-export function createNewTab(title, content, language = 'plaintext', isCloseable = true, readOnly = false, filePath = null) {
+export function createNewTab(title, content, language = 'plaintext', isCloseable = true, filePath = null) {
 	if (!monaco || !editor) return null;
 	
 	tabCounter++;
@@ -515,11 +530,10 @@ export function createNewTab(title, content, language = 'plaintext', isCloseable
 		title: title,
 		model: newModel,
 		originalModel: null,
-		isDiff: false,
 		isCloseable: isCloseable,
 		language: language,
 		viewState: null,
-		readOnly: readOnly,
+		readOnly: false,
 		filePath: filePath,
 		isModified: false,
 		isGitModified: false,
@@ -550,32 +564,24 @@ export function openFileInTab(filePath, currentContent, originalContent, isGitMo
 	
 	const title = filePath === '.scp/settings.yaml' ? 'Project Settings' : filePath.split('/').pop();
 	const language = getLanguageForFile(filePath);
-	const isDiff = originalContent !== null;
 	
 	// A file is considered modified in git if it's opened in diff view,
 	// or if the flag is explicitly passed (for normal view of a modified file).
-	const gitModifiedStatus = isDiff || isGitModified;
+	const gitModifiedStatus = isGitModified;
 	
 	tabCounter++;
 	const newTabId = `tab-${Date.now()}-${tabCounter}`;
 	const modifiedModel = monaco.editor.createModel(currentContent, language);
 	let originalModel = null;
 	
-	if (isDiff) {
-		originalModel = monaco.editor.createModel(originalContent, language);
-		originalModel.updateOptions({ readOnly: true });
-	}
-	
 	const newTab = {
 		id: newTabId,
 		title: title,
 		model: modifiedModel,
 		originalModel: originalModel,
-		isDiff: isDiff,
 		isCloseable: true,
 		language: language,
 		viewState: null,
-		readOnly: isDiff,
 		filePath: filePath,
 		isModified: false,
 		isGitModified: gitModifiedStatus,
@@ -583,16 +589,15 @@ export function openFileInTab(filePath, currentContent, originalContent, isGitMo
 		isShowingReloadConfirm: false // Flag to prevent multiple reload prompts.
 	};
 	
-	if (!newTab.readOnly && !newTab.isDiff) {
-		newTab.model.onDidChangeContent(() => {
-			const tabInArray = findTab(newTab.id);
-			if (tabInArray && !tabInArray.isModified) {
-				tabInArray.isModified = true;
-				renderTabs();
-				updateSaveButtonState();
-			}
-		});
-	}
+	newTab.model.onDidChangeContent(() => {
+		console.log('chage detected in tab:', newTab.id);
+		const tabInArray = findTab(newTab.id);
+		if (tabInArray && !tabInArray.isModified) {
+			tabInArray.isModified = true;
+			renderTabs();
+			updateSaveButtonState();
+		}
+	});
 	
 	tabs.push(newTab);
 	switchToTab(newTabId);
@@ -796,7 +801,6 @@ export function initialize_editor(is_dark_mode) {
 			editor = monaco.editor.create(editorContainer, {
 				...commonEditorOptions,
 				language: 'plaintext',
-				readOnly: false,
 			});
 			
 			const saveCommand = () => {
@@ -830,7 +834,6 @@ export function initialize_editor(is_dark_mode) {
 				'// Select files from the left to build a prompt.',
 				'plaintext',
 				false, // isCloseable
-				false // readOnly
 			);
 			
 			// Start watching for external file changes and manage it on window focus/blur.

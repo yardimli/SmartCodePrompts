@@ -195,7 +195,9 @@ function validate_and_save_settings({ project_path, content }) {
 		const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 		fs.writeFileSync(settings_file_path, content, 'utf8');
 		
-		return { success: true };
+		// MODIFIED: Get the new modification time and return it to the frontend.
+		const stats = fs.statSync(settings_file_path);
+		return { success: true, mtimeMs: stats.mtimeMs };
 		
 	} catch (error) {
 		console.error('Settings validation failed:', error.message);

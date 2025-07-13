@@ -59,7 +59,6 @@ function handle_file_system_updates (updates) {
 	// 3. Handle ADDED files
 	(updates.added || []).forEach(file_info => {
 		const parent_folder_element = file_tree.querySelector(`.folder[data-path="${file_info.parent_path}"]`);
-		console.log(file_info);
 		
 		// Only add the file to the DOM if its parent folder is currently open
 		if (parent_folder_element && parent_folder_element.classList.contains('open')) {
@@ -96,7 +95,6 @@ function handle_file_system_updates (updates) {
 	if (content_needs_update) {
 		update_selected_content();
 	}
-	console.log('end');
 }
 
 /**

@@ -1,3 +1,5 @@
+// node-files.js
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -109,7 +111,9 @@ function save_file_content({ project_path, file_path, content }) {
 	const full_path = resolve_path(file_path, project_path);
 	try {
 		fs.writeFileSync(full_path, content, 'utf8');
-		return { success: true };
+		// MODIFIED: After writing, get the new stats to return the updated modification time.
+		const stats = fs.statSync(full_path);
+		return { success: true, mtimeMs: stats.mtimeMs };
 	} catch (error) {
 		console.error(`Error writing file ${full_path}:`, error);
 		throw new Error(`Could not save file: ${file_path}`);

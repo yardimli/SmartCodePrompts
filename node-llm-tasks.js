@@ -1,5 +1,3 @@
-// node-llm-tasks.js:
-
 /**
  * @file node-llm-tasks.js
  * @description Implements high-level LLM-driven tasks like file analysis, Q&A, and code generation.
@@ -91,9 +89,9 @@ async function analyze_file ({project_path, file_path, llm_id, force = false, te
 }
 
 /**
- * This function now runs as a background task. It scans all analyzed files in a project,
- * re-analyzes any that have been modified (or all if forced), and reports progress via the
- * module-level `reanalysis_progress` state object for the frontend to poll.
+ * This function now runs as a background task. It first scans for modified or deleted files
+ * to determine the exact number of files needing re-analysis. It then processes only those
+ * files, providing a more accurate progress bar to the user.
  * @param {object} params - The parameters for the operation.
  */
 async function reanalyze_modified_files ({project_path, llm_id, force = false, temperature}) {
@@ -107,33 +105,96 @@ async function reanalyze_modified_files ({project_path, llm_id, force = false, t
 		return;
 	}
 	
+	// MODIFIED: Initialize progress state early with a "Scanning..." message.
+	reanalysis_progress.total = 0;
+	reanalysis_progress.current = 0;
+	reanalysis_progress.running = true;
+	reanalysis_progress.message = 'Scanning for modified files...';
+	reanalysis_progress.cancelled = false;
+	reanalysis_progress.summary = null;
+	
 	const project_settings = get_project_settings(project_path);
-	const all_analyzed_files = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
+	const all_analyzed_files_in_db = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?')
 		.all(project_path);
 	
 	// Filter out files from excluded folders before processing.
-	const analyzed_files = all_analyzed_files.filter(
+	const candidate_files = all_analyzed_files_in_db.filter(
 		file => !is_path_excluded(file.file_path, project_settings)
 	);
-	
-	// Mutate the existing progress object instead of reassigning it.
-	// This ensures that other modules holding a reference to this object see the updates.
-	reanalysis_progress.total = analyzed_files.length;
-	reanalysis_progress.current = 0;
-	reanalysis_progress.running = true;
-	reanalysis_progress.message = 'Initializing re-analysis...';
-	reanalysis_progress.cancelled = false;
-	reanalysis_progress.summary = null;
 	
 	let analyzed_count = 0;
 	let skipped_count = 0;
 	let deleted_count = 0;
 	const errors = [];
-	
+	const files_to_process = []; // MODIFIED: This will hold only files that need re-analysis.
 	const delete_stmt = db.prepare('DELETE FROM file_metadata WHERE project_path = ? AND file_path = ?');
 	
+	// --- PRE-PROCESSING STEP ---
+	// MODIFIED: First, iterate through all candidate files to determine which ones actually need processing.
+	// This allows us to set an accurate 'total' for the progress bar.
+	for (const file of candidate_files) {
+		if (reanalysis_progress.cancelled) {
+			reanalysis_progress.message = 'Scan cancelled by user.';
+			errors.push('Operation cancelled by user.');
+			break;
+		}
+		
+		try {
+			const full_path = path.join(project_path, file.file_path);
+			
+			if (!fs.existsSync(full_path)) {
+				console.log(`File not found, removing metadata: ${file.file_path}`);
+				delete_stmt.run(project_path, file.file_path);
+				deleted_count++;
+				continue;
+			}
+			
+			// If forcing, all existing files are added to the processing list.
+			if (force) {
+				files_to_process.push(file);
+				continue;
+			}
+			
+			const raw_file_content = get_raw_file_content(file.file_path, project_path);
+			const current_checksum = calculate_checksum(raw_file_content);
+			
+			if (current_checksum !== file.last_checksum) {
+				files_to_process.push(file); // File is modified, add to list.
+			} else {
+				skipped_count++; // File is unchanged, increment skip counter.
+			}
+		} catch (error) {
+			console.error(`Error during pre-scan of ${file.file_path}:`, error);
+			errors.push(`${file.file_path}: ${error.message}`);
+		}
+	}
+	
+	// If cancellation happened during the scan, exit early.
+	if (reanalysis_progress.cancelled) {
+		const summary = {
+			success: false,
+			analyzed: 0,
+			skipped: skipped_count,
+			deleted: deleted_count,
+			errors: errors
+		};
+		reanalysis_progress.summary = summary;
+		reanalysis_progress.running = false;
+		console.log('Re-analysis process cancelled during scan.', summary);
+		return;
+	}
+	
+	// --- ANALYSIS STEP ---
+	// MODIFIED: Set the progress bar total to the actual number of files to be processed.
+	reanalysis_progress.total = files_to_process.length;
+	
+	if (files_to_process.length === 0 && !reanalysis_progress.cancelled) {
+		reanalysis_progress.message = 'No files need re-analysis.';
+	}
+	
 	try {
-		for (const file of analyzed_files) {
+		// MODIFIED: Loop only over the files identified for processing.
+		for (const file of files_to_process) {
 			if (reanalysis_progress.cancelled) {
 				reanalysis_progress.message = 'Re-analysis cancelled by user.';
 				console.log('Re-analysis loop cancelled.');
@@ -142,36 +203,28 @@ async function reanalyze_modified_files ({project_path, llm_id, force = false, t
 			}
 			
 			reanalysis_progress.current++;
-			reanalysis_progress.message = `Processing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
+			reanalysis_progress.message = `Analyzing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
 			
 			try {
-				const full_path = path.join(project_path, file.file_path);
-				
-				if (!fs.existsSync(full_path)) {
-					console.log(`File not found, removing metadata: ${file.file_path}`);
-					delete_stmt.run(project_path, file.file_path);
-					deleted_count++;
-					continue;
-				}
-				
-				const raw_file_content = get_raw_file_content(file.file_path, project_path);
-				const current_checksum = calculate_checksum(raw_file_content);
-				
-				if (force || current_checksum !== file.last_checksum) {
-					reanalysis_progress.message = `Analyzing ${reanalysis_progress.current}/${reanalysis_progress.total}: ${file.file_path}`;
-					console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
-					await analyze_file({project_path, file_path: file.file_path, llm_id, force: true, temperature});
-					analyzed_count++;
-				} else {
-					skipped_count++;
-				}
+				console.log(`Re-analyzing ${force ? '(forced)' : '(modified)'} file: ${file.file_path}`);
+				// We always 'force' here because the decision to analyze has already been made.
+				await analyze_file({project_path, file_path: file.file_path, llm_id, force: true, temperature});
+				analyzed_count++;
 			} catch (error) {
 				console.error(`Error during re-analysis of ${file.file_path}:`, error);
 				errors.push(`${file.file_path}: ${error.message}`);
 			}
 		}
 	} finally {
-		const summary = {success: true, analyzed: analyzed_count, skipped: skipped_count, deleted: deleted_count, errors: errors};
+		// MODIFIED: The summary now correctly reflects the pre-calculated skipped count and a more accurate success status.
+		const is_soft_failure = errors.length === 1 && errors[0].includes('cancelled');
+		const summary = {
+			success: errors.length === 0 || is_soft_failure,
+			analyzed: analyzed_count,
+			skipped: skipped_count,
+			deleted: deleted_count,
+			errors: errors
+		};
 		reanalysis_progress.summary = summary;
 		reanalysis_progress.running = false;
 		console.log('Re-analysis process finished.', summary);

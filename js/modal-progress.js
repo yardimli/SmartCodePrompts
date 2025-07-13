@@ -21,6 +21,7 @@ export function initialize_progress_modal () {
 		stop_button.addEventListener('click', () => {
 			if (typeof stop_callback === 'function') {
 				text_el.textContent = 'Stopping operation...';
+				stop_button.disabled = true; // MODIFIED: Disable button after click to prevent multiple calls.
 				stop_callback();
 			}
 		});
@@ -30,16 +31,24 @@ export function initialize_progress_modal () {
 /**
  * Shows the progress modal.
  * @param {string} title - The title for the modal.
- * @param {Function} on_stop - The callback function to execute when the stop button is clicked.
+ * @param {Function|null} on_stop - The callback function to execute when the stop button is clicked.
+ * @param {string} [initial_message='Initializing...'] - The initial message to display.
  */
-export function show_progress_modal (title, on_stop) {
+export function show_progress_modal (title, on_stop, initial_message = 'Initializing...') {
 	if (!progress_modal) return;
 	
 	title_el.textContent = title;
-	text_el.textContent = 'Initializing...';
+	text_el.textContent = initial_message; // MODIFIED: Use the new parameter for the initial message.
 	bar_el.value = 0;
 	bar_el.removeAttribute('max'); // Indeterminate state initially
 	stop_callback = on_stop;
+	
+	if (stop_button) {
+		// MODIFIED: Hide the stop button if no callback is provided for a cleaner look.
+		stop_button.classList.toggle('hidden', !on_stop);
+		// MODIFIED: Ensure the button is enabled when the modal is shown.
+		stop_button.disabled = false;
+	}
 	
 	progress_modal.showModal();
 }

@@ -5,6 +5,8 @@ import {refresh_prompt_display, ensure_file_is_visible, update_selected_content}
 import {perform_reanalysis} from './analysis.js';
 import {show_alert} from './modal-alert.js';
 import {show_confirm} from './modal-confirm.js';
+// ADDED: Import progress modal functions to replace the status bar loader for this action.
+import { show_progress_modal, hide_progress_modal } from './modal-progress.js';
 import {switchToTab, getPromptTabId, getActiveTabId} from './editor.js';
 import { get_all_settings } from './settings.js';
 
@@ -50,7 +52,8 @@ async function perform_smart_prompt (user_prompt) {
 	
 	set_last_smart_prompt(user_prompt);
 	
-	show_loading('Asking LLM to select relevant files...');
+	// MODIFIED: Use the progress modal instead of the status bar loader.
+	show_progress_modal('Smart Prompt', null, 'Asking LLM to select relevant files...');
 	try {
 		const current_project = get_current_project();
 		const response = await post_data({
@@ -87,7 +90,8 @@ async function perform_smart_prompt (user_prompt) {
 		console.error('Failed to get relevant files from prompt:', error);
 		show_alert(`An error occurred: ${error.message}`, 'Error');
 	} finally {
-		hide_loading();
+		// MODIFIED: Hide the progress modal when the operation is complete.
+		hide_progress_modal();
 	}
 }
 
@@ -114,7 +118,8 @@ async function handle_smart_prompt_submission(prompt_text) {
 		return;
 	}
 	
-	show_loading('Checking for modified files...');
+	// MODIFIED: Use the progress modal for the initial file check.
+	show_progress_modal('Smart Prompt', null, 'Checking for modified files...');
 	try {
 		// This is a new backend action we assume exists.
 		// It should return { needs_reanalysis: boolean, count: number }
@@ -123,7 +128,8 @@ async function handle_smart_prompt_submission(prompt_text) {
 			project_path: current_project.path
 		});
 		
-		hide_loading();
+		// MODIFIED: Hide the modal after the check is complete.
+		hide_progress_modal();
 		
 		if (check_response.needs_reanalysis) {
 			const modal = document.getElementById('reanalysis_prompt_modal');
@@ -167,9 +173,10 @@ async function handle_smart_prompt_submission(prompt_text) {
 			await perform_smart_prompt(prompt_text);
 		}
 	} catch (error) {
-		hide_loading();
+		// MODIFIED: Hide the modal on error.
+		hide_progress_modal();
 		console.error('Failed to check for modified files:', error);
-
+		
 		const confirmed = await show_confirm(`Could not check for modified files: ${error.message}\n\nDo you want to run the prompt anyway?`, 'Error Checking Files');
 		if (confirmed) {
 			await perform_smart_prompt(prompt_text);

@@ -49,7 +49,7 @@ async function perform_smart_prompt (user_prompt) {
 		show_alert('Please select an LLM for Smart Prompts from the dropdown.');
 		return;
 	}
-	
+
 	set_last_smart_prompt(user_prompt);
 	
 	// MODIFIED: Use the progress modal instead of the status bar loader.
@@ -118,8 +118,14 @@ async function handle_smart_prompt_submission(prompt_text) {
 		return;
 	}
 	
-	// MODIFIED: Use the progress modal for the initial file check.
-	show_progress_modal('Smart Prompt', null, 'Checking for modified files...');
+	const prompt_input = document.getElementById('prompt-input');
+	const promptTabId = getPromptTabId();
+	if (promptTabId && getActiveTabId() !== promptTabId) {
+		switchToTab(promptTabId);
+		prompt_input.focus(); // Ensure the input is focused after switching tabs
+	}
+	
+	show_loading('Checking for modified files...');
 	try {
 		// This is a new backend action we assume exists.
 		// It should return { needs_reanalysis: boolean, count: number }
@@ -127,9 +133,7 @@ async function handle_smart_prompt_submission(prompt_text) {
 			action: 'check_for_modified_files',
 			project_path: current_project.path
 		});
-		
-		// MODIFIED: Hide the modal after the check is complete.
-		hide_progress_modal();
+		hide_loading();
 		
 		if (check_response.needs_reanalysis) {
 			const modal = document.getElementById('reanalysis_prompt_modal');

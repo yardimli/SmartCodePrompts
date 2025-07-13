@@ -93,20 +93,32 @@ export function saveAllModifiedTabs () {
 };
 
 /**
- * Persists the list of currently open file tabs to the backend.
+ * Persists the state of all open file tabs (including view states and active tab) to the backend.
  */
 export function save_open_tabs_state () {
 	const project = get_current_project();
 	if (!project) return;
 	
-	const open_file_tabs = state.getTabs()
-		.map(tab => tab.filePath)
-		.filter(filePath => filePath !== null);
+	const open_file_tabs_with_state = state.getSerializableTabs();
+	
+	// MODIFIED: Convert the active tab's dynamic ID to a stable identifier (filePath or special token).
+	const activeTab = state.findTab(state.getActiveTabId());
+	let active_tab_identifier = null;
+	if (activeTab) {
+		if (activeTab.filePath) {
+			// For file-based tabs, the filePath is the stable identifier.
+			active_tab_identifier = activeTab.filePath;
+		} else if (activeTab.title === 'Prompt' && !activeTab.isCloseable) {
+			// For the special, non-file Prompt tab, use a unique token.
+			active_tab_identifier = '__PROMPT_TAB__';
+		}
+	}
 	
 	post_data({
 		action: 'save_open_tabs',
 		project_path: project.path,
-		open_tabs: JSON.stringify(open_file_tabs)
+		open_tabs: JSON.stringify(open_file_tabs_with_state),
+		active_tab_identifier: active_tab_identifier // MODIFIED: Send the stable identifier.
 	}).catch(error => {
 		console.error('Failed to save open tabs state:', error);
 	});

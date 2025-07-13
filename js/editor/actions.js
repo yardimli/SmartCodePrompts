@@ -67,6 +67,7 @@ export function switchToTab (tabId) {
 			activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 		}
 		updateSaveButtonState();
+		io.save_open_tabs_state(); // MODIFIED: Persist tab state changes, including the active tab and view states, on every switch.
 	}
 };
 
@@ -104,6 +105,7 @@ export function closeTab (tabId) {
 	}
 	
 	renderTabs();
+	// MODIFIED: The call to save state is now handled by switchToTab, but we need one here for the case where the last tab is closed.
 	io.save_open_tabs_state();
 };
 
@@ -238,14 +240,24 @@ export function createNewTab (title, content, language = 'plaintext', isCloseabl
 
 /**
  * Opens a file from the file tree in a new editor tab.
+ * @param {string} filePath - The path of the file to open.
+ * @param {string} currentContent - The current content of the file.
+ * @param {string} originalContent - The original content from HEAD (for diffing).
+ * @param {boolean} [isGitModified=false] - Whether the file is modified in Git.
+ * @param {number|null} [mtimeMs=null] - The file's last modification time.
+ * @param {object|null} [viewState=null] - The Monaco editor view state to restore.
  */
-export function openFileInTab (filePath, currentContent, originalContent, isGitModified = false, mtimeMs = null) {
+export function openFileInTab (filePath, currentContent, originalContent, isGitModified = false, mtimeMs = null, viewState = null) {
 	if (!window.monaco || !state.editor) return;
 	
 	const existingTab = state.tabs.find(t => t.filePath === filePath);
 	if (existingTab) {
 		if (isGitModified !== undefined) existingTab.isGitModified = isGitModified;
 		if (mtimeMs !== null) existingTab.lastMtime = mtimeMs;
+		// If a viewState is provided for an existing tab, update it.
+		if (viewState) {
+			existingTab.viewState = viewState;
+		}
 		switchToTab(existingTab.id);
 		return;
 	}
@@ -264,7 +276,7 @@ export function openFileInTab (filePath, currentContent, originalContent, isGitM
 		originalModel: null,
 		isCloseable: true,
 		language: language,
-		viewState: null,
+		viewState: viewState,
 		filePath: filePath,
 		isModified: false,
 		isGitModified: isGitModified,
@@ -283,7 +295,7 @@ export function openFileInTab (filePath, currentContent, originalContent, isGitM
 	
 	state.tabs.push(newTab);
 	switchToTab(newTabId);
-	io.save_open_tabs_state();
+	// MODIFIED: The call to save state is now handled by switchToTab to ensure it runs consistently.
 };
 
 /**

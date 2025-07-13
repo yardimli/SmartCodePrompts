@@ -53,3 +53,26 @@ export function getPromptTabId () {
 	const promptTab = tabs.find(t => t.title === 'Prompt' && t.isCloseable === false);
 	return promptTab ? promptTab.id : null;
 };
+
+/**
+ * Prepares the list of open tabs for serialization.
+ * It captures the current view state of the active tab before creating the list.
+ * @returns {Array<object>} A serializable array of tab data.
+ */
+export function getSerializableTabs () {
+	// If there's an active editor and tab, save its current view state.
+	if (editor && activeTabId) {
+		const activeTab = findTab(activeTabId);
+		if (activeTab) {
+			activeTab.viewState = editor.saveViewState();
+		}
+	}
+	
+	// Return only tabs that have a file path, with their filePath and viewState.
+	return tabs
+		.filter(tab => tab.filePath)
+		.map(tab => ({
+			filePath: tab.filePath,
+			viewState: tab.viewState
+		}));
+};

@@ -14,7 +14,8 @@ const db = new Database(path.join(appDataPath, 'smart_code.sqlite'));
 let config = {};
 
 /**
- * Creates all necessary tables if they don't exist. This function defines the database schema.
+ * Creates all necessary tables if they don't exist and runs migration logic
+ * for backward compatibility. This function defines the database schema.
  */
 function create_tables () {
 	db.exec(`
@@ -26,14 +27,8 @@ function create_tables () {
             project_path TEXT PRIMARY KEY,
             open_folders TEXT,
             selected_files TEXT,
-            FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
-        );
-
-        /* NEW: Table to store open file tabs for each project */
-        CREATE TABLE IF NOT EXISTS project_open_tabs (
-            project_path TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            PRIMARY KEY (project_path, file_path),
+            open_tabs TEXT,
+            active_tab_identifier TEXT, /* MODIFIED: Renamed from active_tab_id for clarity */
             FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
         );
 
@@ -60,7 +55,6 @@ function create_tables () {
             value TEXT
         );
 
-        /* Table for persistent LLM call logs */
         CREATE TABLE IF NOT EXISTS llm_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
@@ -70,6 +64,38 @@ function create_tables () {
             completion_tokens INTEGER
         );
     `);
+
+	// --- MODIFIED: Backward Compatibility & Migration Logic ---
+	db.transaction(() => {
+		const projectStatesColumns = db.pragma("table_info('project_states')");
+
+		// Migration from the very old 'project_open_tabs' table
+		const oldTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='project_open_tabs'").get();
+		if (oldTableExists) {
+			console.log('[DB Migration] Old `project_open_tabs` table found. Migrating data...');
+			if (!projectStatesColumns.some(c => c.name === 'open_tabs')) {
+				db.exec('ALTER TABLE project_states ADD COLUMN open_tabs TEXT');
+			}
+			const projectsToMigrate = db.prepare('SELECT DISTINCT project_path FROM project_open_tabs').all();
+			for (const project of projectsToMigrate) {
+				const tabRows = db.prepare('SELECT file_path FROM project_open_tabs WHERE project_path = ?').all(project.project_path);
+				const newTabsData = tabRows.map(row => ({ filePath: row.file_path, viewState: null }));
+				db.prepare('UPDATE project_states SET open_tabs = ? WHERE project_path = ?').run(JSON.stringify(newTabsData), project.project_path);
+			}
+			db.exec('DROP TABLE project_open_tabs');
+			console.log('[DB Migration] Old `project_open_tabs` table dropped.');
+		}
+
+		// Migration for adding/renaming the active tab column
+		if (projectStatesColumns.some(c => c.name === 'active_tab_id')) {
+			console.log("[DB Migration] Renaming 'active_tab_id' to 'active_tab_identifier'.");
+			db.exec('ALTER TABLE project_states RENAME COLUMN active_tab_id TO active_tab_identifier');
+		} else if (!projectStatesColumns.some(c => c.name === 'active_tab_identifier')) {
+			console.log("[DB Migration] Adding column 'active_tab_identifier' to table 'project_states'.");
+			db.exec('ALTER TABLE project_states ADD COLUMN active_tab_identifier TEXT');
+		}
+	})();
+	// --- END: Migration Logic ---
 }
 
 

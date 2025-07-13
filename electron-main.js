@@ -234,9 +234,11 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				break;
 			case 'save_open_tabs':
-				result = project_manager.save_open_tabs({
+				// MODIFIED: Pass the stable identifier for the active tab.
+				result = project_manager.save_tabs_state({
 					project_path: data.project_path,
-					open_tabs_json: data.open_tabs
+					open_tabs_json: data.open_tabs,
+					active_tab_identifier: data.active_tab_identifier
 				});
 				break;
 			case 'validate_and_save_settings':
@@ -245,7 +247,6 @@ ipcMain.handle('post-data', async (event, data) => {
 					content: data.content
 				});
 				break;
-			// MODIFIED: Added new actions for folder exclusion
 			case 'add_to_excluded_folders':
 				result = project_manager.add_to_excluded_folders(data);
 				break;
@@ -283,7 +284,6 @@ ipcMain.handle('post-data', async (event, data) => {
 					file_path: data.path
 				});
 				break;
-			// Handle request for file modification time.
 			case 'get_file_mtime':
 				result = node_files.get_file_mtime(data);
 				break;

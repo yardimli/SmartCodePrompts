@@ -1,7 +1,7 @@
 // SmartCodePrompts/node-projects.js
 const fs = require('fs');
 const path = require('path');
-const yaml = require('yaml'); // MODIFIED: Switched to the 'yaml' package
+const yaml = require('yaml');
 const {db} = require('./node-config');
 const { get_default_settings_yaml } = require('./node-config');
 
@@ -55,7 +55,7 @@ function ensure_settings_file_exists(project_path) {
  */
 function get_project_settings(project_path) {
 	const default_settings_string = get_default_settings_yaml();
-	const default_settings = yaml.parse(default_settings_string); // MODIFIED: Use yaml.parse
+	const default_settings = yaml.parse(default_settings_string);
 	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 	
 	if (!fs.existsSync(settings_file_path)) {
@@ -65,7 +65,7 @@ function get_project_settings(project_path) {
 	
 	try {
 		const yaml_content = fs.readFileSync(settings_file_path, 'utf8');
-		const project_specific_settings = yaml.parse(yaml_content); // MODIFIED: Use yaml.parse
+		const project_specific_settings = yaml.parse(yaml_content);
 		
 		if (typeof project_specific_settings !== 'object' || project_specific_settings === null) {
 			console.warn(`[${project_path}] settings.yaml is not a valid object. Using default settings.`);
@@ -108,19 +108,18 @@ function is_path_excluded(relative_path, project_settings) {
  * @returns {object} The saved state of the project.
  */
 function get_project_state ({project_path}) {
-	const state = db.prepare('SELECT open_folders, selected_files FROM project_states WHERE project_path = ?')
+	// MODIFIED: Select the renamed column.
+	const state = db.prepare('SELECT open_folders, selected_files, open_tabs, active_tab_identifier FROM project_states WHERE project_path = ?')
 		.get(project_path);
-	
-	const open_tabs_rows = db.prepare('SELECT file_path FROM project_open_tabs WHERE project_path = ?').all(project_path);
-	const open_tabs = open_tabs_rows.map(row => row.file_path);
 	
 	// Load settings from the project's .scp/settings.yaml file
 	const settings_yaml = ensure_settings_file_exists(project_path);
 	
 	return {
-		open_folders: state ? JSON.parse(state.open_folders || '[]') : [],
-		selected_files: state ? JSON.parse(state.selected_files || '[]') : [],
-		open_tabs: open_tabs,
+		open_folders: state?.open_folders ? JSON.parse(state.open_folders) : [],
+		selected_files: state?.selected_files ? JSON.parse(state.selected_files) : [],
+		open_tabs: state?.open_tabs ? JSON.parse(state.open_tabs) : [],
+		active_tab_identifier: state?.active_tab_identifier || null, // MODIFIED: Use the new property name.
 		settings_yaml: settings_yaml
 	};
 }
@@ -129,40 +128,33 @@ function get_project_state ({project_path}) {
  * Saves the current state (open folders, selected files) for a project and
  * updates the 'last selected project' setting.
  * @param {object} params - The parameters for saving state.
- *param {string} params.project_path - The full path of the project.
+ * @param {string} params.project_path - The full path of the project.
  * @param {string} params.open_folders - A JSON string of open folder paths.
  * @param {string} params.selected_files - A JSON string of selected file paths.
  */
 function save_project_state ({project_path, open_folders, selected_files}) {
-	db.prepare('INSERT OR REPLACE INTO project_states (project_path, open_folders, selected_files) VALUES (?, ?, ?)')
-		.run(project_path, open_folders, selected_files);
+	db.prepare('INSERT OR IGNORE INTO project_states (project_path) VALUES (?)').run(project_path);
+	db.prepare('UPDATE project_states SET open_folders = ?, selected_files = ? WHERE project_path = ?')
+		.run(open_folders, selected_files, project_path);
 	
-	// Also update the last selected project for convenience
 	db.prepare('UPDATE app_settings SET value = ? WHERE key = ?').run(project_path, 'last_selected_project');
 	
 	return {success: true};
 }
 
 /**
- * Saves the list of open file tabs for a project.
- * @param {object} params - The parameters for saving tabs.
+ * Saves the state of open tabs, including view states and the active tab identifier.
+ * @param {object} params - The parameters for saving tab state.
  * @param {string} params.project_path - The full path of the project.
- * @param {string} params.open_tabs_json - A JSON string array of file paths.
+ * @param {string} params.open_tabs_json - A JSON string of open tab objects.
+ * @param {string|null} params.active_tab_identifier - The stable identifier (filePath or special token) for the active tab.
+ * @returns {{success: boolean}}
  */
-function save_open_tabs({ project_path, open_tabs_json }) {
-	const open_tabs = JSON.parse(open_tabs_json); // Expecting an array of file paths
-	const delete_stmt = db.prepare('DELETE FROM project_open_tabs WHERE project_path = ?');
-	const insert_stmt = db.prepare('INSERT OR IGNORE INTO project_open_tabs (project_path, file_path) VALUES (?, ?)');
-	
-	const transaction = db.transaction(() => {
-		delete_stmt.run(project_path);
-		for (const file_path of open_tabs) {
-			if (file_path) { // Ensure we don't save null/undefined paths
-				insert_stmt.run(project_path, file_path);
-			}
-		}
-	});
-	transaction();
+function save_tabs_state({ project_path, open_tabs_json, active_tab_identifier }) {
+	db.prepare('INSERT OR IGNORE INTO project_states (project_path) VALUES (?)').run(project_path);
+	// MODIFIED: Update the renamed column with the stable identifier.
+	db.prepare('UPDATE project_states SET open_tabs = ?, active_tab_identifier = ? WHERE project_path = ?')
+		.run(open_tabs_json, active_tab_identifier, project_path);
 	return { success: true };
 }
 
@@ -175,12 +167,11 @@ function save_open_tabs({ project_path, open_tabs_json }) {
  */
 function validate_and_save_settings({ project_path, content }) {
 	try {
-		const parsed_content = yaml.parse(content); // MODIFIED: Use yaml.parse
+		const parsed_content = yaml.parse(content);
 		if (typeof parsed_content !== 'object' || parsed_content === null) {
 			throw new Error('Root of YAML must be an object.');
 		}
 		
-		// Basic validation: check for the presence of a few key properties
 		const required_keys = ['allowed_extensions', 'excluded_folders', 'prompts'];
 		for (const key of required_keys) {
 			if (!(key in parsed_content)) {
@@ -191,11 +182,9 @@ function validate_and_save_settings({ project_path, content }) {
 			throw new Error("'prompts' key must be an object.");
 		}
 		
-		// If validation passes, save the file
 		const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 		fs.writeFileSync(settings_file_path, content, 'utf8');
 		
-		// MODIFIED: Get the new modification time and return it to the frontend.
 		const stats = fs.statSync(settings_file_path);
 		return { success: true, mtimeMs: stats.mtimeMs };
 		
@@ -205,15 +194,6 @@ function validate_and_save_settings({ project_path, content }) {
 	}
 }
 
-// --- NEW: Functions for modifying folder exclusion ---
-
-/**
- * A helper function to safely read, modify, and write the settings.yaml file while preserving comments.
- * @param {string} project_path - The path of the project.
- * @param {function(object): void} modification_callback - A function that receives the parsed YAML document object and modifies it.
- * @returns {{success: boolean, new_settings_yaml: string}} The result and the new YAML content.
- * @throws {Error} If the file cannot be read, parsed, or written.
- */
 function modify_settings_yaml(project_path, modification_callback) {
 	const settings_file_path = path.join(project_path, '.scp', 'settings.yaml');
 	if (!fs.existsSync(settings_file_path)) {
@@ -240,11 +220,6 @@ function modify_settings_yaml(project_path, modification_callback) {
 	}
 }
 
-/**
- * Adds a folder to the 'excluded_folders' list in settings.yaml, preserving comments.
- * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
- * @returns {{success: boolean, new_settings_yaml: string}}
- */
 function add_to_excluded_folders({ project_path, folder_path }) {
 	return modify_settings_yaml(project_path, (doc) => {
 		const key = 'excluded_folders';
@@ -266,11 +241,6 @@ function add_to_excluded_folders({ project_path, folder_path }) {
 	});
 }
 
-/**
- * Removes a folder from the 'excluded_folders' list in settings.yaml, preserving comments.
- * @param {{project_path: string, folder_path: string}} params - The project and folder paths.
- * @returns {{success: boolean, new_settings_yaml: string}}
- */
 function remove_from_excluded_folders({ project_path, folder_path }) {
 	return modify_settings_yaml(project_path, (doc) => {
 		const key = 'excluded_folders';
@@ -292,7 +262,7 @@ module.exports = {
 	add_project,
 	get_project_state,
 	save_project_state,
-	save_open_tabs,
+	save_tabs_state,
 	validate_and_save_settings,
 	get_project_settings,
 	is_path_excluded,

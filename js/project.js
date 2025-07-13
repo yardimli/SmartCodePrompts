@@ -1,18 +1,14 @@
 // SmartCodePrompts/js/project.js
 import { show_loading, hide_loading, post_data } from './utils.js';
-// MODIFIED: Imported get_current_project to check when switching projects.
 import { get_current_project, set_current_project } from './state.js';
 import { load_folders, restore_state, start_file_tree_polling, stop_file_tree_polling } from './file_tree.js';
 import { show_alert } from './modal-alert.js';
-// MODIFIED: Imported closeAllTabs to clear the editor when switching projects.
-import { openFileInTab, closeAllTabs } from './editor.js';
+import { openFileInTab, closeAllTabs, switchToTab, getTabs } from './editor.js';
 import { update_project_settings } from './settings.js';
 
 /**
  * Opens a native dialog to select a project folder and adds it to the application.
- * This function was moved from the old modals.js.
  */
-// MODIFIED: Updated to dynamically add and select the new project without a page reload.
 export async function open_project_modal() {
 	try {
 		const selected_path = await window.electronAPI.openDirectoryDialog();
@@ -20,18 +16,15 @@ export async function open_project_modal() {
 		if (selected_path) {
 			show_loading('Adding project...');
 			try {
-				// The backend returns the project object on success.
 				const result = await post_data({ action: 'add_project', path: selected_path });
 				
 				if (result.success && result.project) {
 					const dropdown = document.getElementById('projects-dropdown');
 					const newOption = document.createElement('option');
 					
-					// The backend returns the full path for the project.
 					newOption.value = result.project.path;
-					newOption.textContent = result.project.path.split(/[\\/]/).pop(); // Get name from path.
+					newOption.textContent = result.project.path.split(/[\\/]/).pop();
 					
-					// Insert the new project before the "Add new..." option.
 					const addNewProjectOption = dropdown.querySelector('option[value="add_new_project"]');
 					if (addNewProjectOption) {
 						dropdown.insertBefore(newOption, addNewProjectOption);
@@ -39,17 +32,13 @@ export async function open_project_modal() {
 						dropdown.appendChild(newOption);
 					}
 					
-					// Select the new project in the dropdown.
 					dropdown.value = result.project.path;
 					
-					// Load the newly added project.
 					await load_project(result.project.path);
 				} else {
-					// Show an error if the backend failed to add the project.
 					console.error('Failed to add project:', result);
 					show_alert(result.message || 'Failed to add project.', 'Error');
 					if (result.project) {
-						// If the project was returned, we can still load it.
 						await load_project(result.project.path);
 					}
 				}
@@ -70,11 +59,9 @@ export async function open_project_modal() {
  * Loads a project, including its file tree and saved state.
  * @param {string} project_path - The full, absolute path of the project.
  */
-// MODIFIED: Added logic to close all tabs when switching between projects.
 export async function load_project(project_path) {
 	const previous_project = get_current_project();
 	
-	// If switching from an existing, different project, close all open tabs first.
 	if (previous_project && previous_project.path !== project_path) {
 		await closeAllTabs();
 	}
@@ -96,44 +83,57 @@ export async function load_project(project_path) {
 		});
 		console.log('Loaded saved state:', saved_state);
 		
-		// --- CRITICAL CHANGE HERE ---
-		// 1. Synchronously update settings from the fetched YAML.
 		let project_settings = null;
 		if (saved_state.settings_yaml) {
-			// This is now a synchronous call. When it finishes, the settings module is updated.
 			project_settings = update_project_settings(saved_state.settings_yaml);
 		}
 		
-		
-		// 3. NOW it is safe to load the file tree, which depends on the settings.
 		await load_folders('.', null);
 		await restore_state(saved_state || { open_folders: [], selected_files: [] });
 		
-		// 4. Restore open tabs. This part is independent of settings, so its order is less critical.
 		if (saved_state && saved_state.open_tabs && saved_state.open_tabs.length > 0) {
 			console.log('Restoring open tabs:', saved_state.open_tabs);
 			show_loading(`Restoring ${saved_state.open_tabs.length} open file(s)...`);
 			
-			const open_tab_promises = saved_state.open_tabs.map(async (filePath) => {
+			const open_tab_promises = saved_state.open_tabs.map(async (tabInfo) => {
 				try {
 					const data = await post_data({
 						action: 'get_file_for_editor',
 						project_path: project_path,
-						path: filePath
+						path: tabInfo.filePath
 					});
 					if (data.currentContent !== null) {
-						openFileInTab(filePath, data.currentContent, data.originalContent);
+						openFileInTab(tabInfo.filePath, data.currentContent, data.originalContent, undefined, undefined, tabInfo.viewState);
 					} else {
-						console.warn(`Could not restore tab for non-existent file: ${filePath}`);
+						console.warn(`Could not restore tab for non-existent file: ${tabInfo.filePath}`);
 					}
 				} catch (error) {
-					console.error(`Error restoring tab for ${filePath}:`, error);
+					console.error(`Error restoring tab for ${tabInfo.filePath}:`, error);
 				}
 			});
 			await Promise.all(open_tab_promises);
 		}
 		
-		// 5. Start polling, which also depends on settings.
+		// MODIFIED: After all tabs are loaded, find the one matching the stable identifier and activate it.
+		if (saved_state && saved_state.active_tab_identifier) {
+			const identifier = saved_state.active_tab_identifier;
+			let tabToActivate = null;
+
+			if (identifier === '__PROMPT_TAB__') {
+				// Find the special prompt tab by its unique properties.
+				tabToActivate = getTabs().find(t => t.title === 'Prompt' && !t.isCloseable);
+			} else {
+				// Find a file-based tab by its filePath.
+				tabToActivate = getTabs().find(t => t.filePath === identifier);
+			}
+
+			if (tabToActivate) {
+				// We found it! Now use its *new* dynamic ID to switch.
+				// A brief timeout helps ensure the DOM is fully rendered before switching.
+				setTimeout(() => switchToTab(tabToActivate.id), 100);
+			}
+		}
+		
 		start_file_tree_polling();
 		
 	} catch (error) {

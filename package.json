@@ -6,11 +6,12 @@
   "scripts": {
     "build": "tailwindcss -i ./css/index.css -o ./dist/output.css",
     "watch": "tailwindcss -i ./css/index.css -o ./dist/output.css --watch",
+    "dev:set-name": "node set-app-name.js",
     "start": "npm run build && electron .",
     "postinstall": "electron-rebuild",
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
-  "author": "locutus de borg",
+  "author": "Ekim Emre Yardimli",
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^12.2.0",
@@ -22,6 +23,56 @@
     "daisyui": "^4.10.2",
     "electron": "^37.2.0",
     "electron-rebuild": "^3.2.9",
+    "plist": "^3.1.0",
     "tailwindcss": "^3.4.3"
+  },
+  "build": {
+    "appId": "com.elo.smartcodeprompts",
+    "productName": "Smart Code Prompts",
+    "copyright": "Copyright © 2025 Ekim Emre Yardimli",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "js/**/*",
+      "assets/**/*",
+      "css/**/*",
+      "electron-main.js",
+      "electron-preload.js",
+      "index.html",
+      "llm-prompt-builder.jpg",
+      "modal-about.html",
+      "modal-alert.html",
+      "modal-analysis.html",
+      "modal-api-key.html",
+      "modal-confirm.html",
+      "modal-diff.html",
+      "modal-log.html",
+      "modal-progress.html",
+      "modal-prompt.html",
+      "modal-qa.html",
+      "modal-reanalysis.html",
+      "modal-search.html",
+      "modal-tab-switcher.html",
+      "node-config.js",
+      "node-files.js",
+      "node-llm.js",
+      "node-llm-api.js",
+      "node-llm-data.js",
+      "node-llm-tasks.js",
+      "node-projects.js",
+      "README.md",
+      "set-app-name.js",
+      "tailwind.config.js"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": "zip",
+      "icon": "assets/icon.png"
+    }
   }
 }

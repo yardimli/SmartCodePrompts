@@ -11,6 +11,23 @@ process.env.ELECTRON_RUN = 'true';
 const userDataPath = app.getPath('userData');
 process.env.APP_DATA_PATH = userDataPath;
 
+if (process.platform === 'darwin' && !app.isPackaged) {
+	const packageJson = require('./package.json');
+	if (packageJson.build && packageJson.build.productName) {
+		app.setName(packageJson.build.productName);
+		console.log(`Set app name to ${packageJson.build.productName} for macOS development`);
+	}
+}
+
+if (process.env.ELECTRON_IS_PORTABLE) {
+	const userDataPath = path.join(path.dirname(app.getPath('exe')), 'userData');
+	if (!fs.existsSync(userDataPath)) {
+		fs.mkdirSync(userDataPath, { recursive: true });
+	}
+	app.setPath('userData', userDataPath);
+}
+
+
 console.log(`[Smart Code Prompts] Application data directory: ${userDataPath}`);
 
 if (!fs.existsSync(userDataPath)) {
@@ -336,6 +353,11 @@ ipcMain.handle('post-data', async (event, data) => {
 
 // --- App Lifecycle ---
 app.on('ready', () => {
+	if (process.platform === 'darwin') {
+		const iconPath = path.join(__dirname, 'assets/icon.png');
+		app.dock.setIcon(iconPath);
+	}
+
 	const server = http.createServer((req, res) => {
 		try {
 			let reqPath = req.url.toString().split('?')[0];

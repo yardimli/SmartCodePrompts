@@ -208,6 +208,7 @@ export function setup_prompt_bar_listeners() {
 		prompt_input_debounce_timer = setTimeout(() => {
 			const prompt_text = e.target.value;
 			set_last_smart_prompt(prompt_text);
+			update_selected_content();
 			refresh_prompt_display();
 		}, 1000);
 	});

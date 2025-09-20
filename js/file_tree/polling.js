@@ -115,7 +115,7 @@ export function stop_file_tree_polling () {
 export function start_file_tree_polling () {
 	stop_file_tree_polling();
 	
-	const poll_interval = 5000; // Poll every 5 seconds for better responsiveness
+	const poll_interval = 60000; // Poll every 5 seconds for better responsiveness
 	
 	file_tree_update_interval = setInterval(async () => {
 		const current_project = get_current_project();

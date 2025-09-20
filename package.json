@@ -7,7 +7,7 @@
     "build": "tailwindcss -i ./css/index.css -o ./dist/output.css",
     "watch": "tailwindcss -i ./css/index.css -o ./dist/output.css --watch",
     "dev:set-name": "node set-app-name.js",
-    "start": "npm run build && electron .",
+    "start": "npm run build && npm run dev:set-name && electron .",
     "postinstall": "electron-rebuild",
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },

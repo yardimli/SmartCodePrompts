@@ -258,6 +258,38 @@ function remove_from_excluded_folders({ project_path, folder_path }) {
 	});
 }
 
+/**
+ * Marks a project as archived.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The path of the project to archive.
+ * @returns {{success: boolean}}
+ */
+function archive_project({ project_path }) { // ADDED: New function
+	try {
+		db.prepare('UPDATE projects SET is_archived = 1 WHERE path = ?').run(project_path);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error archiving project ${project_path}:`, error);
+		throw error;
+	}
+}
+
+/**
+ * Marks a project as not archived.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The path of the project to unarchive.
+ * @returns {{success: boolean}}
+ */
+function unarchive_project({ project_path }) { // ADDED: New function
+	try {
+		db.prepare('UPDATE projects SET is_archived = 0 WHERE path = ?').run(project_path);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error unarchiving project ${project_path}:`, error);
+		throw error;
+	}
+}
+
 module.exports = {
 	add_project,
 	get_project_state,
@@ -267,5 +299,7 @@ module.exports = {
 	get_project_settings,
 	is_path_excluded,
 	add_to_excluded_folders,
-	remove_from_excluded_folders
+	remove_from_excluded_folders,
+	archive_project, // ADDED: Export new function
+	unarchive_project // ADDED: Export new function
 };

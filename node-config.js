@@ -20,7 +20,8 @@ let config = {};
 function create_tables () {
 	db.exec(`
         CREATE TABLE IF NOT EXISTS projects (
-            path TEXT PRIMARY KEY
+            path TEXT PRIMARY KEY,
+            is_archived INTEGER DEFAULT 0 /* ADDED: Flag for archived projects */
         );
 
         CREATE TABLE IF NOT EXISTS project_states (
@@ -64,11 +65,18 @@ function create_tables () {
             completion_tokens INTEGER
         );
     `);
-
+	
 	// --- MODIFIED: Backward Compatibility & Migration Logic ---
 	db.transaction(() => {
+		// Migration for adding is_archived to projects table
+		const projectColumns = db.pragma("table_info('projects')");
+		if (!projectColumns.some(c => c.name === 'is_archived')) {
+			console.log("[DB Migration] Adding column 'is_archived' to table 'projects'.");
+			db.exec('ALTER TABLE projects ADD COLUMN is_archived INTEGER DEFAULT 0');
+		}
+		
 		const projectStatesColumns = db.pragma("table_info('project_states')");
-
+		
 		// Migration from the very old 'project_open_tabs' table
 		const oldTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='project_open_tabs'").get();
 		if (oldTableExists) {
@@ -85,7 +93,7 @@ function create_tables () {
 			db.exec('DROP TABLE project_open_tabs');
 			console.log('[DB Migration] Old `project_open_tabs` table dropped.');
 		}
-
+		
 		// Migration for adding/renaming the active tab column
 		if (projectStatesColumns.some(c => c.name === 'active_tab_id')) {
 			console.log("[DB Migration] Renaming 'active_tab_id' to 'active_tab_identifier'.");
@@ -224,10 +232,18 @@ function save_file_tree_width (width) {
 
 /**
  * Retrieves all data needed for the main page (index.html).
+ * @param {boolean} [show_archived=false] - Whether to include archived projects in the list.
  * @returns {object} An object containing projects, settings, and LLMs.
  */
-function get_main_page_data () {
-	const projects = db.prepare('SELECT path FROM projects ORDER BY path ASC').all();
+function get_main_page_data (show_archived = false) { // MODIFIED: Accept parameter
+                                                      // MODIFIED: Dynamically build the query based on the show_archived flag.
+	const project_query = show_archived
+		? 'SELECT path, is_archived FROM projects ORDER BY path ASC'
+		: 'SELECT path, is_archived FROM projects WHERE is_archived = 0 ORDER BY path ASC';
+	const projects = db.prepare(project_query).all();
+	
+	const archived_count = db.prepare('SELECT COUNT(*) as count FROM projects WHERE is_archived = 1').get().count;
+	
 	const settings = db.prepare('SELECT key, value FROM app_settings').all();
 	const app_settings = settings.reduce((acc, row) => {
 		acc[row.key] = row.value;
@@ -257,7 +273,8 @@ function get_main_page_data () {
 	}
 	
 	return {
-		projects,
+		projects, // This list is now dynamic
+		archived_count, // ADDED: Count of archived projects
 		last_selected_project: app_settings.last_selected_project || '',
 		dark_mode: app_settings.dark_mode === 'true',
 		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',

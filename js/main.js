@@ -31,6 +31,8 @@ import { initialize_confirm_modal, show_confirm } from './modal-confirm.js';
 import { initialize_prompt_modal } from './modal-prompt.js';
 import { initialize_diff_modal } from './modal-diff.js';
 import { setup_auto_select_listeners } from './auto_select.js';
+// ADDED: Import new project selector modules
+import { initialize_project_selector, setup_project_selector_listeners } from './project_selector.js';
 
 import { initialize_editor, saveTabContent, getActiveTabId, saveAllModifiedTabs, openFileInTab, setTabContent } from './editor.js';
 import { initialize_tab_switcher } from './tab-switcher.js';
@@ -264,38 +266,31 @@ async function initialize_app() {
 		update_api_key_status(data.api_key_set);
 		
 		let projects_exist = true;
-		const dropdown = document.getElementById('projects-dropdown');
-		dropdown.innerHTML = '';
+		// MODIFIED: Use the new project selector initialization function
+		initialize_project_selector(data.projects, data.archived_count);
+		
 		if (!data.projects || data.projects.length === 0) {
 			projects_exist = false;
-			dropdown.innerHTML = '<option value="">No projects found</option>';
 			document.getElementById('file-tree').innerHTML = '<p class="p-3 text-base-content/70">No projects configured. Please add a project to begin.</p>';
 			if (window.electronAPI && typeof window.electronAPI.updateWindowTitle === 'function') {
 				window.electronAPI.updateWindowTitle('Smart Code Prompts');
 			}
-		} else {
-			data.projects.forEach(project => {
-				const option = document.createElement('option');
-				option.value = project.path;
-				option.textContent = project.path;
-				dropdown.appendChild(option);
-			});
 		}
-		
-		dropdown.insertAdjacentHTML ('beforeend', '<option value="add_new_project" class="text-accent font-bold">Add New Project...</option>');
 		
 		const last_project_path = data.last_selected_project;
 		if (last_project_path) {
-			const options = Array.from(dropdown.options);
-			const matching_option = options.find(option => option.value === last_project_path);
+			// MODIFIED: Check against a full list of projects (including archived) to see if the last-opened one still exists.
+			const all_projects_data = await post_data({ action: 'get_main_page_data', show_archived: true });
+			const matching_project = all_projects_data.projects.find(p => p.path === last_project_path);
 			
-			if (matching_option) {
-				await load_project(last_project_path);
+			if (matching_project) {
+				await load_project(last_project_path, matching_project.is_archived);
 			} else if (data.projects.length > 0) {
-				await load_project(data.projects[0].path);
+				// Load the first non-archived project if the last one is gone
+				await load_project(data.projects[0].path, data.projects[0].is_archived);
 			}
 		} else if (data.projects.length > 0) {
-			await load_project(data.projects[0].path);
+			await load_project(data.projects[0].path, data.projects[0].is_archived);
 		}
 		
 		return projects_exist;
@@ -419,4 +414,5 @@ document.addEventListener('DOMContentLoaded', async function () {
 	setup_prompt_bar_listeners();
 	setup_auto_select_listeners();
 	setup_save_and_settings_listeners();
+	setup_project_selector_listeners(); // ADDED: Setup listeners for the new component
 });

@@ -20,6 +20,7 @@
 	<script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
 	<script src="./vendor/highlight.js/highlight.min.js"></script>
 	<script type="module" src="js/main.js"></script>
+	<script type="module" src="js/project_selector.js"></script> <!-- ADDED: Import new project selector module -->
 </head>
 <body class="h-screen overflow-hidden">
 <div class="flex h-full" id="app-container">
@@ -142,7 +143,20 @@
 		<div class="space-y-4">
 			<div class="form-control">
 				<label class="label"><span class="label-text">Project</span></label>
-				<select id="projects-dropdown" class="select select-bordered select-sm w-full" title="Select Project"></select>
+				<!-- MODIFIED: Replaced select with a text input for searchable dropdown and added action buttons -->
+				<div class="flex items-center gap-1">
+					<div id="project-selector-container" class="dropdown w-full">
+						<input type="text" id="project-search-input" placeholder="Select or search project..." class="input input-bordered input-sm w-full" tabindex="0">
+						<ul id="project-dropdown-list" tabindex="0" class="dropdown-content z-[1] menu flex-col flex-nowrap p-2 shadow bg-base-100 rounded-box w-full max-h-[70vh] overflow-y-auto mt-1">
+							<!-- Project list will be populated by JS -->
+						</ul>
+					</div>
+					<button id="archive-project-btn" class="btn btn-xs btn-ghost text-warning hidden" title="Archive Project"><i class="bi bi-archive"></i></button>
+					<button id="unarchive-project-btn" class="btn btn-xs btn-ghost text-success hidden" title="Unarchive Project"><i class="bi bi-box-arrow-up"></i></button>
+				</div>
+				<button id="toggle-archived-btn" class="btn btn-xs btn-outline w-full mt-1">
+					Show Archived <span id="archived-count-badge" class="badge badge-sm badge-neutral">0</span>
+				</button>
 			</div>
 			
 			<div class="divider"></div>

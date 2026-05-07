@@ -178,7 +178,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = {success: true};
 				break;
 			case 'get_main_page_data':
-				// MODIFIED: Pass the show_archived flag to the data fetching function.
 				result = config_manager.get_main_page_data(data.show_archived);
 				break;
 			
@@ -238,16 +237,16 @@ ipcMain.handle('post-data', async (event, data) => {
 				break;
 			
 			// --- Project Actions (from node-projects.js) ---
-			case 'favorite_project': // NEW: Handle for favoriting a project.
+			case 'favorite_project':
 				result = project_manager.favorite_project({ project_path: data.project_path });
 				break;
-			case 'unfavorite_project': // NEW: Handle for unfavoriting a project.
+			case 'unfavorite_project':
 				result = project_manager.unfavorite_project({ project_path: data.project_path });
 				break;
-			case 'archive_project': // ADDED: Handle for archiving a project
+			case 'archive_project':
 				result = project_manager.archive_project({ project_path: data.project_path });
 				break;
-			case 'unarchive_project': // ADDED: Handle for unarchiving a project
+			case 'unarchive_project':
 				result = project_manager.unarchive_project({ project_path: data.project_path });
 				break;
 			case 'add_project':
@@ -264,7 +263,6 @@ ipcMain.handle('post-data', async (event, data) => {
 				});
 				break;
 			case 'save_open_tabs':
-				// MODIFIED: Pass the stable identifier for the active tab.
 				result = project_manager.save_tabs_state({
 					project_path: data.project_path,
 					open_tabs_json: data.open_tabs,
@@ -334,6 +332,7 @@ ipcMain.handle('post-data', async (event, data) => {
 				result = node_files.check_for_modified_files({project_path: data.project_path});
 				break;
 			case 'check_folder_updates':
+				// MODIFIED: The 'known_files' parameter is no longer needed or passed.
 				result = node_files.check_folder_updates({
 					project_path: data.project_path
 				});

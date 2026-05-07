@@ -22,7 +22,7 @@ function create_tables () {
         CREATE TABLE IF NOT EXISTS projects (
             path TEXT PRIMARY KEY,
             is_archived INTEGER DEFAULT 0,
-            is_favorite INTEGER DEFAULT 0 /* NEW: Flag for favorite projects. */
+            is_favorite INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS project_states (
@@ -31,6 +31,7 @@ function create_tables () {
             selected_files TEXT,
             open_tabs TEXT,
             active_tab_identifier TEXT,
+            file_list_snapshot TEXT, /* NEW: Snapshot of all project files for reliable change detection. */
             FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
         );
 
@@ -67,15 +68,13 @@ function create_tables () {
         );
     `);
 	
-	// --- MODIFIED: Backward Compatibility & Migration Logic ---
+	// --- Backward Compatibility & Migration Logic ---
 	db.transaction(() => {
 		const projectColumns = db.pragma("table_info('projects')");
-		// Migration for adding is_archived to projects table
 		if (!projectColumns.some(c => c.name === 'is_archived')) {
 			console.log("[DB Migration] Adding column 'is_archived' to table 'projects'.");
 			db.exec('ALTER TABLE projects ADD COLUMN is_archived INTEGER DEFAULT 0');
 		}
-		// NEW: Migration for adding is_favorite to projects table.
 		if (!projectColumns.some(c => c.name === 'is_favorite')) {
 			console.log("[DB Migration] Adding column 'is_favorite' to table 'projects'.");
 			db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER DEFAULT 0');
@@ -83,7 +82,6 @@ function create_tables () {
 		
 		const projectStatesColumns = db.pragma("table_info('project_states')");
 		
-		// Migration from the very old 'project_open_tabs' table
 		const oldTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='project_open_tabs'").get();
 		if (oldTableExists) {
 			console.log('[DB Migration] Old `project_open_tabs` table found. Migrating data...');
@@ -100,13 +98,18 @@ function create_tables () {
 			console.log('[DB Migration] Old `project_open_tabs` table dropped.');
 		}
 		
-		// Migration for adding/renaming the active tab column
 		if (projectStatesColumns.some(c => c.name === 'active_tab_id')) {
 			console.log("[DB Migration] Renaming 'active_tab_id' to 'active_tab_identifier'.");
 			db.exec('ALTER TABLE project_states RENAME COLUMN active_tab_id TO active_tab_identifier');
 		} else if (!projectStatesColumns.some(c => c.name === 'active_tab_identifier')) {
 			console.log("[DB Migration] Adding column 'active_tab_identifier' to table 'project_states'.");
 			db.exec('ALTER TABLE project_states ADD COLUMN active_tab_identifier TEXT');
+		}
+		
+		// NEW: Migration for adding the file list snapshot column.
+		if (!projectStatesColumns.some(c => c.name === 'file_list_snapshot')) {
+			console.log("[DB Migration] Adding column 'file_list_snapshot' to table 'project_states'.");
+			db.exec('ALTER TABLE project_states ADD COLUMN file_list_snapshot TEXT');
 		}
 	})();
 	// --- END: Migration Logic ---
@@ -241,8 +244,7 @@ function save_file_tree_width (width) {
  * @param {boolean} [show_archived=false] - Whether to include archived projects in the list.
  * @returns {object} An object containing projects, settings, and LLMs.
  */
-function get_main_page_data (show_archived = false) { // MODIFIED: Accept parameter
-                                                      // MODIFIED: Dynamically build the query based on the show_archived flag.
+function get_main_page_data (show_archived = false) {
 	const project_query = show_archived
 		? 'SELECT path, is_archived, is_favorite FROM projects ORDER BY is_favorite DESC, path ASC'
 		: 'SELECT path, is_archived, is_favorite FROM projects WHERE is_archived = 0 ORDER BY is_favorite DESC, path ASC';
@@ -279,8 +281,8 @@ function get_main_page_data (show_archived = false) { // MODIFIED: Accept parame
 	}
 	
 	return {
-		projects, // This list is now dynamic
-		archived_count, // ADDED: Count of archived projects
+		projects,
+		archived_count,
 		last_selected_project: app_settings.last_selected_project || '',
 		dark_mode: app_settings.dark_mode === 'true',
 		right_sidebar_collapsed: app_settings.right_sidebar_collapsed === 'true',

@@ -88,8 +88,6 @@ function get_folders({ input_path, project_path }) {
 		return {folders: [], files: []};
 	}
 	
-	// MODIFIED: Sort folders and files alphabetically (case-insensitive) to ensure a consistent and user-friendly order.
-	// This ensures that within a directory listing, folders are grouped together and sorted, and files are grouped together and sorted.
 	folders.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 	files.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 	
@@ -111,7 +109,6 @@ function save_file_content({ project_path, file_path, content }) {
 	const full_path = resolve_path(file_path, project_path);
 	try {
 		fs.writeFileSync(full_path, content, 'utf8');
-		// MODIFIED: After writing, get the new stats to return the updated modification time.
 		const stats = fs.statSync(full_path);
 		return { success: true, mtimeMs: stats.mtimeMs };
 	} catch (error) {
@@ -313,58 +310,69 @@ function get_all_project_files(project_path, settings) {
 }
 
 /**
- * Checks for file system changes by comparing tracked files with the actual file system.
- * Detects new files, deleted files, and modifications to existing files.
+ * Checks for file system changes by comparing the file system against a stored snapshot.
+ * This correctly identifies additions and deletions without being affected by UI state.
  * @param {object} params - The parameters.
  * @param {string} params.project_path - The full path of the project.
  * @returns {object} An object containing arrays of added, deleted, and updated files.
  */
 function check_folder_updates({ project_path }) {
-	// 1. Get all files currently tracked in the DB
-	const db_files_stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
-	const db_files_list = db_files_stmt.all(project_path);
-	const db_files_map = new Map(db_files_list.map(r => [r.file_path, r.last_checksum]));
+	// 1. Get the last known file list from the database snapshot.
+	const state_row = db.prepare('SELECT file_list_snapshot FROM project_states WHERE project_path = ?').get(project_path);
+	const previous_files = new Set(state_row?.file_list_snapshot ? JSON.parse(state_row.file_list_snapshot) : []);
 	
-	// 2. Get all valid files from the filesystem
+	// 2. Get the current list of all valid files from the filesystem.
 	const settings = get_project_settings(project_path);
-	const fs_files_set = get_all_project_files(project_path, settings);
+	const current_files_set = get_all_project_files(project_path, settings);
 	
-	// 3. Compare sets to find added and deleted files
-	const added_files_paths = [...fs_files_set].filter(p => !db_files_map.has(p));
-	const deleted_files_paths = [...db_files_map.keys()].filter(p => !fs_files_set.has(p));
+	// 3. Compare the current list against the previous list to find true additions and deletions.
+	const added_files_paths = [...current_files_set].filter(p => !previous_files.has(p));
+	const deleted_files_paths = [...previous_files].filter(p => !current_files_set.has(p));
 	
-	// 4. Process existing files for updates (checksum, git status)
+	// 4. If there were any structural changes, update the snapshot in the database for the next poll.
+	if (added_files_paths.length > 0 || deleted_files_paths.length > 0) {
+		db.prepare('INSERT OR IGNORE INTO project_states (project_path) VALUES (?)').run(project_path);
+		db.prepare('UPDATE project_states SET file_list_snapshot = ? WHERE project_path = ?')
+			.run(JSON.stringify([...current_files_set]), project_path);
+	}
+	
+	// 5. Check for modification status (reanalysis needed, git diff) on all current files.
 	const updates = [];
+	const db_files_stmt = db.prepare('SELECT file_path, last_checksum FROM file_metadata WHERE project_path = ?');
+	const db_files_map = new Map(db_files_stmt.all(project_path).map(r => [r.file_path, r.last_checksum]));
 	const modifiedGitFiles = getGitModifiedFiles(project_path);
 	
-	db_files_list.forEach(file => {
-		// Only process files that still exist on the filesystem
-		if (fs_files_set.has(file.file_path)) {
+	for (const file_path of current_files_set) {
+		let needs_reanalysis = false;
+		const has_git_diff = modifiedGitFiles.has(file_path);
+		
+		// Check for content modification only if the file has been analyzed before.
+		if (db_files_map.has(file_path)) {
 			try {
-				const full_path = resolve_path(file.file_path, project_path);
+				const full_path = resolve_path(file_path, project_path);
 				const file_content = fs.readFileSync(full_path);
 				const current_checksum = calculate_checksum(file_content);
-				
-				const needs_reanalysis = current_checksum !== file.last_checksum;
-				const has_git_diff = modifiedGitFiles.has(file.file_path);
-				
-				updates.push({
-					file_path: file.file_path,
-					needs_reanalysis: needs_reanalysis,
-					has_git_diff: has_git_diff
-				});
+				const stored_checksum = db_files_map.get(file_path);
+				if (current_checksum !== stored_checksum) {
+					needs_reanalysis = true;
+				}
 			} catch (error) {
-				console.error(`Error checking file for modification during poll: ${file.file_path}`, error);
-				updates.push({
-					file_path: file.file_path,
-					needs_reanalysis: true,
-					has_git_diff: false
-				});
+				// File might have been deleted between scanning and reading, handle gracefully.
+				if (error.code !== 'ENOENT') {
+					console.error(`Error checking file for modification during poll: ${file_path}`, error);
+				}
 			}
 		}
-	});
+		
+		// Always send the current status so the UI can add OR remove icons as needed.
+		updates.push({
+			file_path: file_path,
+			needs_reanalysis: needs_reanalysis,
+			has_git_diff: has_git_diff
+		});
+	}
 	
-	// 5. Format added files with details needed by the frontend
+	// 6. Format added files with details needed by the frontend to render them.
 	const added_files_details = added_files_paths.map(p => ({
 		path: p,
 		name: path.basename(p),

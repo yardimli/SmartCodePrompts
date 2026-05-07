@@ -5,7 +5,7 @@ import { load_folders, restore_state, start_file_tree_polling, stop_file_tree_po
 import { show_alert } from './modal-alert.js';
 import { openFileInTab, closeAllTabs, switchToTab, getTabs } from './editor.js';
 import { update_project_settings } from './settings.js';
-import { update_project_display } from './project_selector.js'; // ADDED: Import from new module
+import { update_project_display } from './project_selector.js';
 
 /**
  * Opens a native dialog to select a project folder and adds it to the application.
@@ -20,14 +20,14 @@ export async function open_project_modal() {
 				const result = await post_data({ action: 'add_project', path: selected_path });
 				
 				if (result.success && result.project) {
-					// MODIFIED: A full page reload is the most robust way to ensure all UI components
+					// A full page reload is the most robust way to ensure all UI components
 					// (like the project list) are consistent after adding a new project.
 					window.location.reload();
 				} else {
 					console.error('Failed to add project:', result);
 					show_alert(result.message || 'Failed to add project.', 'Error');
 					if (result.project) {
-						await load_project(result.project.path, result.project.is_archived);
+						await load_project(result.project.path, result.project.is_archived, result.project.is_favorite);
 					}
 				}
 			} catch (error) {
@@ -47,8 +47,9 @@ export async function open_project_modal() {
  * Loads a project, including its file tree and saved state.
  * @param {string} project_path - The full, absolute path of the project.
  * @param {boolean} is_archived - Whether the project is archived.
+ * @param {boolean} is_favorite - Whether the project is a favorite.
  */
-export async function load_project(project_path, is_archived = false) { // MODIFIED: Added is_archived parameter
+export async function load_project(project_path, is_archived = false, is_favorite = false) { // MODIFIED: Added is_favorite parameter
 	const previous_project = get_current_project();
 	
 	if (previous_project && previous_project.path !== project_path) {
@@ -63,9 +64,9 @@ export async function load_project(project_path, is_archived = false) { // MODIF
 		return;
 	}
 	show_loading(`Loading project "${project_path}"...`);
-	// MODIFIED: Store archived status in the current project state object
-	set_current_project({ path: project_path, is_archived: is_archived });
-	update_project_display(project_path, is_archived); // MODIFIED: Update the new selector's display
+	// MODIFIED: Store archived and favorite status in the current project state object.
+	set_current_project({ path: project_path, is_archived: is_archived, is_favorite: is_favorite });
+	update_project_display(project_path, is_archived, is_favorite); // MODIFIED: Update the new selector's display
 	
 	try {
 		const saved_state = await post_data({
@@ -105,22 +106,17 @@ export async function load_project(project_path, is_archived = false) { // MODIF
 			await Promise.all(open_tab_promises);
 		}
 		
-		// MODIFIED: After all tabs are loaded, find the one matching the stable identifier and activate it.
 		if (saved_state && saved_state.active_tab_identifier) {
 			const identifier = saved_state.active_tab_identifier;
 			let tabToActivate = null;
 			
 			if (identifier === '__PROMPT_TAB__') {
-				// Find the special prompt tab by its unique properties.
 				tabToActivate = getTabs().find(t => t.title === 'Prompt' && !t.isCloseable);
 			} else {
-				// Find a file-based tab by its filePath.
 				tabToActivate = getTabs().find(t => t.filePath === identifier);
 			}
 			
 			if (tabToActivate) {
-				// We found it! Now use its *new* dynamic ID to switch.
-				// A brief timeout helps ensure the DOM is fully rendered before switching.
 				setTimeout(() => switchToTab(tabToActivate.id), 100);
 			}
 		}
@@ -138,6 +134,6 @@ export async function load_project(project_path, is_archived = false) { // MODIF
 /**
  * Sets up the event listener for the main sidebar's "Add Project" button.
  */
-export function setup_project_listeners() { // MODIFIED: This function is now simplified.
+export function setup_project_listeners() {
 	document.getElementById('add-project-button').addEventListener('click', open_project_modal);
 }

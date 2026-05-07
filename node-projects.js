@@ -290,6 +290,38 @@ function unarchive_project({ project_path }) { // ADDED: New function
 	}
 }
 
+/**
+ * NEW: Marks a project as a favorite.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The path of the project to favorite.
+ * @returns {{success: boolean}}
+ */
+function favorite_project({ project_path }) {
+	try {
+		db.prepare('UPDATE projects SET is_favorite = 1 WHERE path = ?').run(project_path);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error favoriting project ${project_path}:`, error);
+		throw error;
+	}
+}
+
+/**
+ * NEW: Marks a project as not a favorite.
+ * @param {object} params - The parameters.
+ * @param {string} params.project_path - The path of the project to unfavorite.
+ * @returns {{success: boolean}}
+ */
+function unfavorite_project({ project_path }) {
+	try {
+		db.prepare('UPDATE projects SET is_favorite = 0 WHERE path = ?').run(project_path);
+		return { success: true };
+	} catch (error) {
+		console.error(`Error unfavoriting project ${project_path}:`, error);
+		throw error;
+	}
+}
+
 module.exports = {
 	add_project,
 	get_project_state,
@@ -300,6 +332,8 @@ module.exports = {
 	is_path_excluded,
 	add_to_excluded_folders,
 	remove_from_excluded_folders,
-	archive_project, // ADDED: Export new function
-	unarchive_project // ADDED: Export new function
+	archive_project,
+	unarchive_project,
+	favorite_project, // NEW: Export new function.
+	unfavorite_project // NEW: Export new function.
 };

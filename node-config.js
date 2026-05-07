@@ -21,7 +21,8 @@ function create_tables () {
 	db.exec(`
         CREATE TABLE IF NOT EXISTS projects (
             path TEXT PRIMARY KEY,
-            is_archived INTEGER DEFAULT 0 /* ADDED: Flag for archived projects */
+            is_archived INTEGER DEFAULT 0,
+            is_favorite INTEGER DEFAULT 0 /* NEW: Flag for favorite projects. */
         );
 
         CREATE TABLE IF NOT EXISTS project_states (
@@ -29,7 +30,7 @@ function create_tables () {
             open_folders TEXT,
             selected_files TEXT,
             open_tabs TEXT,
-            active_tab_identifier TEXT, /* MODIFIED: Renamed from active_tab_id for clarity */
+            active_tab_identifier TEXT,
             FOREIGN KEY (project_path) REFERENCES projects (path) ON DELETE CASCADE
         );
 
@@ -68,11 +69,16 @@ function create_tables () {
 	
 	// --- MODIFIED: Backward Compatibility & Migration Logic ---
 	db.transaction(() => {
-		// Migration for adding is_archived to projects table
 		const projectColumns = db.pragma("table_info('projects')");
+		// Migration for adding is_archived to projects table
 		if (!projectColumns.some(c => c.name === 'is_archived')) {
 			console.log("[DB Migration] Adding column 'is_archived' to table 'projects'.");
 			db.exec('ALTER TABLE projects ADD COLUMN is_archived INTEGER DEFAULT 0');
+		}
+		// NEW: Migration for adding is_favorite to projects table.
+		if (!projectColumns.some(c => c.name === 'is_favorite')) {
+			console.log("[DB Migration] Adding column 'is_favorite' to table 'projects'.");
+			db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER DEFAULT 0');
 		}
 		
 		const projectStatesColumns = db.pragma("table_info('project_states')");
@@ -238,8 +244,8 @@ function save_file_tree_width (width) {
 function get_main_page_data (show_archived = false) { // MODIFIED: Accept parameter
                                                       // MODIFIED: Dynamically build the query based on the show_archived flag.
 	const project_query = show_archived
-		? 'SELECT path, is_archived FROM projects ORDER BY path ASC'
-		: 'SELECT path, is_archived FROM projects WHERE is_archived = 0 ORDER BY path ASC';
+		? 'SELECT path, is_archived, is_favorite FROM projects ORDER BY is_favorite DESC, path ASC'
+		: 'SELECT path, is_archived, is_favorite FROM projects WHERE is_archived = 0 ORDER BY is_favorite DESC, path ASC';
 	const projects = db.prepare(project_query).all();
 	
 	const archived_count = db.prepare('SELECT COUNT(*) as count FROM projects WHERE is_archived = 1').get().count;

@@ -3,8 +3,8 @@
 import { post_data } from '../utils.js';
 import { get_current_project } from '../state.js';
 import { updateTabGitStatus } from '../editor.js';
-import { get_filetype_class } from './renderer.js';
-import { update_selected_content } from './state.js';
+import { get_filetype_class, load_folders } from './renderer.js'; // MODIFIED: Import load_folders
+import { restore_state, update_selected_content } from './state.js'; // MODIFIED: Import restore_state
 
 // A handle for the file tree update polling interval.
 let file_tree_update_interval = null;
@@ -12,15 +12,34 @@ let file_tree_update_interval = null;
 /**
  * This function is called by the polling mechanism and performs surgical DOM updates
  * to reflect filesystem changes (added, deleted, modified files) without a full refresh.
+ * If files are added or deleted, it triggers a full refresh of the tree to ensure consistency.
  * @param {object} updates - An object with `updates`, `deleted`, and `added` file arrays.
  */
-function handle_file_system_updates (updates) {
+async function handle_file_system_updates (updates) { // MODIFIED: Made function async
 	const file_tree = document.getElementById('file-tree');
 	if (!file_tree) return;
 	
-	let content_needs_update = false;
+	// MODIFIED: If files were added or deleted, perform a full refresh of the file tree
+	// to ensure the UI is perfectly in sync with the file system. This is more robust
+	// than surgical DOM updates for additions and deletions.
+	if (updates.added.length > 0 || updates.deleted.length > 0) {
+		console.log('File system changes detected, performing full file tree refresh.');
+		
+		// Preserve current state (open folders and selected files) before reloading.
+		const open_folders = Array.from(document.querySelectorAll('#file-tree .folder.open'))
+			.map(el => el.dataset.path);
+		const selected_files = Array.from(document.querySelectorAll('#file-tree input[type="checkbox"]:checked'))
+			.map(el => el.dataset.path);
+		const state_to_restore = { open_folders, selected_files };
+		
+		// Reload the entire file tree from the root.
+		await load_folders('.', null);
+		
+		// Restore the preserved state, which also updates the prompt content.
+		await restore_state(state_to_restore);
+	}
 	
-	// 1. Handle icon/status UPDATES on existing files
+	// Always process status updates for files, as they can change independently.
 	(updates.updates || []).forEach(file_update => {
 		updateTabGitStatus(file_update.file_path, file_update.has_git_diff);
 		
@@ -43,58 +62,6 @@ function handle_file_system_updates (updates) {
 			existing_diff_icon.remove();
 		}
 	});
-	
-	// 2. Handle DELETED files
-	(updates.deleted || []).forEach(file_path => {
-		const file_li = file_tree.querySelector(`input[type="checkbox"][data-path="${file_path}"]`)?.closest('li');
-		if (file_li) {
-			const checkbox = file_li.querySelector('input[type="checkbox"]');
-			if (checkbox && checkbox.checked) {
-				content_needs_update = true;
-			}
-			file_li.remove();
-		}
-	});
-	
-	// 3. Handle ADDED files
-	(updates.added || []).forEach(file_info => {
-		const parent_folder_element = file_tree.querySelector(`.folder[data-path="${file_info.parent_path}"]`);
-		
-		// Only add the file to the DOM if its parent folder is currently open
-		if (parent_folder_element && parent_folder_element.classList.contains('open')) {
-			const parent_li = parent_folder_element.closest('li');
-			let parent_ul = parent_li.nextElementSibling;
-			
-			if (!parent_ul || parent_ul.tagName !== 'UL') {
-				parent_ul = document.createElement('ul');
-				parent_ul.className = 'pl-4';
-				parent_li.after(parent_ul);
-			}
-			
-			if (parent_ul.querySelector(`[data-path="${file_info.path}"]`)) {
-				return; // Avoid duplicating if already present
-			}
-			
-			const filetype_class = get_filetype_class(file_info.name);
-			const new_li_html = `
-                <li>
-                    <div class="checkbox-wrapper">
-                        <input type="checkbox" data-path="${file_info.path}" class="checkbox checkbox-xs checkbox-primary align-middle" data-has_analysis="false">
-                    </div>
-                    <div class="file-entry align-middle" data-path="${file_info.path}">
-                        <span class="file ${filetype_class}"></span>
-                        <span class="file-name" title="${file_info.path}">${file_info.name}</span>
-                    </div>
-                </li>`;
-			
-			// Append the new file. Imperfect sorting is acceptable to avoid the blink.
-			parent_ul.insertAdjacentHTML('beforeend', new_li_html);
-		}
-	});
-	
-	if (content_needs_update) {
-		update_selected_content();
-	}
 }
 
 /**
@@ -115,9 +82,9 @@ export function stop_file_tree_polling () {
 export function start_file_tree_polling () {
 	stop_file_tree_polling();
 	
-	const poll_interval = 60000; // Poll every 5 seconds for better responsiveness
+	const poll_interval = 15000; // Poll every 15 seconds for better responsiveness
 	
-	file_tree_update_interval = setInterval(async () => {
+	file_tree_update_interval = setInterval(async () => { // MODIFIED: Callback is now async
 		const current_project = get_current_project();
 		if (!current_project) {
 			stop_file_tree_polling();
@@ -133,7 +100,7 @@ export function start_file_tree_polling () {
 			// Only process if there are actual changes to report
 			if (updates.added.length > 0 || updates.deleted.length > 0 || updates.updates.length > 0) {
 				console.log('File system changes detected:', updates);
-				handle_file_system_updates(updates);
+				await handle_file_system_updates(updates); // MODIFIED: Await the async handler
 			}
 		} catch (error) {
 			console.error('Error polling for file tree updates:', error);

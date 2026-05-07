@@ -279,18 +279,19 @@ async function initialize_app() {
 		
 		const last_project_path = data.last_selected_project;
 		if (last_project_path) {
-			// MODIFIED: Check against a full list of projects (including archived) to see if the last-opened one still exists.
 			const all_projects_data = await post_data({ action: 'get_main_page_data', show_archived: true });
 			const matching_project = all_projects_data.projects.find(p => p.path === last_project_path);
 			
 			if (matching_project) {
-				await load_project(last_project_path, matching_project.is_archived);
+				// MODIFIED: Pass the project's favorite status when loading.
+				await load_project(last_project_path, matching_project.is_archived, matching_project.is_favorite);
 			} else if (data.projects.length > 0) {
-				// Load the first non-archived project if the last one is gone
-				await load_project(data.projects[0].path, data.projects[0].is_archived);
+				// MODIFIED: Pass the project's favorite status when loading the fallback project.
+				await load_project(data.projects[0].path, data.projects[0].is_archived, data.projects[0].is_favorite);
 			}
 		} else if (data.projects.length > 0) {
-			await load_project(data.projects[0].path, data.projects[0].is_archived);
+			// MODIFIED: Pass the project's favorite status when loading the first project.
+			await load_project(data.projects[0].path, data.projects[0].is_archived, data.projects[0].is_favorite);
 		}
 		
 		return projects_exist;

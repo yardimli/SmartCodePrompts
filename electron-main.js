@@ -238,6 +238,12 @@ ipcMain.handle('post-data', async (event, data) => {
 				break;
 			
 			// --- Project Actions (from node-projects.js) ---
+			case 'favorite_project': // NEW: Handle for favoriting a project.
+				result = project_manager.favorite_project({ project_path: data.project_path });
+				break;
+			case 'unfavorite_project': // NEW: Handle for unfavoriting a project.
+				result = project_manager.unfavorite_project({ project_path: data.project_path });
+				break;
 			case 'archive_project': // ADDED: Handle for archiving a project
 				result = project_manager.archive_project({ project_path: data.project_path });
 				break;
